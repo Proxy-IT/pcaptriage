@@ -98,6 +98,21 @@ type CaptureInfo struct {
 	FlowCap       int
 	FlowsEvicted  uint64
 	PeakLiveFlows int
+
+	// DropAvailability says whether this capture could report packets the
+	// capture host discarded before writing them.
+	DropAvailability capture.DropAvailability
+	// InterfaceDrops is per-interface, ascending by interface id.
+	InterfaceDrops []capture.InterfaceDrops
+	// PacketsDropped is the total across interfaces.
+	PacketsDropped uint64
+	// DropRatio is PacketsDropped against what the file would have held had
+	// nothing been dropped, so 0.01 means one packet in a hundred never
+	// reached the file.
+	DropRatio float64
+	// DropsSignificant reports that the ratio cleared the threshold at which
+	// apparent packet loss can no longer be assumed to be loss on the wire.
+	DropsSignificant bool
 }
 
 // Result is everything a report needs from a run.
@@ -106,6 +121,10 @@ type Result struct {
 	Findings []*findings.Finding
 	Notes    []findings.Note
 	Checks   []rules.Meta
+	// Quality is what the capture itself can support, as the rules saw it.
+	// Carried out of the run so a reader can tell why a finding was degraded
+	// without re-deriving the reason.
+	Quality rules.CaptureQuality
 }
 
 // Run analyses a capture file.
@@ -258,6 +277,12 @@ func Run(path string, opts Options) (*Result, error) {
 	info.PeakLiveFlows = fstats.PeakLive
 	info.TCPHosts = len(hosts)
 
+	// Drop counters live in an Interface Statistics Block, which a capture tool
+	// writes when it closes the file — so they are only complete now, once the
+	// read has finished.
+	drops, dropAvailability := r.Drops()
+	summariseDrops(&info, drops, dropAvailability)
+
 	pop := &rules.Population{
 		TCPFlows:       info.TCPFlows,
 		TCPHosts:       sortedAddrs(hosts),
@@ -266,11 +291,17 @@ func Run(path string, opts Options) (*Result, error) {
 		CompleteFlows:  completeFlows,
 		CaptureStart:   info.FirstPacketTime,
 		CaptureEnd:     info.LastPacketTime,
+		Quality:        dropQuality(&info),
 	}
 
 	for _, d := range detectors {
 		d.Emit(pop, store)
 	}
+
+	// Said on every capture, whatever the answer. "No drops recorded" and "no
+	// drop counter exists" are different facts and the second must not be
+	// rendered as the first.
+	store.AddNote(dropNote(&info))
 
 	if fstats.Evicted > 0 {
 		store.AddNote(findings.Note{
@@ -289,6 +320,7 @@ func Run(path string, opts Options) (*Result, error) {
 		Findings: store.Findings(),
 		Notes:    store.Notes(),
 		Checks:   rules.AllMeta(),
+		Quality:  pop.Quality,
 	}, nil
 }
 

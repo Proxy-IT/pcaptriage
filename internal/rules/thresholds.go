@@ -62,6 +62,20 @@ var Thresholds = struct {
 	// [chosen] Keeps per-flow state around a kilobyte so the flow cap
 	// translates to a predictable memory ceiling.
 	R04FlowExchangeBuffer int
+
+	// R15KernelDropRatio is the share of the capture the capture host must have
+	// dropped before loss findings are treated as ambiguous.
+	//
+	// Packets the capture host discarded are indistinguishable from packets
+	// lost on the wire, so above this figure a reported loss rate might be
+	// describing the capture rather than the network.
+	//
+	// [chosen] RULES.md gives no figure. 0.1% is the order of magnitude the
+	// loss rules themselves work at — R06's own example contrasts a 0.9% rate
+	// against a 0.1% capture median — so below it capture loss cannot plausibly
+	// account for a rate a rule would flag, and above it, it can. Wants
+	// calibration against real captures like every other threshold here.
+	R15KernelDropRatio float64
 }{
 	R01ZeroWindowMinCumulative: 100 * time.Millisecond,
 
@@ -71,4 +85,6 @@ var Thresholds = struct {
 	R04MinPeerGroup:           2,
 	R04NetworkComparableRatio: 4.0,
 	R04FlowExchangeBuffer:     32,
+
+	R15KernelDropRatio: 0.001, // 0.1% of packets read
 }

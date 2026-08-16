@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"sort"
 	"sync/atomic"
 
 	"github.com/gopacket/gopacket"
@@ -24,6 +25,44 @@ const (
 
 // ErrUnknownFormat reports a file that is neither pcap nor pcapng.
 var ErrUnknownFormat = errors.New("file is neither pcap nor pcapng (magic number not recognised)")
+
+// DropAvailability says whether this capture can tell us how many packets the
+// capturing host dropped before they ever reached the file.
+//
+// The distinction between "the file says none" and "the file cannot say"
+// matters more here than almost anywhere else in the tool. Packets dropped by
+// the capture host look exactly like packets lost on the network, and a rule
+// reporting loss cannot tell them apart. Reporting "no drops" when the truth is
+// "no drop counter exists" would be the false all-clear the brief's section 9
+// is about.
+type DropAvailability string
+
+const (
+	// DropsReported means the file carries drop counters and they were read.
+	DropsReported DropAvailability = "reported"
+	// DropsAbsent means the format supports drop counters but this file has
+	// none — a pcapng with no Interface Statistics Block.
+	DropsAbsent DropAvailability = "absent"
+	// DropsUnsupported means the format has nowhere to record them. Classic
+	// pcap has no such field at all.
+	DropsUnsupported DropAvailability = "unsupported-format"
+)
+
+// InterfaceDrops is one capture interface's packet counters, as the file
+// reports them.
+type InterfaceDrops struct {
+	// ID is the pcapng interface identifier.
+	ID int
+	// Name is the interface name where the file records one.
+	Name string
+	// Dropped is packets the capture host discarded before writing them.
+	Dropped uint64
+	// Received is packets the capture host saw. Zero when the file omits it.
+	Received uint64
+	// ReceivedKnown reports whether Received was present; a file may record
+	// drops without recording receipts.
+	ReceivedKnown bool
+}
 
 // countingReader tallies bytes pulled from the file, so an interface can show
 // how far through a capture the run is.
@@ -65,6 +104,14 @@ type Reader struct {
 	// which means unlimited rather than zero.
 	snaplenKnown bool
 
+	// dropsByInterface accumulates Interface Statistics Blocks as they are
+	// read. Keyed by interface id, so it is sorted before it is handed out.
+	//
+	// An ISB is normally written when the capture is closed, so these arrive at
+	// the very end of the file — after every packet. Nothing may read them
+	// mid-run and expect them to be complete.
+	dropsByInterface map[int]InterfaceDrops
+
 	frame uint64
 }
 
@@ -97,12 +144,17 @@ func Open(path string) (*Reader, error) {
 	switch {
 	case binary.BigEndian.Uint32(magic) == 0x0a0d0d0a:
 		r.format = FormatPcapng
+		r.dropsByInterface = make(map[int]InterfaceDrops)
 		ng, err := pcapgo.NewNgReader(r.br, pcapgo.NgReaderOptions{
 			// Mixing link types in one file is a merge artifact. Refusing it
 			// is better than silently dropping the packets libpcap would drop.
 			WantMixedLinkType:          false,
 			ErrorOnMismatchingLinkType: true,
 			SkipUnknownVersion:         true,
+			// Interface Statistics Blocks are how a pcapng records what the
+			// capture host itself threw away. pcapgo surfaces them here, so
+			// nothing has to parse the block structure by hand.
+			StatisticsCallback: r.recordInterfaceStats,
 		})
 		if err != nil {
 			f.Close()
@@ -179,6 +231,55 @@ func (r *Reader) LinkType() layers.LinkType { return r.linkType }
 // Snaplen reports the capture snap length. ok is false when the file declares
 // no limit.
 func (r *Reader) Snaplen() (snaplen uint32, ok bool) { return r.snaplen, r.snaplenKnown }
+
+// recordInterfaceStats folds one Interface Statistics Block into the tally.
+//
+// A file may carry several for the same interface — statistics are cumulative
+// snapshots, so the last one seen for an interface wins rather than being
+// summed. Summing would multiply the same drops by however many times the
+// capture tool checkpointed them.
+func (r *Reader) recordInterfaceStats(id int, stats pcapgo.NgInterfaceStatistics) {
+	d := InterfaceDrops{ID: id}
+	if stats.PacketsDropped != pcapgo.NgNoValue64 {
+		d.Dropped = stats.PacketsDropped
+	}
+	if stats.PacketsReceived != pcapgo.NgNoValue64 {
+		d.Received = stats.PacketsReceived
+		d.ReceivedKnown = true
+	}
+	if iface, err := r.ng.Interface(id); err == nil {
+		d.Name = iface.Name
+	}
+	r.dropsByInterface[id] = d
+}
+
+// Drops reports what the capture host discarded, and whether the file was able
+// to say at all.
+//
+// Only meaningful once the file has been read to the end: an Interface
+// Statistics Block is normally written when the capture is closed, so calling
+// this mid-run will under-report.
+func (r *Reader) Drops() (drops []InterfaceDrops, availability DropAvailability) {
+	if r.format != FormatPcapng {
+		// Classic pcap has no field for this. Not "no drops" — no answer.
+		return nil, DropsUnsupported
+	}
+	if len(r.dropsByInterface) == 0 {
+		return nil, DropsAbsent
+	}
+
+	ids := make([]int, 0, len(r.dropsByInterface))
+	for id := range r.dropsByInterface {
+		ids = append(ids, id)
+	}
+	sort.Ints(ids)
+
+	out := make([]InterfaceDrops, 0, len(ids))
+	for _, id := range ids {
+		out = append(out, r.dropsByInterface[id])
+	}
+	return out, DropsReported
+}
 
 // BytesRead reports how many bytes have been pulled from the file so far.
 func (r *Reader) BytesRead() int64 { return r.counter.n.Load() }

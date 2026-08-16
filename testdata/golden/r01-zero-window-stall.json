@@ -94,6 +94,11 @@
       "kind": "unavailable",
       "rule_id": "R04",
       "text": "Not assessed: server response time for 11 server endpoints with fewer than 5 completed request/response exchanges. Percentiles over that few samples would not describe a distribution."
+    },
+    {
+      "kind": "unavailable",
+      "rule_id": "R15",
+      "text": "Not assessed: whether the capture host dropped packets before writing them. The classic pcap format has no field to record it, so this file cannot say either way. Packets dropped by the capturing machine look the same as packets lost on the network. If that distinction matters here, re-capturing in pcapng format would record the count."
     }
   ]
 }

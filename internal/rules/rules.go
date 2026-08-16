@@ -56,6 +56,29 @@ type Detector interface {
 	Emit(pop *Population, out *findings.Store)
 }
 
+// CaptureQuality carries the facts about the capture itself that make other
+// rules' findings less certain than they look.
+//
+// This is the gating seam R15 owns. It has no consumers yet: the rules that
+// must read it — R05, R06 and R08, whose loss findings are the ones capture
+// loss can counterfeit — are not implemented. It exists now because the
+// detection that fills it is implemented, and a fact the tool has established
+// but has nowhere to put is a fact it will forget to use later.
+//
+// A rule consuming this degrades a finding to inferred and states the basis; it
+// does not suppress the finding. The loss may well be real — the point is that
+// this capture cannot prove it either way.
+type CaptureQuality struct {
+	// KernelDropsSignificant reports that the capture host discarded enough of
+	// the capture that apparent packet loss may be capture loss instead.
+	//
+	// R05, R06 and R08 must consult this when they are built.
+	KernelDropsSignificant bool
+	// KernelDropBasis is the sentence a degraded finding states as its reason.
+	// Empty when KernelDropsSignificant is false.
+	KernelDropBasis string
+}
+
 // Population is the capture-wide context a rule compares its subjects against.
 //
 // This is the mechanism that makes findings meaningful: most of what makes
@@ -76,6 +99,11 @@ type Population struct {
 
 	CaptureStart time.Time
 	CaptureEnd   time.Time
+
+	// Quality is what the capture itself can and cannot support. Rules whose
+	// findings depend on the capture being faithful consult it before claiming
+	// certainty.
+	Quality CaptureQuality
 }
 
 // TotalHosts reports how many distinct hosts took part in TCP flows.

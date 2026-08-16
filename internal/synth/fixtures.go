@@ -18,6 +18,12 @@ type Fixture struct {
 	Purpose string
 	// Build renders the frames.
 	Build func() *Builder
+	// FormatsDiffer marks a fixture whose pcap and pcapng renderings are not
+	// expected to analyse identically, because it exercises something only one
+	// format can carry — capture-host drop counters, which classic pcap has no
+	// field for. The equivalence test skips these rather than being weakened
+	// for every other fixture.
+	FormatsDiffer bool
 }
 
 // Fixtures is every fixture in the suite. Each rule has a positive fixture
@@ -50,7 +56,65 @@ func Fixtures() []Fixture {
 			Purpose: "Determinism and ranking: five findings across both rules, several hosts, and a proximity bonus.",
 			Build:   buildMixed,
 		},
+		{
+			Name:          "r15-kernel-drops",
+			Purpose:       "R15 positive: pcapng whose interface statistics report the capture host dropping 2% of the traffic it saw.",
+			Build:         buildKernelDrops,
+			FormatsDiffer: true,
+		},
+		{
+			Name:          "r15-no-kernel-drops",
+			Purpose:       "R15 negative: pcapng whose interface statistics report zero drops, so loss found here is loss on the wire.",
+			Build:         buildNoKernelDrops,
+			FormatsDiffer: true,
+		},
 	}
+}
+
+// dropsTraffic is the ordinary conversation both drop fixtures carry.
+//
+// It is deliberately unremarkable: these fixtures are about what the file says
+// happened to the capture, not about what the rules find inside it, and a
+// finding here would only be noise in the assertion.
+func dropsTraffic() *Builder {
+	b := New()
+	for i := 0; i < 4; i++ {
+		c := b.NewConn(ConnOpts{
+			Client:    fmt.Sprintf("10.1.1.5:%d", 45000+i),
+			Server:    fmt.Sprintf("10.2.2.%d:443", 10+i),
+			ClientISN: uint32(20000 + i*1000),
+			ServerISN: uint32(70000 + i*1000),
+		})
+		start := 50*ms + time.Duration(i)*40*ms
+		c.Handshake(start, 10*ms)
+		end := exchanges(c, start+30*ms, evenDeltas(6, 20*ms, 2*ms), 10*ms, 40*ms)
+		c.FinClose(end, 5*ms)
+	}
+	return b
+}
+
+// buildKernelDrops is the positive case: the capture host says it threw away
+// part of what it saw, so loss found in this file cannot be assumed to be loss
+// on the wire.
+//
+// Two packets in ninety-eight is about 2%: an order of magnitude above the
+// threshold, so the fixture is not testing rounding, but still the sort of
+// figure a real overloaded capture produces rather than an absurd one.
+func buildKernelDrops() *Builder {
+	return dropsTraffic().WithInterfaceStats(InterfaceStats{
+		Received: 98,
+		Dropped:  2,
+	})
+}
+
+// buildNoKernelDrops is the negative case: the same traffic, with the capture
+// host reporting that it dropped nothing. The distinction from a file that
+// simply cannot say is the whole point of the rule.
+func buildNoKernelDrops() *Builder {
+	return dropsTraffic().WithInterfaceStats(InterfaceStats{
+		Received: 98,
+		Dropped:  0,
+	})
 }
 
 // exchanges emits a run of clean request/response exchanges and returns the

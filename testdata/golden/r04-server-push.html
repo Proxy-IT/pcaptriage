@@ -328,6 +328,11 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
       Not assessed: server response time on 1 of 7 TCP flows. Request and response did not alternate cleanly on those flows — the server sent data with no preceding client request — so request/response pairing was not possible. Server-sent events, protocol banners and flows joined partway through a response all take this shape.
     </div>
     
+    <div class="note unavailable">
+      <span class="who">R15 · not assessed</span>
+      Not assessed: whether the capture host dropped packets before writing them. The classic pcap format has no field to record it, so this file cannot say either way. Packets dropped by the capturing machine look the same as packets lost on the network. If that distinction matters here, re-capturing in pcapng format would record the count.
+    </div>
+    
   
 
   

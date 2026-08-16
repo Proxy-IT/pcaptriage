@@ -183,6 +183,55 @@ func TestEmittedCollectionsAreSorted(t *testing.T) {
 	}
 }
 
+// renderIgnoringContainerFacts renders a fixture with the facts that are
+// properties of the container rather than of the packets blanked out.
+//
+// Whether a file can report the capture host's own drop counters is one such
+// fact: pcapng has a block for it and classic pcap does not, so the two
+// renderings of identical traffic legitimately say different things about it.
+// That difference is the feature working, not a divergence in the analysis,
+// and folding it into the equivalence check would either weaken the check or
+// require the reporting to lie about one of the two formats.
+//
+// What remains compared is everything that should be identical: the same
+// frames, the same flows, the same findings, in the same order.
+func renderIgnoringContainerFacts(t *testing.T, name, format string) []byte {
+	t.Helper()
+
+	res, err := analysis.Run(synth.FixturePath(name, format), analysis.Options{})
+	if err != nil {
+		t.Fatalf("analyse %s: %v", name, err)
+	}
+
+	res.Capture.Path = "testdata/fixtures/" + name
+	res.Capture.Format = "normalised"
+	res.Capture.DropAvailability = "normalised"
+	res.Capture.InterfaceDrops = nil
+	res.Capture.PacketsDropped = 0
+	res.Capture.DropRatio = 0
+	res.Capture.DropsSignificant = false
+
+	kept := res.Notes[:0]
+	for _, n := range res.Notes {
+		if n.RuleID == "R15" {
+			continue
+		}
+		kept = append(kept, n)
+	}
+	res.Notes = kept
+
+	doc := report.Build(res, report.Invocation{
+		Args:  []string{"testdata/fixtures/" + name},
+		Input: "testdata/fixtures/" + name,
+	}, "test")
+
+	var buf bytes.Buffer
+	if err := report.Write(&buf, doc); err != nil {
+		t.Fatalf("render %s: %v", name, err)
+	}
+	return buf.Bytes()
+}
+
 // TestFindingOrderingKeyIsTotal closes the gap TestDeterminism cannot cover on
 // its own.
 //
@@ -217,8 +266,14 @@ func TestFindingOrderingKeyIsTotal(t *testing.T) {
 func TestPcapAndPcapngAgree(t *testing.T) {
 	for _, f := range synth.Fixtures() {
 		t.Run(f.Name, func(t *testing.T) {
-			a := renderFixture(t, f.Name, "pcap")
-			b := renderFixture(t, f.Name, "pcapng")
+			if f.FormatsDiffer {
+				// Capture-host drop counters live in a pcapng block that
+				// classic pcap has no equivalent for, so these two renderings
+				// are supposed to disagree — see the drop fixtures.
+				t.Skip("fixture exercises a format-specific feature")
+			}
+			a := renderIgnoringContainerFacts(t, f.Name, "pcap")
+			b := renderIgnoringContainerFacts(t, f.Name, "pcapng")
 			if !bytes.Equal(a, b) {
 				t.Errorf("pcap and pcapng renderings of the same fixture differ\n%s", firstDifference(a, b))
 			}

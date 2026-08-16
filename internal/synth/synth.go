@@ -35,6 +35,26 @@ const DefaultSnaplen = 262144
 // Builder accumulates frames and writes them out as pcap or pcapng.
 type Builder struct {
 	frames []frame
+
+	// stats, when set, is written as an Interface Statistics Block in the
+	// pcapng rendering. Classic pcap has nowhere to put it, so the two
+	// renderings of a fixture carrying one are deliberately not equivalent.
+	stats *InterfaceStats
+}
+
+// InterfaceStats is the capture host's own packet counters, as a capture tool
+// records them when it closes the file.
+type InterfaceStats struct {
+	// Received is packets the capture host saw.
+	Received uint64
+	// Dropped is packets it discarded before writing them.
+	Dropped uint64
+}
+
+// WithInterfaceStats attaches capture-host counters to the pcapng rendering.
+func (b *Builder) WithInterfaceStats(s InterfaceStats) *Builder {
+	b.stats = &s
+	return b
 }
 
 type frame struct {
@@ -200,6 +220,25 @@ func (b *Builder) Pcapng() ([]byte, error) {
 			return nil, err
 		}
 	}
+
+	// Written after the packets, which is where a capture tool puts it: the
+	// counters are only final once capture stops.
+	if b.stats != nil {
+		last := BaseTime
+		if n := len(b.frames); n > 0 {
+			last = BaseTime.Add(b.frames[n-1].at)
+		}
+		if err := w.WriteInterfaceStats(0, pcapgo.NgInterfaceStatistics{
+			StartTime:       BaseTime,
+			EndTime:         last,
+			LastUpdate:      last,
+			PacketsReceived: b.stats.Received,
+			PacketsDropped:  b.stats.Dropped,
+		}); err != nil {
+			return nil, err
+		}
+	}
+
 	if err := w.Flush(); err != nil {
 		return nil, err
 	}

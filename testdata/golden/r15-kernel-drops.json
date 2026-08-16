@@ -9,33 +9,33 @@
   },
   "invocation": {
     "args": [
-      "testdata/fixtures/r04-server-push"
+      "testdata/fixtures/r15-kernel-drops"
     ],
-    "input": "testdata/fixtures/r04-server-push",
+    "input": "testdata/fixtures/r15-kernel-drops",
     "max_flows": 0
   },
   "capture": {
-    "path": "testdata/fixtures/r04-server-push",
+    "path": "testdata/fixtures/r15-kernel-drops",
     "format": "normalised",
     "link_type": "Ethernet",
     "snaplen": 262144,
-    "packets_read": 194,
-    "packets_tcp": 194,
+    "packets_read": 96,
+    "packets_tcp": 96,
     "packets_non_tcp": 0,
     "packets_undecoded": 0,
-    "first_packet_time": "2024-03-14T09:00:00Z",
-    "last_packet_time": "2024-03-14T09:00:50.01Z",
-    "duration_seconds": 50.01,
+    "first_packet_time": "2024-03-14T09:00:00.05Z",
+    "last_packet_time": "2024-03-14T09:00:00.66Z",
+    "duration_seconds": 0.61,
     "timezone": "UTC",
-    "tcp_flows": 7,
-    "tcp_hosts": 8,
-    "flows_complete": 7,
+    "tcp_flows": 4,
+    "tcp_hosts": 5,
+    "flows_complete": 4,
     "flows_partial": 0,
     "flows_midstream": 0,
     "flows_one_way": 0,
     "flow_cap": 16384,
     "flows_evicted": 0,
-    "peak_live_flows": 7
+    "peak_live_flows": 4
   },
   "checks": [
     {
@@ -55,11 +55,6 @@
   ],
   "findings": [],
   "notes": [
-    {
-      "kind": "unavailable",
-      "rule_id": "R04",
-      "text": "Not assessed: server response time on 1 of 7 TCP flows. Request and response did not alternate cleanly on those flows — the server sent data with no preceding client request — so request/response pairing was not possible. Server-sent events, protocol banners and flows joined partway through a response all take this shape."
-    },
     {
       "kind": "unavailable",
       "rule_id": "R15",
