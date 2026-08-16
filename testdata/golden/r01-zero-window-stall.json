@@ -1,0 +1,99 @@
+{
+  "schema_version": "3",
+  "schema_note": "This format is internal to pcaptriage and may change in any release. It is not a stability contract; do not build tooling that depends on its shape.",
+  "tool": {
+    "name": "pcaptriage",
+    "version": "test",
+    "ruleset_version": "1.0.0-partial",
+    "build": "Partial build: 2 of the 15 v1 rules are implemented (R01 zero-window-stall, R04 server-response-outlier). Every other condition in the v1 rule set was not looked for at all."
+  },
+  "invocation": {
+    "args": [
+      "testdata/fixtures/r01-zero-window-stall"
+    ],
+    "input": "testdata/fixtures/r01-zero-window-stall",
+    "max_flows": 0
+  },
+  "capture": {
+    "path": "testdata/fixtures/r01-zero-window-stall",
+    "format": "normalised",
+    "link_type": "Ethernet",
+    "snaplen": 262144,
+    "packets_read": 123,
+    "packets_tcp": 123,
+    "packets_non_tcp": 0,
+    "packets_undecoded": 0,
+    "first_packet_time": "2024-03-14T09:00:00Z",
+    "last_packet_time": "2024-03-14T09:00:04.62Z",
+    "duration_seconds": 4.62,
+    "timezone": "UTC",
+    "tcp_flows": 12,
+    "tcp_hosts": 13,
+    "flows_complete": 12,
+    "flows_partial": 0,
+    "flows_midstream": 0,
+    "flows_one_way": 0,
+    "flow_cap": 16384,
+    "flows_evicted": 0,
+    "peak_live_flows": 12
+  },
+  "checks": [
+    {
+      "id": "R01",
+      "name": "zero-window-stall",
+      "base_weight": 9,
+      "status": "ran",
+      "summary": "A receiver advertised a zero window having previously advertised non-zero, blocking the sender until a window update arrived."
+    },
+    {
+      "id": "R04",
+      "name": "server-response-outlier",
+      "base_weight": 8,
+      "status": "ran",
+      "summary": "A server:port took materially longer to begin responding than its peers in the same capture, with network round-trip time subtracted."
+    }
+  ],
+  "findings": [
+    {
+      "rank": 1,
+      "rule_id": "R01",
+      "rule": "zero-window-stall",
+      "subject": "10.1.1.5:44210 <-> 10.2.2.7:5432",
+      "scope_kind": "flow",
+      "subject_label": "10.2.2.7:5432",
+      "title": "Receiver stopped accepting data — 10.2.2.7:5432",
+      "observation": "Advertised a zero receive window 6 times, stalling the sender for 4.2s total (longest single stall 2.9s). The other 12 hosts in this capture show no zero window events.",
+      "check_next": "the receiving application on 10.2.2.7 — a zero window means the application is not reading from its socket buffer fast enough. Look at CPU, blocked threads, or a downstream dependency on that host.",
+      "frames": [
+        7,
+        9,
+        11,
+        14,
+        16,
+        18
+      ],
+      "first_frame": 7,
+      "worst_frame": 14,
+      "total_count": 6,
+      "quality": "confirmed",
+      "metrics": {
+        "blocked_sender": "10.1.1.5:44210",
+        "cumulative_stall_ms": 4200,
+        "flow": "10.1.1.5:44210 <-> 10.2.2.7:5432",
+        "hosts_total": 13,
+        "hosts_with_zero_window": 1,
+        "max_stall_ms": 2900,
+        "stall_episodes": 2,
+        "stall_unresolved_at_flow_end": false,
+        "zero_window_advertisements": 6
+      }
+    }
+  ],
+  "notes": [
+    {
+      "kind": "unavailable",
+      "rule_id": "R04",
+      "text": "Not assessed: server response time for 11 server endpoints with fewer than 5 completed request/response exchanges. Percentiles over that few samples would not describe a distribution."
+    }
+  ]
+}

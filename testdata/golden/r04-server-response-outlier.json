@@ -1,0 +1,102 @@
+{
+  "schema_version": "3",
+  "schema_note": "This format is internal to pcaptriage and may change in any release. It is not a stability contract; do not build tooling that depends on its shape.",
+  "tool": {
+    "name": "pcaptriage",
+    "version": "test",
+    "ruleset_version": "1.0.0-partial",
+    "build": "Partial build: 2 of the 15 v1 rules are implemented (R01 zero-window-stall, R04 server-response-outlier). Every other condition in the v1 rule set was not looked for at all."
+  },
+  "invocation": {
+    "args": [
+      "testdata/fixtures/r04-server-response-outlier"
+    ],
+    "input": "testdata/fixtures/r04-server-response-outlier",
+    "max_flows": 0
+  },
+  "capture": {
+    "path": "testdata/fixtures/r04-server-response-outlier",
+    "format": "normalised",
+    "link_type": "Ethernet",
+    "snaplen": 262144,
+    "packets_read": 318,
+    "packets_tcp": 318,
+    "packets_non_tcp": 0,
+    "packets_undecoded": 0,
+    "first_packet_time": "2024-03-14T09:00:00Z",
+    "last_packet_time": "2024-03-14T09:00:32.26Z",
+    "duration_seconds": 32.26,
+    "timezone": "UTC",
+    "tcp_flows": 13,
+    "tcp_hosts": 14,
+    "flows_complete": 13,
+    "flows_partial": 0,
+    "flows_midstream": 0,
+    "flows_one_way": 0,
+    "flow_cap": 16384,
+    "flows_evicted": 0,
+    "peak_live_flows": 13
+  },
+  "checks": [
+    {
+      "id": "R01",
+      "name": "zero-window-stall",
+      "base_weight": 9,
+      "status": "ran",
+      "summary": "A receiver advertised a zero window having previously advertised non-zero, blocking the sender until a window update arrived."
+    },
+    {
+      "id": "R04",
+      "name": "server-response-outlier",
+      "base_weight": 8,
+      "status": "ran",
+      "summary": "A server:port took materially longer to begin responding than its peers in the same capture, with network round-trip time subtracted."
+    }
+  ],
+  "findings": [
+    {
+      "rank": 1,
+      "rule_id": "R04",
+      "rule": "server-response-outlier",
+      "subject": "10.2.2.7:443",
+      "scope_kind": "endpoint",
+      "subject_label": "10.2.2.7:443",
+      "title": "One server much slower to respond than its peers — 10.2.2.7:443",
+      "observation": "Responded in 1.8s at p95 (max 4.1s) while the other 12 servers in this capture are under 40ms at p95. Measured from last request byte to first response byte, with network round-trip time subtracted — so this is time spent on the server, not on the network.",
+      "check_next": "application or backend dependency latency on 10.2.2.7. The network path to this host looks comparable to its peers.",
+      "frames": [
+        5,
+        44,
+        47,
+        50,
+        53,
+        56,
+        59,
+        62
+      ],
+      "first_frame": 5,
+      "worst_frame": 62,
+      "total_count": 20,
+      "quality": "confirmed",
+      "metrics": {
+        "assessed_servers": 13,
+        "contributing_flows": 1,
+        "exchanges": 20,
+        "max_ms": 4100,
+        "network_rtt_ms": 10,
+        "outlier_servers": 1,
+        "p50_ms": 1360,
+        "p95_ms": 1800,
+        "p95_ratio_to_population_median": 60,
+        "peer_group": true,
+        "peer_max_p95_ms": 30,
+        "peer_servers": 12,
+        "percentiles_decimated": false,
+        "population_median_p50_ms": 24,
+        "population_median_p95_ms": 30,
+        "population_median_rtt_ms": 10
+      }
+    }
+  ],
+  "notes": []
+}

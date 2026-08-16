@@ -1,0 +1,69 @@
+{
+  "schema_version": "3",
+  "schema_note": "This format is internal to pcaptriage and may change in any release. It is not a stability contract; do not build tooling that depends on its shape.",
+  "tool": {
+    "name": "pcaptriage",
+    "version": "test",
+    "ruleset_version": "1.0.0-partial",
+    "build": "Partial build: 2 of the 15 v1 rules are implemented (R01 zero-window-stall, R04 server-response-outlier). Every other condition in the v1 rule set was not looked for at all."
+  },
+  "invocation": {
+    "args": [
+      "testdata/fixtures/r01-brief-zero-windows"
+    ],
+    "input": "testdata/fixtures/r01-brief-zero-windows",
+    "max_flows": 0
+  },
+  "capture": {
+    "path": "testdata/fixtures/r01-brief-zero-windows",
+    "format": "normalised",
+    "link_type": "Ethernet",
+    "snaplen": 262144,
+    "packets_read": 60,
+    "packets_tcp": 60,
+    "packets_non_tcp": 0,
+    "packets_undecoded": 0,
+    "first_packet_time": "2024-03-14T09:00:00Z",
+    "last_packet_time": "2024-03-14T09:00:06.21Z",
+    "duration_seconds": 6.21,
+    "timezone": "UTC",
+    "tcp_flows": 5,
+    "tcp_hosts": 7,
+    "flows_complete": 4,
+    "flows_partial": 0,
+    "flows_midstream": 1,
+    "flows_one_way": 0,
+    "flow_cap": 16384,
+    "flows_evicted": 0,
+    "peak_live_flows": 5
+  },
+  "checks": [
+    {
+      "id": "R01",
+      "name": "zero-window-stall",
+      "base_weight": 9,
+      "status": "ran",
+      "summary": "A receiver advertised a zero window having previously advertised non-zero, blocking the sender until a window update arrived."
+    },
+    {
+      "id": "R04",
+      "name": "server-response-outlier",
+      "base_weight": 8,
+      "status": "ran",
+      "summary": "A server:port took materially longer to begin responding than its peers in the same capture, with network round-trip time subtracted."
+    }
+  ],
+  "findings": [],
+  "notes": [
+    {
+      "kind": "info",
+      "rule_id": "R01",
+      "text": "2 flows advertised a zero receive window but stalled the sender for less than 100ms in total, and were not reported. Duration is the signal for this check, not occurrence."
+    },
+    {
+      "kind": "unavailable",
+      "rule_id": "R04",
+      "text": "Not assessed: server response time for 3 server endpoints with fewer than 5 completed request/response exchanges. Percentiles over that few samples would not describe a distribution."
+    }
+  ]
+}
