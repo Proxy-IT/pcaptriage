@@ -77,6 +77,31 @@
 
     <p id="results-posture" class="posture posture-inline"></p>
 
+    <!-- Shown when nothing was found. Deliberately not an empty list: the
+         statement, what ran, and what could not run are all visible at once,
+         with no disclosure to expand. -->
+    <section id="clean-state" class="clean" hidden>
+      <div class="clean-headline">
+        <h3 id="clean-statement"></h3>
+        <p id="clean-qualifier"></p>
+      </div>
+
+      <p id="clean-minor" class="clean-minor" hidden></p>
+
+      <div class="clean-columns">
+        <section class="clean-col">
+          <h4>What was checked</h4>
+          <ul id="clean-checked" class="checks-list"></ul>
+          <p id="clean-unbuilt" class="caveat"></p>
+        </section>
+
+        <section class="clean-col clean-col-gaps">
+          <h4>What could not be checked</h4>
+          <div id="clean-gaps"></div>
+        </section>
+      </div>
+    </section>
+
     <div id="findings-list" class="findings"></div>
 
     <section id="notes-section" class="notes-section" hidden>

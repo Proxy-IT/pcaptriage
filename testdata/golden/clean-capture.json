@@ -1,0 +1,64 @@
+{
+  "schema_version": "3",
+  "schema_note": "This format is internal to pcaptriage and may change in any release. It is not a stability contract; do not build tooling that depends on its shape.",
+  "tool": {
+    "name": "pcaptriage",
+    "version": "test",
+    "ruleset_version": "1.0.0-partial",
+    "build": "Partial build: 2 of the 15 v1 rules are implemented (R01 zero-window-stall, R04 server-response-outlier). Every other condition in the v1 rule set was not looked for at all."
+  },
+  "invocation": {
+    "args": [
+      "testdata/fixtures/clean-capture"
+    ],
+    "input": "testdata/fixtures/clean-capture",
+    "max_flows": 0
+  },
+  "capture": {
+    "path": "testdata/fixtures/clean-capture",
+    "format": "normalised",
+    "link_type": "Ethernet",
+    "snaplen": 262144,
+    "packets_read": 144,
+    "packets_tcp": 144,
+    "packets_non_tcp": 0,
+    "packets_undecoded": 0,
+    "first_packet_time": "2024-03-14T09:00:00.02Z",
+    "last_packet_time": "2024-03-14T09:00:00.715Z",
+    "duration_seconds": 0.695,
+    "timezone": "UTC",
+    "tcp_flows": 6,
+    "tcp_hosts": 7,
+    "flows_complete": 6,
+    "flows_partial": 0,
+    "flows_midstream": 0,
+    "flows_one_way": 0,
+    "flow_cap": 16384,
+    "flows_evicted": 0,
+    "peak_live_flows": 6
+  },
+  "checks": [
+    {
+      "id": "R01",
+      "name": "zero-window-stall",
+      "base_weight": 9,
+      "status": "ran",
+      "summary": "A receiver advertised a zero window having previously advertised non-zero, blocking the sender until a window update arrived."
+    },
+    {
+      "id": "R04",
+      "name": "server-response-outlier",
+      "base_weight": 8,
+      "status": "ran",
+      "summary": "A server:port took materially longer to begin responding than its peers in the same capture, with network round-trip time subtracted."
+    }
+  ],
+  "findings": [],
+  "notes": [
+    {
+      "kind": "unavailable",
+      "rule_id": "R15",
+      "text": "Not assessed: whether the capture host dropped packets before writing them. The classic pcap format has no field to record it, so this file cannot say either way. Packets dropped by the capturing machine look the same as packets lost on the network. If that distinction matters here, re-capturing in pcapng format would record the count."
+    }
+  ]
+}

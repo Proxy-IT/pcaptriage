@@ -241,6 +241,11 @@ type AnalysisResult struct {
 	FileSize int64            `json:"file_size"`
 	Report   *report.Document `json:"report"`
 
+	// Coverage is what the run examined and what it could not. Always present;
+	// the clean-capture screen is built from it, and the findings screen uses
+	// its gap list too.
+	Coverage Coverage `json:"coverage"`
+
 	// Evidence carries the packets behind each finding, matched to it by rule
 	// and subject.
 	//
@@ -300,6 +305,17 @@ func (a *App) Analyze(path string) (*AnalysisResult, error) {
 		return nil, friendlyError(err, path)
 	}
 
+	// A file that parses but holds nothing is not a clean capture, and must not
+	// reach the screen that says nothing significant was found — that screen
+	// would be reporting an absence of problems in an absence of data. It is an
+	// error the user can act on: the capture did not record what they expected.
+	if res.Capture.PacketsRead == 0 {
+		return nil, fmt.Errorf(
+			"%s contains no packets. The file is a valid capture, but nothing was recorded in it — "+
+				"the capture may have been stopped before any traffic arrived, or filtered to nothing while running",
+			filepath.Base(path))
+	}
+
 	doc := report.Build(res, report.Invocation{
 		Args:  []string{path},
 		Input: path,
@@ -322,6 +338,7 @@ func (a *App) Analyze(path string) (*AnalysisResult, error) {
 		FilePath: path,
 		FileSize: info.Size(),
 		Report:   doc,
+		Coverage: buildCoverage(res),
 		Evidence: evidence,
 	}
 

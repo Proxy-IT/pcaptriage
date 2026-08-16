@@ -364,6 +364,66 @@ h1, h2, h3 { letter-spacing: -0.01em; }
 }
 .empty strong { color: var(--ink); }
 
+/* ---------------- clean-capture state ---------------- */
+
+.clean { margin-bottom: 1.5rem; }
+
+.clean-headline {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--step-450);
+  border-radius: 6px;
+  padding: 1rem 1.15rem;
+}
+.clean-headline h3 { font-size: 1.15rem; margin: 0; }
+.clean-headline p { margin: .45rem 0 0; color: var(--ink-2); font-size: .92rem; }
+
+.clean-minor {
+  margin: .75rem 0 0;
+  padding: .6rem .9rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--axis);
+  border-radius: 4px;
+  font-size: .87rem;
+  color: var(--ink-2);
+}
+
+/* Two columns so "what was checked" and "what could not be" are read as a
+   pair. They collapse to one on a narrow window, gaps first — if only one
+   fits on screen, it should be the one that qualifies the result. */
+.clean-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.25rem;
+  margin-top: 1.25rem;
+}
+@media (max-width: 52rem) {
+  .clean-columns { grid-template-columns: 1fr; }
+  .clean-col-gaps { order: -1; }
+}
+
+.clean-col h4 {
+  font-size: .78rem;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--ink-muted);
+  margin: 0 0 .6rem;
+  font-weight: 600;
+}
+.clean-col .note { margin-bottom: .6rem; }
+.clean-col .checks-list li { font-size: .85rem; }
+
+.clean-nogaps {
+  margin: 0;
+  padding: .7rem .9rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-size: .88rem;
+  color: var(--ink-2);
+}
+
 .notes-section, .build-note { margin-top: 2.25rem; }
 .notes-section h3, .build-note h3 {
   font-size: .78rem;

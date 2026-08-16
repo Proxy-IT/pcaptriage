@@ -57,6 +57,11 @@ func Fixtures() []Fixture {
 			Build:   buildMixed,
 		},
 		{
+			Name:    "clean-capture",
+			Purpose: "Clean-capture state: ordinary handshakes, transfers and closes, uniform response times, nothing for any rule to report.",
+			Build:   buildClean,
+		},
+		{
 			Name:          "r15-kernel-drops",
 			Purpose:       "R15 positive: pcapng whose interface statistics report the capture host dropping 2% of the traffic it saw.",
 			Build:         buildKernelDrops,
@@ -69,6 +74,39 @@ func Fixtures() []Fixture {
 			FormatsDiffer: true,
 		},
 	}
+}
+
+// buildClean is a capture with nothing wrong with it.
+//
+// Six servers, full handshakes, six clean request/response exchanges each,
+// orderly teardowns, and response times close enough together that no server
+// stands out from the others. Every flow is COMPLETE, none is one-way, and no
+// receiver ever closes its window.
+//
+// It exists to drive the screen a real healthy capture lands on, which is the
+// one screen where the tool is most likely to be believed about something it
+// never checked. Getting the fixture genuinely quiet matters: a fixture that
+// produced one incidental finding would test the findings list instead.
+func buildClean() *Builder {
+	b := New()
+
+	// Enough servers that R04 has a peer group, and response times spread
+	// narrowly enough that none of them is an outlier against the others.
+	deltas := evenDeltas(6, 20*ms, 2*ms)
+	for i := 0; i < 6; i++ {
+		c := b.NewConn(ConnOpts{
+			Client:    fmt.Sprintf("10.1.1.20:%d", 51000+i),
+			Server:    fmt.Sprintf("10.5.5.%d:443", 10+i),
+			ClientISN: uint32(300000 + i*1000),
+			ServerISN: uint32(800000 + i*1000),
+		})
+		start := 20*ms + time.Duration(i)*35*ms
+		c.Handshake(start, 10*ms)
+		end := exchanges(c, start+30*ms, deltas, 10*ms, 45*ms)
+		c.FinClose(end, 5*ms)
+	}
+
+	return b
 }
 
 // dropsTraffic is the ordinary conversation both drop fixtures carry.

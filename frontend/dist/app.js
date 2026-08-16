@@ -170,6 +170,65 @@
     return card;
   }
 
+  // ------------------------------------------------------------ clean state
+
+  // renderCleanState builds the screen a healthy capture lands on.
+  //
+  // Everything is visible at once by design. The list of what could not be
+  // checked is the reason this screen exists — a reader who has just been told
+  // nothing was found is exactly the reader least likely to go looking for the
+  // caveats, so the caveats are put in front of them rather than behind a
+  // toggle.
+  function renderCleanState(cov) {
+    $("clean-statement").textContent = cov.statement || "Nothing was found";
+    $("clean-qualifier").textContent = cov.qualifier || "";
+
+    var checked = $("clean-checked");
+    checked.textContent = "";
+    (cov.checked || []).forEach(function (c) {
+      var li = el("li");
+      li.appendChild(el("span", "check-name", c.id + " · " + c.name));
+      li.appendChild(el("span", "check-summary", c.summary));
+      checked.appendChild(li);
+    });
+
+    var unbuilt = $("clean-unbuilt");
+    if (cov.unbuilt_checks > 0) {
+      unbuilt.textContent = cov.unbuilt_checks +
+        " further checks are planned but not built yet, so nothing they would cover was examined.";
+      unbuilt.hidden = false;
+    } else {
+      unbuilt.textContent = "";
+      unbuilt.hidden = true;
+    }
+
+    var gaps = $("clean-gaps");
+    gaps.textContent = "";
+    if ((cov.not_checked || []).length === 0) {
+      var none = el("p", "clean-nogaps",
+        "Every check that is built ran to completion on this capture. " +
+        "Nothing was skipped for want of information in the file.");
+      gaps.appendChild(none);
+    } else {
+      cov.not_checked.forEach(function (g) {
+        var box = el("div", "note unavailable");
+        if (g.rule_id) box.appendChild(el("span", "who", g.rule_id + " · not assessed"));
+        box.appendChild(document.createTextNode(g.text));
+        gaps.appendChild(box);
+      });
+    }
+
+    var minor = $("clean-minor");
+    if (cov.minor_observations > 0) {
+      minor.textContent = cov.minor_observations +
+        " minor observation(s) were recorded but are not shown here, being below the threshold for the main list.";
+      minor.hidden = false;
+    } else {
+      minor.textContent = "";
+      minor.hidden = true;
+    }
+  }
+
   // ------------------------------------------------------------ packet view
 
   var evidence = [];
@@ -275,19 +334,25 @@
       " · " + formatCount(doc.capture.packets_read) + " packets, " +
       formatCount(doc.capture.tcp_flows) + " TCP flows";
 
+    // On the clean screen the section heading stays purely factual: the
+    // calibrated statement below it is the message, and a heading that also
+    // pronounced on the result would be a second, blunter verdict above it.
     $("results-title").textContent =
-      findings.length > 0 ? "Top findings" : "Nothing stood out";
+      findings.length > 0 ? "Top findings" : "Analysis complete";
 
     var list = $("findings-list");
     list.textContent = "";
 
     if (findings.length === 0) {
-      var empty = el("div", "empty");
-      empty.appendChild(el("strong", null, "The checks that ran found nothing to report."));
-      empty.appendChild(document.createTextNode(
-        " That is not the same as the capture being healthy — see what wasn't checked, below."
-      ));
-      list.appendChild(empty);
+      renderCleanState(result.coverage || {});
+      $("clean-state").hidden = false;
+    } else {
+      $("clean-state").hidden = true;
+    }
+
+    if (findings.length === 0) {
+      // The clean state above carries the whole message; an empty list beneath
+      // it would only restate it.
     } else {
       // Already ranked by significance in the engine. Order is the only place
       // significance is expressed; it is never shown as a number.
@@ -297,7 +362,12 @@
     var notesSection = $("notes-section");
     var notesList = $("notes-list");
     notesList.textContent = "";
-    if (notes.length > 0) {
+    // When the clean state is showing, it already lists the gaps in a form
+    // built for being read first. Repeating them underneath would bury the
+    // point rather than reinforce it.
+    if (findings.length === 0) {
+      notesSection.hidden = true;
+    } else if (notes.length > 0) {
       notes.forEach(function (n) {
         var box = el("div", "note" + (n.kind === "unavailable" ? " unavailable" : ""));
         box.appendChild(el("span", "who",
