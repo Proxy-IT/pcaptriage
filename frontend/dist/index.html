@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'">
+<title>pcaptriage</title>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+
+<div id="drop-veil" class="drop-veil" aria-hidden="true">
+  <div class="drop-veil-inner">Drop the capture to open it</div>
+</div>
+
+<!-- ==================== HOME ==================== -->
+<main id="view-home" class="view">
+  <div class="home">
+    <header class="identity">
+      <h1 id="app-name">pcaptriage</h1>
+      <p id="app-tagline" class="tagline"></p>
+    </header>
+
+    <button type="button" id="dropzone" class="dropzone">
+      <svg class="dz-icon" viewBox="0 0 48 48" aria-hidden="true" focusable="false">
+        <path d="M24 32V10m0 0-8 8m8-8 8 8" fill="none" stroke="currentColor"
+              stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M8 30v6a2 2 0 0 0 2 2h28a2 2 0 0 0 2-2v-6" fill="none" stroke="currentColor"
+              stroke-width="2.5" stroke-linecap="round"/>
+      </svg>
+      <span class="dz-primary">Choose a capture file</span>
+      <span id="app-instruction" class="dz-instruction"></span>
+    </button>
+
+    <p id="app-posture" class="posture"></p>
+
+    <p id="prefs-notice" class="posture prefs-notice" hidden></p>
+
+    <section class="checks-preview">
+      <h2>What this build looks for</h2>
+      <ul id="checks-list" class="checks-list"></ul>
+      <p id="checks-caveat" class="caveat"></p>
+    </section>
+  </div>
+</main>
+
+<!-- ==================== LOADING ==================== -->
+<main id="view-loading" class="view" hidden>
+  <div class="loading">
+    <h2 class="loading-title">Reading the capture</h2>
+    <p id="loading-file" class="loading-file"></p>
+
+    <div class="bar" role="progressbar" aria-labelledby="loading-status"
+         id="progress-bar" aria-valuemin="0" aria-valuemax="100">
+      <div id="progress-fill" class="bar-fill"></div>
+    </div>
+
+    <p id="loading-status" class="loading-status">Opening the file…</p>
+    <p class="loading-note">
+      Large captures take a moment. Nothing is uploaded — the file is read on this
+      machine and opened read-only.
+    </p>
+  </div>
+</main>
+
+<!-- ==================== FINDINGS ==================== -->
+<main id="view-findings" class="view" hidden>
+  <div class="results">
+    <header class="results-head">
+      <div>
+        <h2 id="results-title">Top findings</h2>
+        <p id="results-file" class="results-file"></p>
+      </div>
+      <button type="button" id="btn-another" class="btn">Open another capture</button>
+    </header>
+
+    <p id="results-posture" class="posture posture-inline"></p>
+
+    <div id="findings-list" class="findings"></div>
+
+    <section id="notes-section" class="notes-section" hidden>
+      <h3>What wasn't checked, and why</h3>
+      <p class="notes-lede">
+        Listed so a quiet result can't be mistaken for a clean one.
+      </p>
+      <div id="notes-list"></div>
+    </section>
+
+    <section class="build-note">
+      <h3>Coverage of this build</h3>
+      <p id="build-note-text"></p>
+    </section>
+  </div>
+</main>
+
+<!-- ==================== ABOUT (stub) ==================== -->
+<main id="view-about" class="view" hidden>
+  <div class="about">
+    <header class="results-head">
+      <h2>About pcaptriage</h2>
+      <button type="button" id="btn-about-back" class="btn">Back</button>
+    </header>
+
+    <dl class="about-grid">
+      <dt>Version</dt><dd id="about-version"></dd>
+      <dt>Ruleset</dt><dd id="about-ruleset"></dd>
+      <dt>Report schema</dt><dd id="about-schema"></dd>
+    </dl>
+
+    <p class="stub">
+      Placeholder — the full about and help content is not written yet.
+    </p>
+  </div>
+</main>
+
+<!-- ==================== ERROR ==================== -->
+<main id="view-error" class="view" hidden>
+  <div class="errorbox">
+    <h2>That file couldn't be read</h2>
+    <p id="error-message" class="error-message"></p>
+    <button type="button" id="btn-error-back" class="btn btn-primary">Try another file</button>
+  </div>
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>

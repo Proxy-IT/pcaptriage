@@ -1,0 +1,450 @@
+/* pcaptriage desktop app.
+
+   The palette and type scale are the same ones the exported HTML report uses,
+   so a finding looks like itself whether it is read in the app or in a report
+   emailed to a vendor. The values are duplicated rather than shared because the
+   report's stylesheet is embedded into the Go binary and this one is served to
+   the webview; keeping them in step is a review item.
+
+   No severity colours. The tool makes no severity claim, so a red card would
+   assert one it cannot support. Significance is carried by order alone. */
+
+:root {
+  --page:      #f9f9f7;
+  --surface:   #fcfcfb;
+  --ink:       #0b0b0b;
+  --ink-2:     #52514e;
+  --ink-muted: #898781;
+  --rule:      #e1e0d9;
+  --axis:      #c3c2b7;
+  --border:    rgba(11, 11, 11, 0.10);
+
+  --step-550:  #1c5cab;
+  --step-450:  #2a78d6;
+  --step-250:  #86b6ef;
+  --wash:      #eef4fd;
+
+  --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --mono: ui-monospace, "Cascadia Mono", Consolas, monospace;
+}
+
+* { box-sizing: border-box; }
+
+html, body { height: 100%; }
+
+body {
+  margin: 0;
+  background: var(--page);
+  color: var(--ink);
+  font-family: var(--font);
+  font-size: 15px;
+  line-height: 1.55;
+  overflow-y: auto;
+  /* The window chrome is the app frame; text selection is for content only. */
+  user-select: none;
+  cursor: default;
+}
+
+.view { display: block; }
+[hidden] { display: none !important; }
+
+h1, h2, h3 { letter-spacing: -0.01em; }
+
+/* ---------------- home ---------------- */
+
+.home {
+  max-width: 44rem;
+  margin: 0 auto;
+  padding: 3.5rem 2rem 3rem;
+  text-align: center;
+}
+
+.identity h1 { font-size: 2rem; margin: 0; }
+.tagline { margin: .35rem 0 0; color: var(--ink-2); font-size: 1.02rem; }
+
+.dropzone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: .5rem;
+  width: 100%;
+  margin: 2.25rem 0 0;
+  padding: 2.5rem 2rem;
+  background: var(--surface);
+  border: 2px dashed var(--axis);
+  border-radius: 10px;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  transition: border-color .12s, background .12s;
+}
+.dropzone:hover, .dropzone:focus-visible {
+  border-color: var(--step-450);
+  background: var(--wash);
+  outline: none;
+}
+.dropzone:focus-visible { box-shadow: 0 0 0 3px rgba(42, 120, 214, .28); }
+
+.dz-icon { width: 44px; height: 44px; color: var(--step-450); }
+.dz-primary { font-size: 1.08rem; font-weight: 600; }
+.dz-instruction {
+  font-size: .9rem;
+  color: var(--ink-2);
+  max-width: 30rem;
+  line-height: 1.5;
+}
+
+.posture {
+  margin: 1.5rem 0 0;
+  padding: .65rem .9rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--step-450);
+  border-radius: 4px;
+  font-size: .9rem;
+  color: var(--ink-2);
+  text-align: left;
+}
+
+/* Distinguished from the posture note by weight, not by colour: this is a
+   "something didn't work" message, but it is not an alarm and the tool has no
+   severity vocabulary yet. */
+.prefs-notice {
+  border-left-color: var(--axis);
+  font-size: .85rem;
+  word-break: break-word;
+}
+
+.checks-preview { margin-top: 2.5rem; text-align: left; }
+.checks-preview h2 {
+  font-size: .78rem;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--ink-muted);
+  margin: 0 0 .6rem;
+}
+.checks-list { list-style: none; margin: 0; padding: 0; display: grid; gap: .5rem; }
+.checks-list li {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: .6rem .8rem;
+  font-size: .88rem;
+}
+.check-name { font-family: var(--mono); font-size: .8rem; color: var(--step-550); }
+.check-summary { display: block; color: var(--ink-2); margin-top: .1rem; }
+.caveat { margin: .75rem 0 0; font-size: .82rem; color: var(--ink-muted); }
+
+/* ---------------- loading ---------------- */
+
+.loading {
+  max-width: 34rem;
+  margin: 0 auto;
+  padding: 7rem 2rem;
+  text-align: center;
+}
+.loading-title { font-size: 1.2rem; margin: 0; }
+.loading-file {
+  margin: .3rem 0 1.75rem;
+  font-family: var(--mono);
+  font-size: .85rem;
+  color: var(--ink-2);
+  word-break: break-all;
+}
+
+.bar {
+  height: 8px;
+  background: var(--rule);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.bar-fill {
+  height: 100%;
+  width: 0;
+  background: var(--step-450);
+  border-radius: 999px;
+  transition: width .15s linear;
+}
+/* Where the file size is unknown there is no honest percentage to show, so the
+   bar sweeps instead of claiming a position. */
+.bar.indeterminate .bar-fill {
+  width: 35%;
+  animation: sweep 1.1s ease-in-out infinite;
+}
+@keyframes sweep {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(320%); }
+}
+
+.loading-status {
+  margin: .9rem 0 0;
+  font-size: .9rem;
+  color: var(--ink-2);
+  font-variant-numeric: tabular-nums;
+}
+.loading-note { margin: 1.5rem 0 0; font-size: .82rem; color: var(--ink-muted); }
+
+/* ---------------- results ---------------- */
+
+.results, .about, .errorbox {
+  max-width: 52rem;
+  margin: 0 auto;
+  padding: 2.25rem 2rem 4rem;
+}
+
+.results-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+.results-head h2 { font-size: 1.35rem; margin: 0; }
+.results-file {
+  margin: .2rem 0 0;
+  font-family: var(--mono);
+  font-size: .82rem;
+  color: var(--ink-2);
+  word-break: break-all;
+}
+.posture-inline { margin-top: 0; margin-bottom: 1.25rem; }
+
+.btn {
+  font: inherit;
+  font-size: .88rem;
+  padding: .45rem .85rem;
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--axis);
+  border-radius: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.btn:hover { background: var(--wash); border-color: var(--step-450); }
+.btn:focus-visible { outline: 2px solid var(--step-450); outline-offset: 2px; }
+.btn-primary { background: var(--step-450); color: #fff; border-color: var(--step-450); }
+.btn-primary:hover { background: var(--step-550); border-color: var(--step-550); }
+
+.findings { display: grid; gap: .75rem; }
+
+.finding {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--step-450);
+  border-radius: 6px;
+  padding: 1rem 1.15rem;
+  user-select: text;
+}
+.finding-head {
+  display: flex;
+  align-items: baseline;
+  gap: .6rem;
+  flex-wrap: wrap;
+}
+.finding-rank {
+  font-size: .78rem;
+  color: var(--ink-muted);
+  font-variant-numeric: tabular-nums;
+}
+.finding h3 { font-size: 1.02rem; margin: 0; flex: 1 1 16rem; }
+.finding p { margin: .55rem 0 0; }
+.finding .frames {
+  font-family: var(--mono);
+  font-size: .82rem;
+  color: var(--ink-2);
+}
+.finding .frames .of { font-family: var(--font); color: var(--ink-muted); }
+.finding .next { font-size: .95rem; }
+.finding .next b { font-weight: 600; }
+.finding .basis { font-size: .83rem; color: var(--ink-muted); }
+
+.tag {
+  font-size: .68rem;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  padding: .12rem .42rem;
+  border-radius: 3px;
+  white-space: nowrap;
+}
+.tag-rule { color: var(--ink-muted); border: 1px solid var(--rule); font-family: var(--mono); }
+.tag-confirmed { background: var(--step-550); color: #fff; }
+.tag-inferred { color: var(--ink-2); border: 1px solid var(--axis); }
+.tag-unavailable { background: var(--rule); color: var(--ink-2); }
+
+/* ---------------- packet evidence ---------------- */
+
+.packets { margin-top: .85rem; border-top: 1px solid var(--rule); padding-top: .6rem; }
+.packets > summary {
+  cursor: pointer;
+  font-size: .85rem;
+  color: var(--step-550);
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: .35rem;
+  width: fit-content;
+}
+.packets > summary::-webkit-details-marker { display: none; }
+.packets > summary::before {
+  content: "▸";
+  font-size: .7rem;
+  transition: transform .12s;
+}
+.packets[open] > summary::before { transform: rotate(90deg); }
+.packets > summary:hover { text-decoration: underline; }
+.packets > summary:focus-visible { outline: 2px solid var(--step-450); outline-offset: 2px; }
+
+.packets-scroll { overflow-x: auto; margin-top: .7rem; }
+
+.packet-table {
+  border-collapse: collapse;
+  width: 100%;
+  font-family: var(--mono);
+  font-size: .78rem;
+  white-space: nowrap;
+}
+.packet-table th {
+  text-align: left;
+  font-family: var(--font);
+  font-size: .7rem;
+  text-transform: uppercase;
+  letter-spacing: .03em;
+  color: var(--ink-muted);
+  font-weight: 600;
+  padding: .25rem .55rem;
+  border-bottom: 1px solid var(--rule);
+}
+.packet-table td { padding: .28rem .55rem; vertical-align: top; }
+.packet-table .pk-no, .packet-table .pk-time, .packet-table .pk-len {
+  font-variant-numeric: tabular-nums;
+}
+.packet-table .pk-no { color: var(--ink-muted); text-align: right; }
+.packet-table .pk-info { white-space: normal; }
+
+/* The flagged rows are the ones the rule fired on; the context rows are what
+   make them legible. The distinction is carried by a left rule and weight, not
+   by colour alone. */
+.pk-flagged { background: var(--wash); }
+.pk-flagged .pk-info { font-weight: 600; }
+.pk-flagged td:first-child { box-shadow: inset 2px 0 0 var(--step-450); }
+.pk-context { color: var(--ink-2); }
+
+.pk-note-row td { padding-top: 0; padding-bottom: .4rem; }
+.packet-table .pk-note {
+  font-family: var(--font);
+  font-size: .8rem;
+  color: var(--ink-2);
+  white-space: normal;
+}
+.pk-note-row.pk-flagged .pk-note { color: var(--step-550); }
+
+.packets-hint {
+  margin: .7rem 0 0;
+  font-size: .78rem;
+  color: var(--ink-muted);
+  white-space: normal;
+}
+.packets-hint code {
+  font-family: var(--mono);
+  font-size: .75rem;
+  background: var(--page);
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  padding: .05rem .3rem;
+  user-select: text;
+}
+
+.empty {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 1.25rem;
+  color: var(--ink-2);
+}
+.empty strong { color: var(--ink); }
+
+.notes-section, .build-note { margin-top: 2.25rem; }
+.notes-section h3, .build-note h3 {
+  font-size: .78rem;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--ink-muted);
+  margin: 0 0 .3rem;
+}
+.notes-lede { margin: 0 0 .75rem; font-size: .85rem; color: var(--ink-muted); }
+.note {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--axis);
+  border-radius: 4px;
+  padding: .7rem .9rem;
+  margin-bottom: .6rem;
+  font-size: .9rem;
+  user-select: text;
+}
+.note.unavailable { border-left-color: var(--step-450); }
+.note .who {
+  display: block;
+  font-family: var(--mono);
+  font-size: .75rem;
+  color: var(--ink-muted);
+  margin-bottom: .15rem;
+}
+.build-note p { margin: 0; font-size: .85rem; color: var(--ink-muted); }
+
+/* ---------------- about / error ---------------- */
+
+.about-grid {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: .35rem 1.25rem;
+  margin: 0 0 1.5rem;
+  font-size: .9rem;
+}
+.about-grid dt { color: var(--ink-muted); }
+.about-grid dd { margin: 0; font-family: var(--mono); font-size: .85rem; }
+.stub {
+  background: var(--surface);
+  border: 1px dashed var(--axis);
+  border-radius: 6px;
+  padding: .85rem 1rem;
+  color: var(--ink-muted);
+  font-size: .9rem;
+}
+
+.errorbox { max-width: 34rem; padding-top: 6rem; text-align: center; }
+.errorbox h2 { font-size: 1.2rem; margin: 0 0 .5rem; }
+.error-message {
+  margin: 0 0 1.5rem;
+  color: var(--ink-2);
+  user-select: text;
+}
+
+/* ---------------- drag feedback ---------------- */
+
+.drop-veil {
+  position: fixed;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(42, 120, 214, .10);
+  backdrop-filter: blur(1px);
+  z-index: 50;
+  pointer-events: none;
+}
+body.dragging .drop-veil { display: flex; }
+.drop-veil-inner {
+  padding: 1rem 1.5rem;
+  background: var(--surface);
+  border: 2px dashed var(--step-450);
+  border-radius: 10px;
+  font-weight: 600;
+  color: var(--step-550);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bar-fill, .dropzone { transition: none; }
+  .bar.indeterminate .bar-fill { animation: none; width: 100%; opacity: .5; }
+}

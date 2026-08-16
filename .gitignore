@@ -1,0 +1,13 @@
+/pcaptriage
+/pcaptriage.exe
+/dist/
+*.out
+
+# Reports and previews generated while poking at the fixtures.
+/report-*.html
+/report-*.json
+/preview-*.html
+
+# Wails compiles the app here. The rest of build/ — the icon, manifest and
+# info.json — is source and is committed.
+/build/bin/

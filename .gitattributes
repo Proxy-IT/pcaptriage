@@ -1,0 +1,23 @@
+# Line endings are load-bearing in this repository.
+#
+# The golden files under testdata/golden are compared byte for byte, and the
+# tool's determinism guarantee is that identical input produces identical
+# output. If git rewrote line endings on checkout, a clone on Windows would
+# produce CRLF goldens while the engine emits LF, and every golden test would
+# fail for reasons that have nothing to do with the code.
+
+# Normalise text to LF in the repository and in the working tree.
+* text=auto eol=lf
+
+# Golden files: never touched, on any platform, for any reason.
+testdata/golden/** -text
+
+# Capture fixtures are hand-built byte by byte. A single substituted byte
+# changes what the fixture represents.
+*.pcap    binary
+*.pcapng  binary
+
+# Build artefacts and images.
+*.syso binary
+*.png  binary
+*.ico  binary

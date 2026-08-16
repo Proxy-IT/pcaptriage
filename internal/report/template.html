@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{.PageTitle}}</title>
+<style>{{.CSS}}</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="masthead">
+  <h1>pcap triage report</h1>
+  <div class="file">{{.Doc.Capture.Path}}</div>
+  <div class="stamp">
+    {{.Doc.Tool.Name}} {{.Doc.Tool.Version}} · ruleset {{.Doc.Tool.RulesetVersion}} · schema {{.Doc.SchemaVersion}}
+    · capture {{.Doc.Capture.FirstPacketTime}} to {{.Doc.Capture.LastPacketTime}} ({{.Doc.Capture.Timezone}})
+  </div>
+  <p class="posture">
+    <strong>Advisory, not diagnostic.</strong> Each finding states what was observed, why it
+    stood out, which frames evidence it, and what to check next. None of them names a cause —
+    that conclusion is yours to draw from the frames.
+  </p>
+  <p class="posture">
+    <strong>Partial build.</strong> {{.Doc.Tool.Build}} An empty findings list below means
+    these checks found nothing, not that the capture is healthy.
+  </p>
+</header>
+
+{{/* ---- 1. Capture completeness banner (reduced; full reporting arrives with R15) ---- */}}
+<section>
+  <h2>Capture completeness</h2>
+  <p class="section-note">
+    Reduced summary. The full capture-quality assessment — snaplen truncation, offload
+    artifacts, one-way flows, timestamp resolution and multi-interface merges — is R15,
+    which is not implemented in this build. Treat the figures below as what was read,
+    not as a verdict on whether the capture is adequate.
+  </p>
+
+  <div class="tiles">
+    <div class="tile">
+      <div class="tile-label">Packets read</div>
+      <div class="tile-value">{{.Banner.Packets}}</div>
+      <div class="tile-context">{{.Banner.PacketsContext}}</div>
+    </div>
+    <div class="tile">
+      <div class="tile-label">TCP flows</div>
+      <div class="tile-value">{{.Banner.Flows}}</div>
+      <div class="tile-context">{{.Banner.FlowsContext}}</div>
+    </div>
+    <div class="tile">
+      <div class="tile-label">Began before capture</div>
+      <div class="tile-value">{{.Banner.MidstreamPct}}</div>
+      <div class="tile-context">{{.Banner.MidstreamContext}}</div>
+    </div>
+    <div class="tile">
+      <div class="tile-label">Snaplen</div>
+      <div class="tile-value">{{.Banner.Snaplen}}</div>
+      <div class="tile-context">{{.Banner.SnaplenContext}}</div>
+    </div>
+  </div>
+
+  {{with .CompletenessChart}}
+  <div class="figure">
+    <h3>Flows by capture completeness</h3>
+    {{.}}
+    <div class="legend">
+      {{range $.CompletenessLegend}}
+      <span class="key"><span class="swatch {{.Class}}"></span>{{.Label}}
+        <span class="num">{{.Count}} ({{.Share}})</span></span>
+      {{end}}
+    </div>
+    <p class="caption">
+      A midstream flow was already established when the capture began, so its window scale
+      factor is unknown and receive window sizing cannot be assessed for it. Zero-window
+      detection is unaffected and ran on every flow.
+    </p>
+  </div>
+  {{end}}
+</section>
+
+{{/* ---- 2. Top findings ---- */}}
+<section>
+  <h2>Top findings <span class="count">{{.TopCaption}}</span></h2>
+  {{if .Top}}
+    {{range .Top}}{{template "finding" .}}{{end}}
+  {{else}}
+    <p class="empty">Nothing was surfaced by the checks that ran. See the checks section below for what was and was not assessed.</p>
+  {{end}}
+</section>
+
+{{/* ---- 3. Full findings, grouped by rule ---- */}}
+{{if .Groups}}
+<section>
+  <h2>All findings by rule</h2>
+  {{range .Groups}}
+    <h3 class="rule-head">{{.RuleID}} · {{.RuleName}}</h3>
+    <p class="section-note">{{.Summary}}</p>
+
+    {{if .Tile.Show}}
+    <div class="figure">
+      <h3>{{.FigureTitle}}</h3>
+      <div class="tiles">
+        <div class="tile">
+          <div class="tile-label">{{.Tile.Label}}</div>
+          <div class="tile-value">{{.Tile.Value}}</div>
+          <div class="tile-context">{{.Tile.Context}}</div>
+        </div>
+      </div>
+      {{with .Caption}}<p class="caption">{{.}}</p>{{end}}
+    </div>
+    {{else if .Chart}}
+    <div class="figure">
+      <h3>{{.FigureTitle}}</h3>
+      {{.Chart}}
+      {{if .Legend}}
+      <div class="legend">
+        {{range .Legend}}<span class="key"><span class="swatch {{.Class}}"></span>{{.Label}}</span>{{end}}
+      </div>
+      {{end}}
+      {{with .Caption}}<p class="caption">{{.}}</p>{{end}}
+    </div>
+    {{end}}
+
+    {{range .Findings}}{{template "finding" .}}{{end}}
+  {{end}}
+</section>
+{{end}}
+
+{{/* ---- 4. Subjects that produced findings ---- */}}
+<section>
+  <h2>Subjects that produced findings <span class="count">{{len .Subjects}}</span></h2>
+  <p class="section-note">
+    Bounded to the subjects that raised something. A table of every flow in the capture,
+    ranked by significance, needs per-flow state retained to the end of the run; flow state
+    is evictable by design, so that table is not available in this build.
+  </p>
+  {{if .Subjects}}
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Subject</th><th>Kind</th><th>Rules</th><th>Occurrences</th><th>Frames</th></tr></thead>
+      <tbody>
+      {{range .Subjects}}
+        <tr>
+          <td class="mono">{{.Subject}}</td>
+          <td>{{.Kind}}</td>
+          <td class="mono">{{.Rules}}</td>
+          <td class="num">{{.Count}}</td>
+          <td class="mono">{{.Frames}}</td>
+        </tr>
+      {{end}}
+      </tbody>
+    </table>
+  </div>
+  {{else}}
+  <p class="empty">No subjects produced findings.</p>
+  {{end}}
+</section>
+
+{{/* ---- 5. Checks that could not be performed ---- */}}
+<section>
+  <h2>Checks not performed, and why</h2>
+  <p class="section-note">
+    Rendered rather than dropped. A report that looks clean because half the checks never
+    ran will close a ticket on a fault that is still live.
+  </p>
+
+  {{if .Unavailable}}
+    {{range .Unavailable}}
+    <div class="note unavailable">
+      <span class="who">{{if .RuleID}}{{.RuleID}}{{else}}run{{end}} · not assessed</span>
+      {{.Text}}
+    </div>
+    {{end}}
+  {{else}}
+    <p class="empty">Every check that is implemented ran to completion on this capture.</p>
+  {{end}}
+
+  {{range .Info}}
+  <div class="note">
+    <span class="who">{{if .RuleID}}{{.RuleID}}{{else}}run{{end}} · note</span>
+    {{.Text}}
+  </div>
+  {{end}}
+
+  <h2 style="margin-top:2rem;">Checks that ran</h2>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Rule</th><th>Name</th><th>What it looks for</th></tr></thead>
+      <tbody>
+      {{range .Doc.Checks}}
+        <tr><td class="mono">{{.ID}}</td><td class="mono">{{.Name}}</td><td>{{.Summary}}</td></tr>
+      {{end}}
+      </tbody>
+    </table>
+  </div>
+  <p class="caption">
+    Thirteen of the fifteen v1 rules are not implemented in this build and were therefore
+    not looked for at all. They are not listed above because listing them as "skipped"
+    would imply a decision was made per capture; none was.
+  </p>
+</section>
+
+<footer>
+  Generated offline. No network calls were made, no payload bytes appear in this report,
+  and the capture file was opened read-only.
+  Frame numbers refer to the capture as read by this tool and match Wireshark's numbering
+  for the same file.
+</footer>
+
+</div>
+</body>
+</html>
+
+{{define "finding"}}
+<article class="finding{{if .IsTop}} top{{end}}">
+  <div class="finding-head">
+    <span class="rank">#{{.Rank}}</span>
+    <h3>{{.Title}}</h3>
+    <span class="tag tag-rule">{{.RuleID}}</span>
+    <span class="tag tag-{{.Quality}}">{{.Quality}}</span>
+  </div>
+  <p class="observation">{{.Observation}}</p>
+  <p class="frames">Frames {{.Frames}}{{if .More}} <span class="of">{{.More}}</span>{{end}}</p>
+  <p class="next"><b>Check next:</b> {{.CheckNext}}</p>
+  {{with .QualityBasis}}<p class="basis">{{.}}</p>{{end}}
+</article>
+{{end}}

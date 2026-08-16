@@ -1,0 +1,19 @@
+{
+  "$schema": "https://wails.io/schemas/config.v2.json",
+  "name": "pcaptriage",
+  "outputfilename": "pcaptriage-gui",
+  "frontend:dir": "frontend",
+  "frontend:install": "",
+  "frontend:build": "",
+  "wailsjsdir": "./frontend",
+  "author": {
+    "name": "Proxy-IT"
+  },
+  "info": {
+    "productName": "pcaptriage",
+    "productVersion": "0.1.0.0",
+    "companyName": "Proxy-IT",
+    "copyright": "Apache-2.0 licensed",
+    "comments": "Offline pcap triage — highlights unusual activity in a network capture."
+  }
+}

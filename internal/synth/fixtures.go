@@ -1,0 +1,393 @@
+package synth
+
+import (
+	"fmt"
+	"time"
+)
+
+const (
+	ms = time.Millisecond
+	s  = time.Second
+)
+
+// Fixture is a named synthetic capture.
+type Fixture struct {
+	// Name is the base filename, without extension.
+	Name string
+	// Purpose says what the fixture is for, in one line.
+	Purpose string
+	// Build renders the frames.
+	Build func() *Builder
+}
+
+// Fixtures is every fixture in the suite. Each rule has a positive fixture
+// that must trigger it and a negative fixture that must not, drawn from the
+// false-positive traps listed under the rule in RULES.md.
+func Fixtures() []Fixture {
+	return []Fixture{
+		{
+			Name:    "r01-zero-window-stall",
+			Purpose: "R01 positive: a receiver stalls a sender for 4.2s across two episodes, against twelve clean peer hosts.",
+			Build:   buildR01Positive,
+		},
+		{
+			Name:    "r01-brief-zero-windows",
+			Purpose: "R01 negative: brief zero windows below the cumulative floor, plus a midstream flow whose first observed window is zero.",
+			Build:   buildR01Negative,
+		},
+		{
+			Name:    "r04-server-response-outlier",
+			Purpose: "R04 positive: one server at 1.8s p95 against twelve peers under 40ms.",
+			Build:   buildR04Positive,
+		},
+		{
+			Name:    "r04-server-push",
+			Purpose: "R04 negative: server-sent events and a protocol banner, neither of which is a slow response.",
+			Build:   buildR04Negative,
+		},
+		{
+			Name:    "mixed-findings",
+			Purpose: "Determinism and ranking: five findings across both rules, several hosts, and a proximity bonus.",
+			Build:   buildMixed,
+		},
+	}
+}
+
+// exchanges emits a run of clean request/response exchanges and returns the
+// time just after the last one.
+//
+// Each exchange is client data, then server data delta+rtt later, then the
+// client's acknowledgement. Subtracting the network round trip from that gap
+// is what leaves the server's own time.
+func exchanges(c *Conn, start time.Duration, deltas []time.Duration, rtt, gap time.Duration) time.Duration {
+	t := start
+	for _, d := range deltas {
+		c.ClientData(t, 200)
+		resp := t + d + rtt
+		c.ServerData(resp, 800)
+		c.ClientAck(resp+5*ms, 65535)
+		t = resp + gap
+	}
+	return t
+}
+
+// evenDeltas returns n deltas from lo, stepping by step.
+func evenDeltas(n int, lo, step time.Duration) []time.Duration {
+	out := make([]time.Duration, n)
+	for i := range out {
+		out[i] = lo + time.Duration(i)*step
+	}
+	return out
+}
+
+// buildR01Positive is the R01 fixture from RULES.md's example wording: six
+// zero-window advertisements across two stalls totalling 4.2s, the longest
+// 2.9s, with twelve other hosts in the capture showing nothing.
+func buildR01Positive() *Builder {
+	b := New()
+
+	c := b.NewConn(ConnOpts{
+		Client: "10.1.1.5:44210", Server: "10.2.2.7:5432",
+		ClientISN: 1000, ServerISN: 5000,
+	})
+	c.Handshake(0, 10*ms)
+	c.ClientData(20*ms, 1000)
+	c.ServerAck(100*ms, 8192) // still accepting
+
+	// First stall: 150ms to 1450ms is 1.3s.
+	c.ClientData(120*ms, 1000)
+	c.ServerAck(150*ms, 0)
+	c.ClientWindowProbe(400 * ms)
+	c.ServerAck(410*ms, 0)
+	c.ClientWindowProbe(900 * ms)
+	c.ServerAck(910*ms, 0)
+	c.ServerAck(1450*ms, 4096) // window update
+
+	// Second stall: 1500ms to 4400ms is 2.9s.
+	c.ClientData(1460*ms, 1000)
+	c.ServerAck(1500*ms, 0)
+	c.ClientWindowProbe(2000 * ms)
+	c.ServerAck(2010*ms, 0)
+	c.ClientWindowProbe(3000 * ms)
+	c.ServerAck(3010*ms, 0)
+	c.ServerAck(4400*ms, 16384) // window update
+
+	c.ClientData(4500*ms, 500)
+	c.ServerAck(4510*ms, 16384)
+	c.FinClose(4600*ms, 10*ms)
+
+	// Eleven clean peer servers. With the client and the stalling server that
+	// is thirteen hosts, so the finding can say the other twelve show nothing.
+	for i := 0; i < 11; i++ {
+		addPeerFlow(b, i, 100*ms+time.Duration(i)*50*ms, 1)
+	}
+
+	return b
+}
+
+// addPeerFlow adds one short, clean conversation to a fixture as peer traffic.
+func addPeerFlow(b *Builder, i int, start time.Duration, exchangeCount int) {
+	c := b.NewConn(ConnOpts{
+		Client:    fmt.Sprintf("10.1.1.5:%d", 45000+i),
+		Server:    fmt.Sprintf("10.2.2.%d:443", 10+i),
+		ClientISN: uint32(20000 + i*1000),
+		ServerISN: uint32(70000 + i*1000),
+	})
+	c.Handshake(start, 10*ms)
+	end := exchanges(c, start+30*ms, evenDeltas(exchangeCount, 20*ms, 2*ms), 10*ms, 20*ms)
+	c.FinClose(end, 5*ms)
+}
+
+// buildR01Negative covers both false-positive traps under R01.
+//
+// The first flow advertises a zero window six times, but each stall is brief:
+// duration is the signal, not occurrence, and sixty milliseconds in total is
+// below the floor.
+//
+// The second flow is midstream and its first observed window is zero. It stays
+// that way for five seconds before a non-zero window appears. That is not a
+// receiver that stopped accepting data — the rule requires a non-zero window
+// to have been advertised first — and counting it would report a five-second
+// stall that never happened.
+func buildR01Negative() *Builder {
+	b := New()
+
+	brief := b.NewConn(ConnOpts{
+		Client: "10.1.1.5:44300", Server: "10.3.3.3:5432",
+		ClientISN: 3000, ServerISN: 9000,
+	})
+	brief.Handshake(0, 10*ms)
+	for i := 0; i < 6; i++ {
+		base := 200*ms + time.Duration(i)*100*ms
+		brief.ClientData(base, 500)
+		brief.ServerAck(base+10*ms, 0)
+		brief.ServerAck(base+20*ms, 8192)
+	}
+	brief.FinClose(900*ms, 10*ms)
+
+	// No handshake: this flow was already established when the capture began.
+	mid := b.NewConn(ConnOpts{
+		Client: "10.1.1.6:44400", Server: "10.3.3.4:5432",
+		ClientISN: 500000, ServerISN: 900000,
+	})
+	mid.ServerAck(1000*ms, 0) // first window seen from this side is zero
+	mid.ClientData(1010*ms, 200)
+	mid.ServerAck(3000*ms, 0)
+	mid.ServerAck(6000*ms, 8192) // five seconds later, and not a stall
+	mid.ClientData(6050*ms, 200)
+	mid.ServerAck(6100*ms, 0) // this one does qualify, and lasts 20ms
+	mid.ServerAck(6120*ms, 8192)
+	mid.ClientData(6200*ms, 200)
+	mid.ServerAck(6210*ms, 8192)
+
+	for i := 0; i < 3; i++ {
+		addPeerFlow(b, i, 100*ms+time.Duration(i)*50*ms, 1)
+	}
+
+	return b
+}
+
+// buildR04Positive is the R04 fixture from RULES.md's example wording: one
+// server at 1.8s p95 with a 4.1s maximum, against twelve peers under 40ms.
+func buildR04Positive() *Builder {
+	b := New()
+
+	// Eighteen responses from 1.00s to 1.68s, then 1.80s and 4.10s. Over
+	// twenty samples the 95th percentile by nearest rank is the second
+	// largest, so p95 is 1.8s and the maximum is 4.1s.
+	slowDeltas := append(evenDeltas(18, 1000*ms, 40*ms), 1800*ms, 4100*ms)
+
+	slow := b.NewConn(ConnOpts{
+		Client: "10.1.1.5:44210", Server: "10.2.2.7:443",
+		ClientISN: 1000, ServerISN: 5000,
+	})
+	slow.Handshake(0, 10*ms)
+	end := exchanges(slow, 30*ms, slowDeltas, 10*ms, 100*ms)
+	slow.FinClose(end, 5*ms)
+
+	// Twelve peers, each with five exchanges from 20ms to 28ms plus one at
+	// 30ms, so every peer's p95 is 30ms and the wording can say the others are
+	// under 40ms.
+	peerDeltas := []time.Duration{20 * ms, 22 * ms, 24 * ms, 26 * ms, 30 * ms}
+	for i := 0; i < 12; i++ {
+		c := b.NewConn(ConnOpts{
+			Client:    fmt.Sprintf("10.1.1.5:%d", 45000+i),
+			Server:    fmt.Sprintf("10.2.2.%d:443", 10+i),
+			ClientISN: uint32(20000 + i*1000),
+			ServerISN: uint32(70000 + i*1000),
+		})
+		start := 50*ms + time.Duration(i)*40*ms
+		c.Handshake(start, 10*ms)
+		e := exchanges(c, start+30*ms, peerDeltas, 10*ms, 40*ms)
+		c.FinClose(e, 5*ms)
+	}
+
+	return b
+}
+
+// buildR04Negative covers both false-positive traps under R04.
+//
+// The first flow is server-sent events: a fast request/response, then the
+// server pushes on its own with multi-second gaps. Those pushes continue a
+// response that has already been measured, so they must not read as a series
+// of two-second responses.
+//
+// The second flow opens with a protocol banner — the server sends data with no
+// preceding client request. Request and response do not alternate cleanly, so
+// the flow cannot be paired and must be reported as unavailable rather than
+// measured as slow.
+func buildR04Negative() *Builder {
+	b := New()
+
+	sse := b.NewConn(ConnOpts{
+		Client: "10.1.1.5:46000", Server: "10.5.5.5:8080",
+		ClientISN: 1000, ServerISN: 5000,
+	})
+	sse.Handshake(0, 10*ms)
+	for i := 0; i < 6; i++ {
+		base := 100*ms + time.Duration(i)*8*s
+		sse.ClientData(base, 150)
+		sse.ServerData(base+30*ms, 400) // the response: 30ms raw, 20ms of server time
+		sse.ClientAck(base+35*ms, 65535)
+		sse.ServerData(base+2*s, 100) // pushed event, not a new response
+		sse.ClientAck(base+2*s+5*ms, 65535)
+		sse.ServerData(base+4*s, 100) // pushed event
+		sse.ClientAck(base+4*s+5*ms, 65535)
+	}
+	sse.FinClose(50*s, 5*ms)
+
+	banner := b.NewConn(ConnOpts{
+		Client: "10.1.1.5:46100", Server: "10.6.6.6:21",
+		ClientISN: 2000, ServerISN: 6000,
+	})
+	banner.Handshake(0, 10*ms)
+	banner.ServerData(200*ms, 60) // banner, with nothing asked for
+	banner.ClientAck(205*ms, 65535)
+	for i := 0; i < 6; i++ {
+		base := 400*ms + time.Duration(i)*4*s
+		banner.ClientData(base, 20)
+		banner.ServerData(base+2*s, 50) // two seconds, but unpairable
+		banner.ClientAck(base+2*s+5*ms, 65535)
+	}
+	banner.FinClose(30*s, 5*ms)
+
+	peerDeltas := evenDeltas(6, 20*ms, 2*ms)
+	for i := 0; i < 5; i++ {
+		c := b.NewConn(ConnOpts{
+			Client:    fmt.Sprintf("10.1.1.5:%d", 45000+i),
+			Server:    fmt.Sprintf("10.2.2.%d:443", 10+i),
+			ClientISN: uint32(20000 + i*1000),
+			ServerISN: uint32(70000 + i*1000),
+		})
+		start := 50*ms + time.Duration(i)*40*ms
+		c.Handshake(start, 10*ms)
+		e := exchanges(c, start+30*ms, peerDeltas, 10*ms, 40*ms)
+		c.FinClose(e, 5*ms)
+	}
+
+	return b
+}
+
+// buildMixed produces several findings from both rules across several hosts.
+//
+// This is the golden-file and determinism fixture. It exists to have enough
+// map-derived collections in play — findings, flows, per-host aggregates,
+// per-server aggregates — that an unsorted emit anywhere would show up as a
+// changing document between runs.
+func buildMixed() *Builder {
+	b := New()
+
+	// Three zero-window stalls of different severity, on three servers.
+	stalls := []struct {
+		server   string
+		port     int
+		episodes []struct{ open, close time.Duration }
+		reset    bool
+	}{
+		{
+			server: "10.2.2.7", port: 5432,
+			episodes: []struct{ open, close time.Duration }{
+				{150 * ms, 1450 * ms},  // 1.3s
+				{1500 * ms, 4400 * ms}, // 2.9s
+			},
+		},
+		{
+			server: "10.2.2.8", port: 5432,
+			episodes: []struct{ open, close time.Duration }{
+				{200 * ms, 900 * ms},   // 0.7s
+				{1000 * ms, 1800 * ms}, // 0.8s
+			},
+		},
+		{
+			server: "10.2.2.9", port: 5432,
+			episodes: []struct{ open, close time.Duration }{
+				{300 * ms, 900 * ms}, // 0.6s, then reset shortly after
+			},
+			reset: true,
+		},
+	}
+
+	for i, st := range stalls {
+		c := b.NewConn(ConnOpts{
+			Client:    fmt.Sprintf("10.1.1.5:%d", 44210+i),
+			Server:    fmt.Sprintf("%s:%d", st.server, st.port),
+			ClientISN: uint32(1000 + i*100),
+			ServerISN: uint32(5000 + i*100),
+		})
+		c.Handshake(0, 10*ms)
+		c.ClientData(20*ms, 1000)
+		c.ServerAck(100*ms, 8192)
+
+		var last time.Duration
+		for _, ep := range st.episodes {
+			c.ClientData(ep.open-20*ms, 1000)
+			c.ServerAck(ep.open, 0)
+			c.ClientWindowProbe(ep.open + (ep.close-ep.open)/2)
+			c.ServerAck(ep.open+(ep.close-ep.open)/2+10*ms, 0)
+			c.ServerAck(ep.close, 8192)
+			last = ep.close
+		}
+		if st.reset {
+			// Within the proximity window, so this finding carries the bonus.
+			c.ServerReset(last + 500*ms)
+		} else {
+			c.FinClose(last+100*ms, 10*ms)
+		}
+	}
+
+	// Two slow servers and eight fast ones.
+	slow := []struct {
+		addr   string
+		deltas []time.Duration
+	}{
+		{"10.4.4.1", append(evenDeltas(9, 1800*ms, 20*ms), 2600*ms)},
+		{"10.4.4.2", append(evenDeltas(9, 1100*ms, 10*ms), 1500*ms)},
+	}
+	for i, sv := range slow {
+		c := b.NewConn(ConnOpts{
+			Client:    fmt.Sprintf("10.1.1.5:%d", 47000+i),
+			Server:    sv.addr + ":443",
+			ClientISN: uint32(30000 + i*1000),
+			ServerISN: uint32(80000 + i*1000),
+		})
+		c.Handshake(0, 10*ms)
+		e := exchanges(c, 30*ms, sv.deltas, 10*ms, 100*ms)
+		c.FinClose(e, 5*ms)
+	}
+
+	fastDeltas := evenDeltas(6, 20*ms, 2*ms)
+	for i := 0; i < 8; i++ {
+		c := b.NewConn(ConnOpts{
+			Client:    fmt.Sprintf("10.1.1.5:%d", 48000+i),
+			Server:    fmt.Sprintf("10.4.4.%d:443", 10+i),
+			ClientISN: uint32(40000 + i*1000),
+			ServerISN: uint32(90000 + i*1000),
+		})
+		start := 50*ms + time.Duration(i)*40*ms
+		c.Handshake(start, 10*ms)
+		e := exchanges(c, start+30*ms, fastDeltas, 10*ms, 40*ms)
+		c.FinClose(e, 5*ms)
+	}
+
+	return b
+}
