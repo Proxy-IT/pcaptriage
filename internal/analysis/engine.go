@@ -213,7 +213,14 @@ func Run(path string, opts Options) (*Result, error) {
 		if opts.Progress != nil && info.PacketsRead%uint64(progressEvery) == 0 {
 			report(false)
 		}
-		if info.PacketsRead == 1 {
+		// Min and max over all packets, not first-in-file and last-in-file:
+		// file order is not time order. Multi-interface merges interleave
+		// imperfectly, and the committed fixtures themselves are appended by
+		// flow — capinfos reports them as not strictly time-ordered. Taking
+		// packet 1 as the start would misreport the capture window for any
+		// such file; the tshark cross-validation harness compares this span
+		// against the oracle's.
+		if info.FirstPacketTime.IsZero() || pkt.Time.Before(info.FirstPacketTime) {
 			info.FirstPacketTime = pkt.Time
 		}
 		if pkt.Time.After(info.LastPacketTime) {
