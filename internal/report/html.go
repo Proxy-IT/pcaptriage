@@ -23,6 +23,13 @@ var styleSource string
 
 var pageTemplate = template.Must(template.New("report").Parse(templateSource))
 
+// StyleSheet returns the embedded report stylesheet.
+//
+// Exported so tests can assert properties of it — that evidence quality carries
+// no severity colour, in particular — without a second copy of the rules to
+// drift from.
+func StyleSheet() string { return styleSource }
+
 // TopFindingLimit is how many findings lead the report.
 //
 // BRIEF.md section 3 asks for the five to ten most significant. Ten is the top
@@ -45,7 +52,11 @@ type findingView struct {
 	More         string
 	Quality      string
 	QualityBasis string
-	IsTop        bool
+	// Severity is the slug used for the CSS class; SeverityLabel is the word.
+	// Colour never carries this signal alone.
+	Severity      string
+	SeverityLabel string
+	IsTop         bool
 }
 
 type tileView struct {
@@ -169,14 +180,16 @@ func buildPage(doc *Document) *pageView {
 
 func toView(f Finding, isTop bool) findingView {
 	v := findingView{
-		Rank:         f.Rank,
-		RuleID:       f.RuleID,
-		Title:        f.Title,
-		Observation:  f.Observation,
-		CheckNext:    f.CheckNext,
-		Quality:      f.Quality,
-		QualityBasis: f.QualityBasis,
-		IsTop:        isTop,
+		Rank:          f.Rank,
+		RuleID:        f.RuleID,
+		Title:         f.Title,
+		Observation:   f.Observation,
+		CheckNext:     f.CheckNext,
+		Quality:       f.Quality,
+		QualityBasis:  f.QualityBasis,
+		Severity:      f.Severity,
+		SeverityLabel: f.SeverityLabel,
+		IsTop:         isTop,
 	}
 
 	parts := make([]string, 0, len(f.Frames))

@@ -29,6 +29,16 @@ var previewPath = flag.String("preview", "", "write a browsable preview of the f
 // one.
 var previewFixture = flag.String("preview-fixture", "mixed-findings", "fixture to build the preview from")
 
+// previewVariant constructs a state no committed fixture can currently reach.
+//
+//	force-strong  clean capture with coverage forced strong, to see what green
+//	              looks like — unreachable today because 13 checks are unbuilt
+//	no-tcp        packets present, no TCP conversations
+//
+// Both are marked in the rendered page as constructed rather than observed, so a
+// screenshot of one cannot be mistaken for the tool's real output.
+var previewVariant = flag.String("preview-variant", "", "construct an otherwise unreachable state: force-strong | no-tcp")
+
 // TestAnalyzeEndToEnd drives the exact method the frontend calls and requires
 // real findings from the real engine.
 //
@@ -426,6 +436,31 @@ func TestWritePreview(t *testing.T) {
 	res, err := app.Analyze(synth.FixturePath(*previewFixture, "pcap"))
 	if err != nil {
 		t.Fatal(err)
+	}
+
+	switch *previewVariant {
+	case "":
+	case "force-strong":
+		// Green is withheld today because the rule set is incomplete. Forcing it
+		// shows the treatment; it is not something a real run can produce.
+		res.Coverage.CoverageStrong = true
+		res.Coverage.CoverageWeakReason = ""
+		res.Coverage.NotChecked = nil
+		res.Coverage.UnbuiltChecks = 0
+		res.Coverage.Qualifier = "CONSTRUCTED FOR REVIEW — no real run reaches this state yet: " +
+			"green requires every planned check built and no gaps on the capture. " + res.Coverage.Qualifier
+	case "no-tcp":
+		res.Report.Capture.TCPFlows = 0
+		res.Report.Capture.PacketsNonTCP = res.Report.Capture.PacketsRead
+		res.Report.Capture.PacketsTCP = 0
+		res.Report.Findings = nil
+		res.Coverage = buildCoverage(&analysis.Result{Capture: analysis.CaptureInfo{
+			PacketsRead:   res.Report.Capture.PacketsRead,
+			PacketsNonTCP: res.Report.Capture.PacketsRead,
+		}})
+		res.Coverage.Qualifier = "CONSTRUCTED FOR REVIEW — " + res.Coverage.Qualifier
+	default:
+		t.Fatalf("unknown -preview-variant %q", *previewVariant)
 	}
 
 	resultJSON, err := json.Marshal(res)

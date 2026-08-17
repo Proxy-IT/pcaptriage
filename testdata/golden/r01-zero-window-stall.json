@@ -76,6 +76,8 @@
       "worst_frame": 14,
       "total_count": 6,
       "quality": "confirmed",
+      "severity": "significant",
+      "severity_label": "Significant",
       "metrics": {
         "blocked_sender": "10.1.1.5:44210",
         "cumulative_stall_ms": 4200,

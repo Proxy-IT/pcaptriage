@@ -36,6 +36,16 @@ type Coverage struct {
 	// UnbuiltChecks is how many of the planned v1 rules do not exist yet.
 	UnbuiltChecks int `json:"unbuilt_checks"`
 
+	// CoverageStrong permits the clean banner to be presented positively — in
+	// green. It is false whenever checks could not run or do not yet exist,
+	// because green reads as an all-clear and this screen's wording is
+	// explicitly tested against claiming one. Colour must not say what the
+	// words are forbidden from saying.
+	CoverageStrong bool `json:"coverage_strong"`
+	// CoverageWeakReason states why the presentation is neutral rather than
+	// positive. Empty when CoverageStrong is true.
+	CoverageWeakReason string `json:"coverage_weak_reason,omitempty"`
+
 	// MinorObservations counts findings held back from the list because they
 	// fell below the display floor.
 	//
@@ -72,6 +82,10 @@ func buildCoverage(res *analysis.Result) Coverage {
 	if total := 15; total > len(c.Checked) {
 		c.UnbuiltChecks = total - len(c.Checked)
 	}
+
+	strength := rules.AssessCoverage(len(c.NotChecked), c.UnbuiltChecks)
+	c.CoverageStrong = strength.Strong
+	c.CoverageWeakReason = strength.Reason
 
 	c.Statement, c.Qualifier = cleanWording(res, c)
 	return c

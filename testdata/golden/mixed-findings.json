@@ -78,6 +78,8 @@
       "worst_frame": 79,
       "total_count": 10,
       "quality": "confirmed",
+      "severity": "significant",
+      "severity_label": "Significant",
       "metrics": {
         "assessed_servers": 10,
         "contributing_flows": 1,
@@ -121,6 +123,8 @@
       "worst_frame": 115,
       "total_count": 10,
       "quality": "confirmed",
+      "severity": "significant",
+      "severity_label": "Significant",
       "metrics": {
         "assessed_servers": 10,
         "contributing_flows": 1,
@@ -160,6 +164,8 @@
       "worst_frame": 12,
       "total_count": 4,
       "quality": "confirmed",
+      "severity": "significant",
+      "severity_label": "Significant",
       "metrics": {
         "blocked_sender": "10.1.1.5:44210",
         "cumulative_stall_ms": 4200,
@@ -190,6 +196,8 @@
       "worst_frame": 43,
       "total_count": 2,
       "quality": "confirmed",
+      "severity": "significant",
+      "severity_label": "Significant",
       "metrics": {
         "blocked_sender": "10.1.1.5:44212",
         "cumulative_stall_ms": 600,
@@ -222,6 +230,8 @@
       "worst_frame": 30,
       "total_count": 4,
       "quality": "confirmed",
+      "severity": "significant",
+      "severity_label": "Significant",
       "metrics": {
         "blocked_sender": "10.1.1.5:44211",
         "cumulative_stall_ms": 1500,

@@ -63,6 +63,48 @@ var Thresholds = struct {
 	// translates to a predictable memory ceiling.
 	R04FlowExchangeBuffer int
 
+	// SeveritySignificantFloor and SeverityWorthNotingFloor split the
+	// significance score into the three words a card shows.
+	//
+	// These are presentation calibration only. They do not change ranking, they
+	// do not suppress anything, and nothing is hidden below the lower one —
+	// there is no display floor (see the BACKLOG P4 note and the RULES.md
+	// addendum). Every emitted finding is shown; these decide which word it
+	// carries.
+	//
+	// [chosen] Anchored on three reference findings rather than picked to make
+	// the current fixtures look varied:
+	//
+	//   40.4  a mid-weight rule (base 7) reporting one second of lost time,
+	//         isolated to one host while its peers are clean
+	//   18.1  R06 fast retransmit at 0.9% against a 0.1% capture median,
+	//         costing 340ms — the example in RULES.md whose own wording is
+	//         "worth noting but unlikely to be the cause of a user-visible
+	//         problem on its own"
+	//    5.0  R06 at a healthy 0.3% spread uniformly across the capture, which
+	//         RULES.md calls "a healthy internet path"
+	//
+	// The middle anchor is the load-bearing one: the rule set already describes
+	// that case in the words this vocabulary uses, so the boundary is read off
+	// the specification rather than guessed.
+	SeveritySignificantFloor float64
+	SeverityWorthNotingFloor float64
+
+	// CoverageStrongRequiresNoGaps and CoverageStrongRequiresCompleteRuleSet
+	// are the conditions under which the clean-capture banner may go green.
+	//
+	// Green is a visual all-clear, and the clean screen's wording is tested
+	// against claiming one. Colour must not say what the words are forbidden
+	// from saying, so it is withheld unless the coverage genuinely supports it.
+	//
+	// [chosen] Both are required. Gaps mean checks could not run on this
+	// capture; an incomplete rule set means checks do not exist to run at all.
+	// Either one makes "all clear" an overstatement, and at the current 2-of-15
+	// build state the second is always true — so the banner is neutral today,
+	// by design rather than by accident.
+	CoverageStrongRequiresNoGaps          bool
+	CoverageStrongRequiresCompleteRuleSet bool
+
 	// R15KernelDropRatio is the share of the capture the capture host must have
 	// dropped before loss findings are treated as ambiguous.
 	//
@@ -85,6 +127,12 @@ var Thresholds = struct {
 	R04MinPeerGroup:           2,
 	R04NetworkComparableRatio: 4.0,
 	R04FlowExchangeBuffer:     32,
+
+	SeveritySignificantFloor: 40,
+	SeverityWorthNotingFloor: 15,
+
+	CoverageStrongRequiresNoGaps:          true,
+	CoverageStrongRequiresCompleteRuleSet: true,
 
 	R15KernelDropRatio: 0.001, // 0.1% of packets read
 }

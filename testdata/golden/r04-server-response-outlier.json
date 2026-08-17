@@ -78,6 +78,8 @@
       "worst_frame": 62,
       "total_count": 20,
       "quality": "confirmed",
+      "severity": "significant",
+      "severity_label": "Significant",
       "metrics": {
         "assessed_servers": 13,
         "contributing_flows": 1,

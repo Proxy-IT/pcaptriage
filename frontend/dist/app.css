@@ -24,6 +24,24 @@
   --step-250:  #86b6ef;
   --wash:      #eef4fd;
 
+  /* Severity accents. Reserved for severity and nothing else: they are a
+     status scale, never a palette to draw other things from.
+
+     Contrast against --surface, measured: red 6.40:1, amber 5.29:1,
+     neutral 7.73:1 — all clear of 4.5:1 for text. Colour is never the only
+     carrier; the word rides beside it in every case. */
+  --sev-significant:      #b42318;
+  --sev-significant-wash: #fdf3f2;
+  --sev-worth-noting:     #b54708;
+  --sev-worth-noting-wash:#fdf6ee;
+  --sev-informational:      #52514e;
+  --sev-informational-wash: #f6f6f4;
+
+  /* Reserved for a clean result whose coverage is strong enough to justify it.
+     Currently unreachable — see the coverage-strength condition. */
+  --ok:      #146c43;
+  --ok-wash: #f0f8f3;
+
   --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --mono: ui-monospace, "Cascadia Mono", Consolas, monospace;
 }
@@ -268,9 +286,42 @@ h1, h2, h3 { letter-spacing: -0.01em; }
   white-space: nowrap;
 }
 .tag-rule { color: var(--ink-muted); border: 1px solid var(--rule); font-family: var(--mono); }
-.tag-confirmed { background: var(--step-550); color: #fff; }
-.tag-inferred { color: var(--ink-2); border: 1px solid var(--axis); }
-.tag-unavailable { background: var(--rule); color: var(--ink-2); }
+
+/* Evidence quality is deliberately colourless. It answers "how sure", which is
+   a different question from "how much it matters" — giving both a colour would
+   invite the reader to add them together. Severity owns colour on this card. */
+.tag-confirmed,
+.tag-inferred,
+.tag-unavailable {
+  color: var(--ink-2);
+  border: 1px solid var(--axis);
+  background: transparent;
+}
+.tag-inferred { border-style: dashed; }
+
+/* Severity carries the colour, always with its word beside it. */
+.tag-sev { border: 1px solid; font-weight: 600; }
+.tag-sev-significant {
+  color: var(--sev-significant);
+  border-color: var(--sev-significant);
+  background: var(--sev-significant-wash);
+}
+.tag-sev-worth-noting {
+  color: var(--sev-worth-noting);
+  border-color: var(--sev-worth-noting);
+  background: var(--sev-worth-noting-wash);
+}
+.tag-sev-informational {
+  color: var(--sev-informational);
+  border-color: var(--axis);
+  background: var(--sev-informational-wash);
+}
+
+/* The card's left edge echoes the severity, so a scanned list has shape
+   without the reader having to read every badge. */
+.finding.sev-significant { border-left-color: var(--sev-significant); }
+.finding.sev-worth-noting { border-left-color: var(--sev-worth-noting); }
+.finding.sev-informational { border-left-color: var(--axis); }
 
 /* ---------------- packet evidence ---------------- */
 
@@ -368,6 +419,9 @@ h1, h2, h3 { letter-spacing: -0.01em; }
 
 .clean { margin-bottom: 1.5rem; }
 
+/* Neutral by default. Green is opt-in and only when the coverage supports it —
+   an all-clear colour over a result with unrun checks would contradict the
+   words directly above it. */
 .clean-headline {
   background: var(--surface);
   border: 1px solid var(--border);
@@ -375,6 +429,11 @@ h1, h2, h3 { letter-spacing: -0.01em; }
   border-radius: 6px;
   padding: 1rem 1.15rem;
 }
+.clean-headline.coverage-strong {
+  border-left-color: var(--ok);
+  background: var(--ok-wash);
+}
+.clean-headline.coverage-strong h3 { color: var(--ok); }
 .clean-headline h3 { font-size: 1.15rem; margin: 0; }
 .clean-headline p { margin: .45rem 0 0; color: var(--ink-2); font-size: .92rem; }
 

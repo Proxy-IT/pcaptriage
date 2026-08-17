@@ -213,11 +213,12 @@
 </html>
 
 {{define "finding"}}
-<article class="finding{{if .IsTop}} top{{end}}">
+<article class="finding{{if .IsTop}} top{{end}} sev-{{.Severity}}">
   <div class="finding-head">
     <span class="rank">#{{.Rank}}</span>
     <h3>{{.Title}}</h3>
     <span class="tag tag-rule">{{.RuleID}}</span>
+    <span class="tag tag-sev tag-sev-{{.Severity}}">{{.SeverityLabel}}</span>
     <span class="tag tag-{{.Quality}}">{{.Quality}}</span>
   </div>
   <p class="observation">{{.Observation}}</p>

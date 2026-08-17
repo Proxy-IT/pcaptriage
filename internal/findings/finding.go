@@ -32,6 +32,47 @@ const (
 	Unavailable Quality = "unavailable"
 )
 
+// Severity says how much a finding matters, as three words rather than a
+// number.
+//
+// It is distinct from Quality and the two must never be conflated: Quality says
+// how sure the tool is, Severity says how much it matters. A confirmed
+// observation can be trivial and an inferred one can be the outage.
+//
+// The vocabulary is not invented here. RULES.md already uses it: R06's own
+// check-next line calls fast retransmit "worth noting but unlikely to be the
+// cause of a user-visible problem on its own", which is precisely the middle
+// band. The mapping is calibration of an existing score, and changes nothing
+// about ranking or what is shown.
+type Severity string
+
+const (
+	// SeveritySignificant is material time lost, or a condition that plausibly
+	// explains a user-visible problem.
+	SeveritySignificant Severity = "significant"
+	// SeverityWorthNoting is real, but unlikely to be the headline on its own.
+	SeverityWorthNoting Severity = "worth-noting"
+	// SeverityInformational is context: patterns and non-fault observations.
+	SeverityInformational Severity = "informational"
+)
+
+// Label is the word shown beside the colour.
+//
+// Authored once, here, because colour is never the only carrier of this signal
+// and the word therefore appears everywhere the colour does — in the app, in
+// the exported report, and in the JSON.
+func (s Severity) Label() string {
+	switch s {
+	case SeveritySignificant:
+		return "Significant"
+	case SeverityWorthNoting:
+		return "Worth noting"
+	case SeverityInformational:
+		return "Informational"
+	}
+	return ""
+}
+
 // ScopeKind names what kind of subject a finding is about.
 //
 // Rules do not all work at the same granularity: R01 is per flow, R04 is per

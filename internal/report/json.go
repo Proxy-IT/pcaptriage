@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/Proxy-IT/pcaptriage/internal/analysis"
+	"github.com/Proxy-IT/pcaptriage/internal/rules"
 )
 
 // SchemaVersion is the version of this JSON document's structure.
@@ -155,6 +156,15 @@ type Finding struct {
 	Quality      string `json:"quality"`
 	QualityBasis string `json:"quality_basis,omitempty"`
 
+	// Severity is how much this matters; Quality above is how sure the tool is.
+	// Two different questions, deliberately two fields.
+	//
+	// SeverityLabel is the word rendered beside the colour. It travels with the
+	// slug because colour is never the only carrier of this signal, and the word
+	// is authored in one place rather than restated by each renderer.
+	Severity      string `json:"severity"`
+	SeverityLabel string `json:"severity_label"`
+
 	Metrics map[string]any `json:"metrics,omitempty"`
 }
 
@@ -233,23 +243,28 @@ func Build(res *analysis.Result, inv Invocation, version string) *Document {
 
 	doc.Findings = make([]Finding, 0, len(res.Findings))
 	for i, f := range res.Findings {
+		// Derived here rather than in the engine: it is a reading of the score,
+		// not a property of the detection, and the order below is untouched.
+		severity := rules.SeverityFor(f.Significance)
 		doc.Findings = append(doc.Findings, Finding{
-			Rank:         i + 1,
-			RuleID:       f.RuleID,
-			Rule:         f.RuleName,
-			Subject:      f.ScopeKey,
-			ScopeKind:    string(f.ScopeKind),
-			SubjectLabel: f.SubjectLabel,
-			Title:        f.Title,
-			Observation:  f.Observation,
-			CheckNext:    f.CheckNext,
-			Frames:       nonNilFrames(f.Frames),
-			FirstFrame:   f.FirstFrame,
-			WorstFrame:   f.WorstFrame,
-			TotalCount:   f.TotalCount,
-			Quality:      string(f.Quality),
-			QualityBasis: f.QualityBasis,
-			Metrics:      f.Metrics,
+			Rank:          i + 1,
+			RuleID:        f.RuleID,
+			Rule:          f.RuleName,
+			Subject:       f.ScopeKey,
+			ScopeKind:     string(f.ScopeKind),
+			SubjectLabel:  f.SubjectLabel,
+			Title:         f.Title,
+			Observation:   f.Observation,
+			CheckNext:     f.CheckNext,
+			Frames:        nonNilFrames(f.Frames),
+			FirstFrame:    f.FirstFrame,
+			WorstFrame:    f.WorstFrame,
+			TotalCount:    f.TotalCount,
+			Quality:       string(f.Quality),
+			QualityBasis:  f.QualityBasis,
+			Severity:      string(severity),
+			SeverityLabel: severity.Label(),
+			Metrics:       f.Metrics,
 		})
 	}
 

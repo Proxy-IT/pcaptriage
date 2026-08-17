@@ -166,10 +166,36 @@ h2 .count { color: var(--ink-muted); font-weight: 400; text-transform: none; let
   flex: none;
   white-space: nowrap;
 }
-.tag-confirmed   { background: var(--step-550); color: #fff; }
-.tag-inferred    { background: transparent; color: var(--ink-2); border: 1px solid var(--axis); }
-.tag-unavailable { background: var(--rule); color: var(--ink-2); }
+/* Evidence quality is colourless: it answers "how sure", not "how much it
+   matters". Severity owns colour on this card, so the two cannot be read as one
+   combined signal. Kept in step with the app stylesheet by review until the
+   tokens are unified (BACKLOG P3.5). */
+.tag-confirmed,
+.tag-inferred,
+.tag-unavailable {
+  background: transparent;
+  color: var(--ink-2);
+  border: 1px solid var(--axis);
+}
+.tag-inferred { border-style: dashed; }
 .tag-rule { background: transparent; color: var(--ink-muted); border: 1px solid var(--rule); font-family: var(--mono); }
+
+/* Severity. Contrast against --surface: red 6.40:1, amber 5.29:1,
+   neutral 7.73:1. The word always accompanies the colour. */
+.tag-sev { border: 1px solid; font-weight: 600; }
+.tag-sev-significant   { color: #b42318; border-color: #b42318; background: #fdf3f2; }
+.tag-sev-worth-noting  { color: #b54708; border-color: #b54708; background: #fdf6ee; }
+.tag-sev-informational { color: var(--ink-2); border-color: var(--axis); background: #f6f6f4; }
+
+.finding.sev-significant   { border-left-color: #b42318; }
+.finding.sev-worth-noting  { border-left-color: #b54708; }
+.finding.sev-informational { border-left-color: var(--axis); }
+
+@media print {
+  /* Colour may not survive the printer, so the border weight carries the
+     distinction too. */
+  .tag-sev { border-width: 2px; }
+}
 
 /* ---------- tables ---------- */
 
@@ -294,11 +320,12 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
   <h2>Top findings <span class="count">all 1, most significant first</span></h2>
   
     
-<article class="finding top">
+<article class="finding top sev-significant">
   <div class="finding-head">
     <span class="rank">#1</span>
     <h3>Receiver stopped accepting data — 10.2.2.7:5432</h3>
     <span class="tag tag-rule">R01</span>
+    <span class="tag tag-sev tag-sev-significant">Significant</span>
     <span class="tag tag-confirmed">confirmed</span>
   </div>
   <p class="observation">Advertised a zero receive window 6 times, stalling the sender for 4.2s total (longest single stall 2.9s). The other 12 hosts in this capture show no zero window events.</p>
@@ -333,11 +360,12 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
     
 
     
-<article class="finding">
+<article class="finding sev-significant">
   <div class="finding-head">
     <span class="rank">#1</span>
     <h3>Receiver stopped accepting data — 10.2.2.7:5432</h3>
     <span class="tag tag-rule">R01</span>
+    <span class="tag tag-sev tag-sev-significant">Significant</span>
     <span class="tag tag-confirmed">confirmed</span>
   </div>
   <p class="observation">Advertised a zero receive window 6 times, stalling the sender for 4.2s total (longest single stall 2.9s). The other 12 hosts in this capture show no zero window events.</p>

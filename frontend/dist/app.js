@@ -133,12 +133,16 @@
   // The wording arrives from the engine already written and is never edited,
   // reflowed or summarised here.
   function findingCard(f) {
-    var card = el("article", "finding");
+    var sev = f.severity || "informational";
+    var card = el("article", "finding sev-" + sev);
 
     var head = el("div", "finding-head");
     head.appendChild(el("span", "finding-rank", "#" + f.rank));
     head.appendChild(el("h3", null, f.title));
     head.appendChild(el("span", "tag tag-rule", f.rule_id));
+    // Severity carries the colour and always its word with it; quality sits
+    // beside it, colourless, answering a different question.
+    head.appendChild(el("span", "tag tag-sev tag-sev-" + sev, f.severity_label || ""));
     head.appendChild(el("span", "tag tag-" + (f.quality || "confirmed"), f.quality || ""));
     card.appendChild(head);
 
@@ -182,6 +186,16 @@
   function renderCleanState(cov) {
     $("clean-statement").textContent = cov.statement || "Nothing was found";
     $("clean-qualifier").textContent = cov.qualifier || "";
+
+    // Green only when the coverage earns it. Today it never does — not all
+    // fifteen checks are built — so this stays neutral, which is the intended
+    // outcome rather than an oversight.
+    var headline = document.querySelector(".clean-headline");
+    if (cov.coverage_strong) {
+      headline.classList.add("coverage-strong");
+    } else {
+      headline.classList.remove("coverage-strong");
+    }
 
     var checked = $("clean-checked");
     checked.textContent = "";
