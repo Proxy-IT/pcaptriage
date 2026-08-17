@@ -889,13 +889,19 @@ the GUI pivot, simplifies what follows.
 
 ### Licence choice
 
-**MIT or Apache 2.0 are both reasonable; neither is load-bearing now.**
+**MIT — decided.** Apache 2.0 was equally reasonable; neither was
+load-bearing.
 
 The earlier recommendation for Apache 2.0 was based on an intent to reuse the
 heuristics engine in a commercial monitoring product, which is no longer the
-plan. Apache 2.0's patent grant costs nothing to include and is still a fine
-default, but this is now a preference, not a strategic decision requiring
-resolution before the first commit.
+plan. Its patent grant costs nothing to include and would still have been a
+fine default, but with the commercial-reuse plan gone this was a preference
+rather than a strategic decision, and MIT was chosen for being the shorter and
+more widely recognised of the two.
+
+The licence text lives in `LICENSE`, copyright Proxy-IT. The same line is
+carried in the app's binary metadata (`wails.json` and `winres/winres.json`),
+which is the place it most easily goes stale.
 
 ### Copyright ownership
 
@@ -941,7 +947,7 @@ harder to understand in one sitting.
 | Capture completeness | Per-flow state tracking; findings tagged confirmed / inferred / unavailable |
 | Output | Desktop GUI (Wails), top findings first; internal dev CLI, same engine |
 | Charts | Server-rendered SVG, uPlot inlined for the timeline only |
-| Licensing | MIT or Apache 2.0 — non-commercial, no longer strategically load-bearing |
+| Licensing | MIT — non-commercial, chosen from the two the brief sanctioned |
 | Distribution | Signed installers, Windows + macOS release-blocking; Linux best-effort; no CLI releases |
 | Privacy | No payload in reports; `--redact` mode; zero network calls |
 | Validation | Synthesised fixtures per rule, `tc netem` for threshold calibration |
