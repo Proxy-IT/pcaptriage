@@ -164,4 +164,4 @@ Then review the diff.
 
 ## Licence
 
-Apache 2.0. The `LICENSE` file has not been added yet.
+MIT — see [LICENSE](LICENSE).
