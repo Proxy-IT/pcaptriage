@@ -73,6 +73,71 @@ func (c *Conn) Handshake(at, rtt time.Duration) {
 	})
 }
 
+// HandshakeWithOptions is Handshake with realistic SYN options: MSS,
+// SACK-permitted and a window scale, on both SYNs. Real stacks always send
+// MSS and almost always SACK; fixtures modelling loss and recovery use this
+// so their handshakes look like the traffic the loss rules will meet.
+func (c *Conn) HandshakeWithOptions(at, rtt time.Duration, mss uint16, sack bool) {
+	c.b.AddTCP(TCPSpec{
+		At: at, Src: c.client, Dst: c.server,
+		Seq: c.cseq, Flags: capture.FlagSYN, Window: c.cwin,
+		WindowScale: 7, MSS: mss, SACKPermitted: sack,
+	})
+	c.b.AddTCP(TCPSpec{
+		At: at + rtt, Src: c.server, Dst: c.client,
+		Seq: c.sseq, Ack: c.cseq + 1,
+		Flags: capture.FlagSYN | capture.FlagACK, Window: c.swin,
+		WindowScale: 7, MSS: mss, SACKPermitted: sack,
+	})
+	c.cseq++
+	c.sseq++
+	c.b.AddTCP(TCPSpec{
+		At: at + rtt + rtt/2, Src: c.client, Dst: c.server,
+		Seq: c.cseq, Ack: c.sseq, Flags: capture.FlagACK, Window: c.cwin, WindowScale: -1,
+	})
+}
+
+// ClientSegmentAt emits n payload bytes from the client at an explicit
+// sequence number, without advancing the conversation. Fixtures use it to
+// model retransmissions and late arrivals: the same range sent again, or a
+// segment appearing after data that overtook it.
+func (c *Conn) ClientSegmentAt(at time.Duration, seq uint32, n int) {
+	c.b.AddTCP(TCPSpec{
+		At: at, Src: c.client, Dst: c.server,
+		Seq: seq, Ack: c.sseq,
+		Flags: capture.FlagPSH | capture.FlagACK, Window: c.cwin,
+		WindowScale: -1, PayloadLen: n,
+	})
+}
+
+// ServerSegmentAt is ClientSegmentAt for the server side.
+func (c *Conn) ServerSegmentAt(at time.Duration, seq uint32, n int) {
+	c.b.AddTCP(TCPSpec{
+		At: at, Src: c.server, Dst: c.client,
+		Seq: seq, Ack: c.cseq,
+		Flags: capture.FlagPSH | capture.FlagACK, Window: c.swin,
+		WindowScale: -1, PayloadLen: n,
+	})
+}
+
+// ClientAdvance moves the client's next sequence number without emitting,
+// for stream bytes the fixture emitted via ClientSegmentAt.
+func (c *Conn) ClientAdvance(n int) { c.cseq += uint32(n) }
+
+// ServerAdvance moves the server's next sequence number without emitting.
+func (c *Conn) ServerAdvance(n int) { c.sseq += uint32(n) }
+
+// ClientAckAt emits a pure ACK from the client with an explicit
+// acknowledgement number — the shape of a duplicate ACK, when repeated: a
+// receiver stuck at a hole keeps acknowledging the same byte.
+func (c *Conn) ClientAckAt(at time.Duration, ack uint32) {
+	c.b.AddTCP(TCPSpec{
+		At: at, Src: c.client, Dst: c.server,
+		Seq: c.cseq, Ack: ack,
+		Flags: capture.FlagACK, Window: c.cwin, WindowScale: -1,
+	})
+}
+
 // ClientData emits n payload bytes from the client.
 func (c *Conn) ClientData(at time.Duration, n int) {
 	c.b.AddTCP(TCPSpec{

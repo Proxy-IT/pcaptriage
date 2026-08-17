@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>pcap triage — r04-server-response-outlier</title>
+<title>pcap triage — r07-reordering</title>
 <style>/* Design tokens — the single source of the palette, type base and radii for
    both rendering surfaces: the desktop app's stylesheet and the exported HTML
    report's. A finding must look like itself whether it is read in the app or
@@ -319,10 +319,10 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
 
 <header class="masthead">
   <h1>pcap triage report</h1>
-  <div class="file">testdata/fixtures/r04-server-response-outlier</div>
+  <div class="file">testdata/fixtures/r07-reordering</div>
   <div class="stamp">
     pcaptriage test · ruleset 1.0.0-partial · schema 4
-    · capture 2024-03-14T09:00:00Z to 2024-03-14T09:00:32.26Z (UTC)
+    · capture 2024-03-14T09:00:00Z to 2024-03-14T09:00:00.536Z (UTC)
   </div>
   <p class="posture">
     <strong>Advisory, not diagnostic.</strong> Each finding states what was observed, why it
@@ -348,18 +348,18 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
   <div class="tiles">
     <div class="tile">
       <div class="tile-label">Packets read</div>
-      <div class="tile-value">318</div>
-      <div class="tile-context">318 TCP · 0 other · 0 undecodable</div>
+      <div class="tile-value">131</div>
+      <div class="tile-context">131 TCP · 0 other · 0 undecodable</div>
     </div>
     <div class="tile">
       <div class="tile-label">TCP flows</div>
-      <div class="tile-value">13</div>
-      <div class="tile-context">across 14 hosts</div>
+      <div class="tile-value">5</div>
+      <div class="tile-context">across 7 hosts</div>
     </div>
     <div class="tile">
       <div class="tile-label">Began before capture</div>
       <div class="tile-value">0%</div>
-      <div class="tile-context">0 of 13 flows midstream</div>
+      <div class="tile-context">0 of 5 flows midstream</div>
     </div>
     <div class="tile">
       <div class="tile-label">Snaplen</div>
@@ -375,7 +375,7 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
     <div class="legend">
       
       <span class="key"><span class="swatch fill-strong"></span>Complete
-        <span class="num">13 (100%)</span></span>
+        <span class="num">5 (100%)</span></span>
       
       <span class="key"><span class="swatch fill-mid"></span>Partial
         <span class="num">0 (0%)</span></span>
@@ -398,17 +398,17 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
   <h2>Top findings <span class="count">all 1, most significant first</span></h2>
   
     
-<article class="finding top sev-significant">
+<article class="finding top sev-informational">
   <div class="finding-head">
     <span class="rank">#1</span>
-    <h3>One server much slower to respond than its peers — 10.2.2.7:443</h3>
-    <span class="tag tag-rule">R04</span>
-    <span class="tag tag-sev tag-sev-significant">Significant</span>
+    <h3>Out-of-order delivery, not packet loss — 10.8.8.5 ↔ 10.9.9.2</h3>
+    <span class="tag tag-rule">R07</span>
+    <span class="tag tag-sev tag-sev-informational">Informational</span>
     <span class="tag tag-confirmed">confirmed</span>
   </div>
-  <p class="observation">Responded in 1.8s at p95 (max 4.1s) while the other 12 servers in this capture are under 40ms at p95. Measured from last request byte to first response byte, with network round-trip time subtracted — so this is time spent on the server, not on the network.</p>
-  <p class="frames">Frames 257, 296, 299, 302, 305, 308, 311, 314 <span class="of">(8 shown of 20 occurrences)</span></p>
-  <p class="next"><b>Check next:</b> application or backend dependency latency on 10.2.2.7. The network path to this host looks comparable to its peers.</p>
+  <p class="observation">5 segments arrived out of sequence with sub-millisecond gaps and consistent IP ID ordering. These were not retransmissions and no data was lost. Without this reclassification they would appear as a 14.7% loss rate.</p>
+  <p class="frames">Frames 20, 34, 54, 72, 89</p>
+  <p class="next"><b>Check next:</b> usually multipath routing, LACP hashing, or receive-side scaling on the capture host. Not a fault in itself, but it can degrade TCP throughput.</p>
   
 </article>
 
@@ -420,35 +420,23 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
 <section>
   <h2>All findings by rule</h2>
   
-    <h3 class="rule-head">R04 · server-response-outlier</h3>
-    <p class="section-note">A server:port took materially longer to begin responding than its peers in the same capture, with network round-trip time subtracted.</p>
+    <h3 class="rule-head">R07 · out-of-order-not-loss</h3>
+    <p class="section-note">Segments arrived out of sequence within milliseconds and in original transmission order by IP ID — reordering on the path, not packet loss.</p>
 
-    
-    <div class="figure">
-      <h3>Server response time at p95, against the capture</h3>
-      <div class="tiles">
-        <div class="tile">
-          <div class="tile-label">Response time at p95 · 10.2.2.7:443</div>
-          <div class="tile-value">1.8s</div>
-          <div class="tile-context">max 4.1s · capture median p95 30ms</div>
-        </div>
-      </div>
-      <p class="caption">One server stood out in this capture, so there is nothing to compare it against here. Measured from last request byte to first response byte, with network round-trip time subtracted.</p>
-    </div>
     
 
     
-<article class="finding sev-significant">
+<article class="finding sev-informational">
   <div class="finding-head">
     <span class="rank">#1</span>
-    <h3>One server much slower to respond than its peers — 10.2.2.7:443</h3>
-    <span class="tag tag-rule">R04</span>
-    <span class="tag tag-sev tag-sev-significant">Significant</span>
+    <h3>Out-of-order delivery, not packet loss — 10.8.8.5 ↔ 10.9.9.2</h3>
+    <span class="tag tag-rule">R07</span>
+    <span class="tag tag-sev tag-sev-informational">Informational</span>
     <span class="tag tag-confirmed">confirmed</span>
   </div>
-  <p class="observation">Responded in 1.8s at p95 (max 4.1s) while the other 12 servers in this capture are under 40ms at p95. Measured from last request byte to first response byte, with network round-trip time subtracted — so this is time spent on the server, not on the network.</p>
-  <p class="frames">Frames 257, 296, 299, 302, 305, 308, 311, 314 <span class="of">(8 shown of 20 occurrences)</span></p>
-  <p class="next"><b>Check next:</b> application or backend dependency latency on 10.2.2.7. The network path to this host looks comparable to its peers.</p>
+  <p class="observation">5 segments arrived out of sequence with sub-millisecond gaps and consistent IP ID ordering. These were not retransmissions and no data was lost. Without this reclassification they would appear as a 14.7% loss rate.</p>
+  <p class="frames">Frames 20, 34, 54, 72, 89</p>
+  <p class="next"><b>Check next:</b> usually multipath routing, LACP hashing, or receive-side scaling on the capture host. Not a fault in itself, but it can degrade TCP throughput.</p>
   
 </article>
 
@@ -471,11 +459,11 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
       <tbody>
       
         <tr>
-          <td class="mono">10.2.2.7:443</td>
-          <td>endpoint</td>
-          <td class="mono">R04</td>
-          <td class="num">20</td>
-          <td class="mono">257, 296, 299, 302, 305, 308 …</td>
+          <td class="mono">10.8.8.5:53000 &lt;-&gt; 10.9.9.2:8080</td>
+          <td>flow</td>
+          <td class="mono">R07</td>
+          <td class="num">5</td>
+          <td class="mono">20, 34, 54, 72, 89</td>
         </tr>
       
       </tbody>
@@ -495,6 +483,11 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
   </p>
 
   
+    
+    <div class="note unavailable">
+      <span class="who">R04 · not assessed</span>
+      Not assessed: server response time for 5 server endpoints with fewer than 5 completed request/response exchanges. Percentiles over that few samples would not describe a distribution.
+    </div>
     
     <div class="note unavailable">
       <span class="who">R15 · not assessed</span>

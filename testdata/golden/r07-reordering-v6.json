@@ -9,39 +9,43 @@
   },
   "invocation": {
     "args": [
-      "testdata/fixtures/r15-kernel-drops"
+      "testdata/fixtures/r07-reordering-v6"
     ],
-    "input": "testdata/fixtures/r15-kernel-drops",
+    "input": "testdata/fixtures/r07-reordering-v6",
     "max_flows": 0
   },
   "capture": {
-    "path": "testdata/fixtures/r15-kernel-drops",
+    "path": "testdata/fixtures/r07-reordering-v6",
     "format": "normalised",
     "link_type": "Ethernet",
     "snaplen": 262144,
-    "packets_read": 96,
-    "packets_tcp": 96,
+    "packets_read": 82,
+    "packets_tcp": 82,
     "packets_non_tcp": 0,
     "packets_undecoded": 0,
-    "first_packet_time": "2024-03-14T09:00:00.05Z",
-    "last_packet_time": "2024-03-14T09:00:00.66Z",
-    "duration_seconds": 0.61,
+    "first_packet_time": "2024-03-14T09:00:00Z",
+    "last_packet_time": "2024-03-14T09:00:00.351Z",
+    "duration_seconds": 0.351,
     "timezone": "UTC",
-    "tcp_flows": 4,
+    "tcp_flows": 3,
     "tcp_hosts": 5,
-    "flows_complete": 4,
+    "flows_complete": 3,
     "flows_partial": 0,
     "flows_midstream": 0,
     "flows_one_way": 0,
     "flow_cap": 16384,
     "flows_evicted": 0,
-    "peak_live_flows": 4
+    "peak_live_flows": 3
   },
   "coverage": {
-    "clean": true,
+    "clean": false,
     "statement": "No significant problems found in what was checked",
     "qualifier": "That is not the same as the capture being problem-free. 5 of 15 planned checks are built, and what they do not cover has not been examined. What each check looked at, and what could not be assessed on this capture, is below.",
     "not_checked": [
+      {
+        "rule_id": "R04",
+        "text": "Not assessed: server response time for 3 server endpoints with fewer than 5 completed request/response exchanges. Percentiles over that few samples would not describe a distribution."
+      },
       {
         "rule_id": "R15",
         "text": "Not assessed: whether the capture host dropped packets before writing them. The classic pcap format has no field to record it, so this file cannot say either way. Packets dropped by the capturing machine look the same as packets lost on the network. If that distinction matters here, re-capturing in pcapng format would record the count."
@@ -89,8 +93,45 @@
       "summary": "Segments arrived out of sequence within milliseconds and in original transmission order by IP ID — reordering on the path, not packet loss."
     }
   ],
-  "findings": [],
+  "findings": [
+    {
+      "rank": 1,
+      "rule_id": "R07",
+      "rule": "out-of-order-not-loss",
+      "subject": "[2001:db8:1::5]:53100 <-> [2001:db8:2::2]:8443",
+      "scope_kind": "flow",
+      "subject_label": "2001:db8:1::5 ↔ 2001:db8:2::2",
+      "title": "Out-of-order delivery, not packet loss — 2001:db8:1::5 ↔ 2001:db8:2::2",
+      "observation": "3 segments arrived out of sequence with sub-millisecond gaps. These were not retransmissions and no data was lost. Without this reclassification they would appear as a 12.0% loss rate.",
+      "check_next": "usually multipath routing, LACP hashing, or receive-side scaling on the capture host. Not a fault in itself, but it can degrade TCP throughput.",
+      "frames": [
+        22,
+        41,
+        58
+      ],
+      "first_frame": 22,
+      "worst_frame": 22,
+      "total_count": 3,
+      "quality": "inferred",
+      "quality_basis": "IPv6 carries no IP ID field, so original transmission order is inferred from packet timing alone.",
+      "severity": "informational",
+      "severity_label": "Informational",
+      "metrics": {
+        "data_segments": 25,
+        "flow": "[2001:db8:1::5]:53100 <-> [2001:db8:2::2]:8443",
+        "ip_id_checked": false,
+        "max_gap_ms": 1,
+        "reordered_segments": 3,
+        "would_be_loss_rate_percent": 12
+      }
+    }
+  ],
   "notes": [
+    {
+      "kind": "unavailable",
+      "rule_id": "R04",
+      "text": "Not assessed: server response time for 3 server endpoints with fewer than 5 completed request/response exchanges. Percentiles over that few samples would not describe a distribution."
+    },
     {
       "kind": "unavailable",
       "rule_id": "R15",

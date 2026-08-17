@@ -61,15 +61,52 @@ var zeroWindowDivergence = map[string]struct {
 		Reason: "sub-floor stalls suppressed at detection time per RULES.md R01"},
 }
 
-// lossFlagExpectation documents fixtures expected to contain loss-analysis
-// artifacts — retransmissions, duplicate ACKs, out-of-order segments — before
-// the rules that detect them exist. Every current fixture must be loss-clean:
-// none of them models loss, so a nonzero count here means the synthesizer is
-// emitting loss artifacts by accident, and five rules are about to be built on
-// top of that accident. When Batch 1's loss fixtures land, they enter this
-// table with their intended counts and the comparison gains an engine side.
-var lossFlagExpectation = map[string]tsharkLossCounts{
-	// Empty: every fixture in the suite today is expected loss-clean.
+// lossExpectation pins both sides of the loss comparison for one fixture:
+// what Wireshark's expert analysis flags, and what the engine's classifier
+// reports through its findings. Drift on either side fails.
+type lossExpectation struct {
+	Tshark tsharkLossCounts
+	// EngineRTO, EngineFast and EngineReorder are the counts the engine's
+	// R05, R06 and R07 findings carry for this fixture.
+	EngineRTO     uint64
+	EngineFast    uint64
+	EngineReorder uint64
+	Reason        string
+}
+
+// lossFlagExpectation documents every fixture expected to contain
+// loss-analysis artifacts. A fixture not listed here must be loss-clean on
+// both sides: an accidental retransmission in a fixture that does not model
+// one is a synthesizer bug the loss rules would inherit.
+var lossFlagExpectation = map[string]lossExpectation{
+	"r05-rto-burst": {
+		Tshark:    tsharkLossCounts{Retransmissions: 3},
+		EngineRTO: 3,
+		Reason:    "three timer expiries across two episodes; engine and Wireshark agree exactly",
+	},
+	"r06-fast-retransmit": {
+		Tshark:     tsharkLossCounts{Retransmissions: 2, FastRetrans: 2, DuplicateAcks: 6},
+		EngineFast: 2,
+		Reason: "Wireshark sets both the retransmission and fast_retransmission bits on the " +
+			"same two frames the engine classifies as fast recovery; the six duplicate ACKs " +
+			"are the two three-deep trigger runs",
+	},
+	"r07-reordering": {
+		Tshark:        tsharkLossCounts{Retransmissions: 1, FastRetrans: 1, DuplicateAcks: 3, OutOfOrder: 4},
+		EngineReorder: 5,
+		Reason: "the deliberate divergence: Wireshark reads the reordered segment arriving " +
+			"under a duplicate-ACK run as a fast retransmission, while the engine's IP ID " +
+			"ordering check shows it was sent before the data that overtook it and " +
+			"reclassifies it — the exact misread R07 exists to prevent. The other four " +
+			"swaps agree as out-of-order",
+	},
+	"r07-reordering-v6": {
+		Tshark:        tsharkLossCounts{OutOfOrder: 3},
+		EngineReorder: 3,
+		Reason: "IPv6 reordering with no duplicate-ACK runs: both sides classify all three " +
+			"swaps as out-of-order on timing; the engine additionally lowers its confidence " +
+			"to inferred because no IP ID exists to confirm original order",
+	},
 }
 
 // tsharkLossCounts is the loss-relevant subset of a scan.
@@ -265,14 +302,30 @@ func TestTsharkCrossValidation(t *testing.T) {
 						engineZW, scan.ZeroWindow)
 				}
 
-				// Loss-analysis flags. No loss rules are built yet, so every
-				// fixture must be loss-clean unless the table above says
-				// otherwise; an accidental retransmission in a fixture is a
-				// synthesizer bug the loss rules would inherit.
+				// Loss-analysis flags, both sides. The oracle's counts and the
+				// engine's are each pinned per fixture; a fixture not in the
+				// table must be loss-clean on both.
 				want := lossFlagExpectation[f.Name] // zero value: loss-clean
-				if scan.Loss != want {
-					t.Errorf("loss flags diverge from documented expectation:\n  tshark   %+v\n  expected %+v",
-						scan.Loss, want)
+				if scan.Loss != want.Tshark {
+					t.Errorf("tshark loss flags diverge from documented expectation:\n  tshark   %+v\n  expected %+v\n  reason on file: %s",
+						scan.Loss, want.Tshark, want.Reason)
+				}
+				var engRTO, engFast, engReorder uint64
+				for _, fd := range res.Findings {
+					switch fd.RuleID {
+					case "R05":
+						engRTO += fd.TotalCount
+					case "R06":
+						engFast += fd.TotalCount
+					case "R07":
+						engReorder += fd.TotalCount
+					}
+				}
+				if engRTO != want.EngineRTO || engFast != want.EngineFast || engReorder != want.EngineReorder {
+					t.Errorf("engine loss classification diverges from documented expectation:\n"+
+						"  engine   rto=%d fast=%d reorder=%d\n  expected rto=%d fast=%d reorder=%d\n  reason on file: %s",
+						engRTO, engFast, engReorder,
+						want.EngineRTO, want.EngineFast, want.EngineReorder, want.Reason)
 				}
 			})
 		}

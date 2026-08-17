@@ -74,7 +74,7 @@ func (a *App) Guide() (GuideIndex, error) {
 		idx.Entries = append(idx.Entries, entry)
 	}
 
-	if planned := 15 - len(metas); planned > 0 {
+	if planned := rules.TotalV1Rules - len(metas); planned > 0 {
 		idx.PlannedCount = planned
 		idx.PlannedNote = fmt.Sprintf(
 			"%d further checks are planned and not built yet. Nothing they would cover has been "+
@@ -162,8 +162,8 @@ func (a *App) About() AboutInfo {
 		Attribution:    "Built by Proxy-IT",
 		AttributionURL: ProjectURL,
 		Coverage: fmt.Sprintf(
-			"%d of 15 planned checks are built in this version. A capture with nothing reported "+
-				"has been examined by those %d checks and no others.", built, built),
+			"%d of %d planned checks are built in this version. A capture with nothing reported "+
+				"has been examined by those %d checks and no others.", built, rules.TotalV1Rules, built),
 	}
 }
 

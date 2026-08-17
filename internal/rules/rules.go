@@ -8,13 +8,17 @@
 // The wording in RULES.md is the specification. It is parameterised here, not
 // paraphrased: no rule states a cause.
 //
-// This build implements R01 and R04. The remaining thirteen v1 rules are not
-// present yet, which the report says explicitly so it cannot be read as an
+// This build implements R01, R04, and the loss cluster R05/R06/R07. The
+// remaining v1 rules are not present yet, which the report says explicitly —
+// via BuildDisclosure, derived from the registry — so it cannot be read as an
 // all-clear.
 package rules
 
 import (
+	"fmt"
 	"net/netip"
+	"sort"
+	"strings"
 	"time"
 
 	"github.com/Proxy-IT/pcaptriage/internal/capture"
@@ -112,13 +116,21 @@ func (p *Population) TotalHosts() int { return len(p.TCPHosts) }
 // Default returns a fresh detector set in rule-interaction order.
 //
 // RULES.md fixes the order in three places: R15 gates degradation flags for
-// R04, R08, R10, R13 and R14; R07 runs before R05 and R06; R08 runs after
-// both. None of those constraints bind on the two rules present here, but the
-// list is kept in rule order so they hold as the rest arrive.
+// R04, R08, R10, R13 and R14; R07 runs before R05 and R06, and suppresses
+// their findings for reclassified segments; R08 runs after both.
+//
+// The loss cluster shares one classifier. R07 sits ahead of R05 and R06 and
+// owns its packet path — the interaction order made literal — while R05 and
+// R06 read the classification at Emit. A fresh analyzer per call keeps runs
+// independent of each other.
 func Default() []Detector {
+	loss := newLossAnalyzer()
 	return []Detector{
 		NewZeroWindowStall(),
 		NewServerResponseOutlier(),
+		NewOutOfOrderNotLoss(loss),
+		NewRTORetransmission(loss),
+		NewFastRetransmission(loss),
 	}
 }
 
@@ -131,12 +143,33 @@ func Default() []Detector {
 // quietly go stale as rules land.
 const TotalV1Rules = 15
 
-// AllMeta returns the metadata for every implemented rule.
+// AllMeta returns the metadata for every implemented rule, ascending by ID.
+//
+// Sorted here rather than by each consumer: the detector list is in
+// interaction order, which is an engine concern, while every surface that
+// lists the checks — the home screen, the guide index, the report — wants
+// rule order.
 func AllMeta() []Meta {
 	ds := Default()
 	out := make([]Meta, 0, len(ds))
 	for _, d := range ds {
 		out = append(out, d.Meta())
 	}
+	sort.Slice(out, func(i, j int) bool { return out[i].ID < out[j].ID })
 	return out
+}
+
+// BuildDisclosure is the sentence every report carries about how much of the
+// v1 rule set exists. Derived from the registry so it cannot go stale as rules
+// land — the enumerated names are what lets a reader check the claim against
+// the checks table beside it.
+func BuildDisclosure() string {
+	metas := AllMeta()
+	names := make([]string, 0, len(metas))
+	for _, m := range metas {
+		names = append(names, m.ID+" "+m.Name)
+	}
+	return fmt.Sprintf(
+		"Partial build: %d of the %d v1 rules are implemented (%s). Every other condition in the v1 rule set was not looked for at all.",
+		len(metas), TotalV1Rules, strings.Join(names, ", "))
 }

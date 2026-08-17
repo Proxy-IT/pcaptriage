@@ -39,6 +39,22 @@ func formatDurationCeil(d time.Duration) string {
 	return fmt.Sprintf("%.1fs", secs)
 }
 
+// formatPercent renders a proportion the way RULES.md's example wordings do:
+// "4.2%", "0.9%", "0.05%". One decimal place at or above 0.1%, two below it —
+// R08's own example contrasts 4.1% against 0.05%, so the small end must not
+// round to nothing — and "0%" for exactly zero.
+func formatPercent(v float64) string {
+	pct := v * 100
+	switch {
+	case pct == 0:
+		return "0%"
+	case pct >= 0.1:
+		return fmt.Sprintf("%.1f%%", pct)
+	default:
+		return fmt.Sprintf("%.2f%%", pct)
+	}
+}
+
 // plural returns "" for one and "s" otherwise.
 func plural(n uint64) string {
 	if n == 1 {

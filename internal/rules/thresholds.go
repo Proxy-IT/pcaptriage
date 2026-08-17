@@ -105,6 +105,32 @@ var Thresholds = struct {
 	CoverageStrongRequiresNoGaps          bool
 	CoverageStrongRequiresCompleteRuleSet bool
 
+	// R07ReorderMaxDelta is the inter-arrival window inside which a segment
+	// below the high-water mark reads as reordering rather than retransmission,
+	// provided IP ID ordering agrees.
+	// [RULES.md] "the inter-arrival delta is under 3 ms"
+	R07ReorderMaxDelta time.Duration
+
+	// R06DupAckMin is how many duplicate ACKs must precede a retransmission
+	// for it to read as fast recovery.
+	// [RULES.md] "preceded by ≥3 duplicate ACKs"
+	R06DupAckMin int
+
+	// R05MinRTOGap is the minimum quiet gap before a retransmission that reads
+	// as a timer expiry rather than fast-path timing.
+	// [chosen] RULES.md says "approximating an RTO interval" without a figure.
+	// 200ms is Linux's minimum RTO (RFC 6298 specifies 1s, but no deployed
+	// stack waits that long); below it a gap is delayed-ACK territory, not a
+	// timer. Wants calibration against real captures.
+	R05MinRTOGap time.Duration
+
+	// R05BackoffMinRatio is how much successive retry intervals for the same
+	// segment must grow before "retry intervals doubled each attempt" is
+	// stated. Backoff doubles in theory; jitter and timestamp resolution mean
+	// demanding exactly 2× would miss real backoff.
+	// [chosen] 1.5 is above any plausible jitter and below every doubling.
+	R05BackoffMinRatio float64
+
 	// R15KernelDropRatio is the share of the capture the capture host must have
 	// dropped before loss findings are treated as ambiguous.
 	//
@@ -133,6 +159,11 @@ var Thresholds = struct {
 
 	CoverageStrongRequiresNoGaps:          true,
 	CoverageStrongRequiresCompleteRuleSet: true,
+
+	R07ReorderMaxDelta: 3 * time.Millisecond,
+	R06DupAckMin:       3,
+	R05MinRTOGap:       200 * time.Millisecond,
+	R05BackoffMinRatio: 1.5,
 
 	R15KernelDropRatio: 0.001, // 0.1% of packets read
 }

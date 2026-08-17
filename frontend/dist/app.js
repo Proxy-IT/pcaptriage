@@ -200,17 +200,19 @@
 
     // The link out to the explanation. Placed after "check next", so the card
     // still reads top to bottom on its own and the guide is an offer rather
-    // than a prerequisite.
-    var more = el("p", "guide-link-row");
-    var link = el("button", "linkish");
-    link.type = "button";
-    link.textContent = "What does " + f.rule_id + " mean?";
-    link.addEventListener("click", function () {
-      rememberReturn("findings", "Findings");
-      openGuide(f.rule_id, f);
-    });
-    more.appendChild(link);
-    card.appendChild(more);
+    // than a prerequisite. Rendered only when the page exists.
+    if (guideAvailable[f.rule_id]) {
+      var more = el("p", "guide-link-row");
+      var link = el("button", "linkish");
+      link.type = "button";
+      link.textContent = "What does " + f.rule_id + " mean?";
+      link.addEventListener("click", function () {
+        rememberReturn("findings", "Findings");
+        openGuide(f.rule_id, f);
+      });
+      more.appendChild(link);
+      card.appendChild(more);
+    }
 
     var packets = evidenceFor(f);
     if (packets.length > 0) card.appendChild(packetDisclosure(f, packets));
@@ -676,7 +678,21 @@
     window.runtime.EventsOn("nav:open", function () { pickFile(); });
   }
 
+  // guideAvailable maps rule IDs to whether a guide page exists for them.
+  // Loaded once at startup: a card's "What does RXX mean?" link renders only
+  // when the page does, so a built rule whose guide prose has not been
+  // authored yet never shows a link that goes nowhere. The index handles the
+  // same state with a disabled entry.
+  var guideAvailable = {};
+
   function start() {
+    window.go.gui.App.Guide()
+      .then(function (idx) {
+        (idx.entries || []).forEach(function (e) {
+          if (e.has_page) guideAvailable[e.rule_id] = true;
+        });
+      })
+      .catch(function () { /* no guide index: links simply do not render */ });
     window.go.gui.App.Info()
       .then(function (i) {
         info = i;

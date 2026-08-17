@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/Proxy-IT/pcaptriage/internal/report"
+	"github.com/Proxy-IT/pcaptriage/internal/rules"
 	"github.com/Proxy-IT/pcaptriage/internal/synth"
 )
 
@@ -66,8 +67,8 @@ func TestCleanCaptureState(t *testing.T) {
 			t.Errorf("check %+v is missing text the screen renders", c)
 		}
 	}
-	if cov.UnbuiltChecks != 13 {
-		t.Errorf("UnbuiltChecks = %d, want 13", cov.UnbuiltChecks)
+	if want := rules.TotalV1Rules - len(rules.AllMeta()); cov.UnbuiltChecks != want {
+		t.Errorf("UnbuiltChecks = %d, want %d (registry-derived)", cov.UnbuiltChecks, want)
 	}
 
 	// The part that earns the screen its place.

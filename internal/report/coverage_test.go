@@ -1,11 +1,13 @@
 package report
 
 import (
+	"fmt"
 	"regexp"
 	"strings"
 	"testing"
 
 	"github.com/Proxy-IT/pcaptriage/internal/analysis"
+	"github.com/Proxy-IT/pcaptriage/internal/rules"
 	"github.com/Proxy-IT/pcaptriage/internal/synth"
 )
 
@@ -159,7 +161,8 @@ func TestExportCarriesTheCleanCoverage(t *testing.T) {
 	}
 
 	// The unbuilt count is stated from data, not prose that can go stale.
-	if !strings.Contains(body, "13 of the fifteen v1 rules are not implemented") {
+	unbuilt := rules.TotalV1Rules - len(rules.AllMeta())
+	if !strings.Contains(body, fmt.Sprintf("%d of the fifteen v1 rules are not implemented", unbuilt)) {
 		t.Error("the export does not state how much of the rule set does not exist")
 	}
 }

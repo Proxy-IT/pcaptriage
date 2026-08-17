@@ -81,6 +81,15 @@ type TCPSpec struct {
 	// meaningful on SYN segments.
 	WindowScale int
 
+	// MSS, when non-zero, adds a maximum segment size option. Only meaningful
+	// on SYN segments. Real stacks always send it; fixtures that model
+	// realistic handshakes should too.
+	MSS uint16
+
+	// SACKPermitted adds the SACK-permitted option. Only meaningful on SYN
+	// segments.
+	SACKPermitted bool
+
 	// PayloadLen is the number of payload bytes. The bytes themselves are
 	// zeros; no rule reads them and no report may contain them.
 	PayloadLen int
@@ -96,14 +105,32 @@ func (b *Builder) AddTCP(s TCPSpec) {
 	if err != nil {
 		panic(fmt.Sprintf("synth: bad destination %q: %v", s.Dst, err))
 	}
-	if !src.Addr().Is4() || !dst.Addr().Is4() {
-		panic("synth: only IPv4 fixtures are supported")
+	if src.Addr().Is4() != dst.Addr().Is4() {
+		panic("synth: source and destination must be the same address family")
 	}
 
+	// Option layout. The WindowScale-only encoding is kept byte-for-byte as it
+	// was before MSS and SACK-permitted existed, so every fixture authored
+	// against it renders identically; the combined encoding follows the order
+	// real stacks emit (MSS, SACK-permitted, window scale) and pads to a
+	// four-byte boundary with NOPs.
 	var opts []byte
+	if s.MSS > 0 {
+		opts = append(opts, 2, 4, byte(s.MSS>>8), byte(s.MSS))
+	}
+	if s.SACKPermitted {
+		opts = append(opts, 4, 2)
+	}
 	if s.WindowScale >= 0 {
-		// NOP, then window scale, then end-of-list, padded to 4 bytes.
-		opts = []byte{1, 3, 3, byte(s.WindowScale)}
+		if len(opts) == 0 {
+			// Legacy encoding: NOP, then window scale.
+			opts = append(opts, 1, 3, 3, byte(s.WindowScale))
+		} else {
+			opts = append(opts, 3, 3, byte(s.WindowScale))
+		}
+	}
+	for len(opts)%4 != 0 {
+		opts = append(opts, 1) // NOP padding
 	}
 	dataOffset := 20 + len(opts)
 
@@ -117,27 +144,52 @@ func (b *Builder) AddTCP(s TCPSpec) {
 	binary.BigEndian.PutUint16(tcp[14:16], s.Window)
 	copy(tcp[20:], opts)
 
-	s4, d4 := src.Addr().As4(), dst.Addr().As4()
+	var (
+		ip        []byte
+		etherType uint16
+	)
+	if src.Addr().Is4() {
+		s4, d4 := src.Addr().As4(), dst.Addr().As4()
 
-	ip := make([]byte, 20)
-	ip[0] = 0x45
-	binary.BigEndian.PutUint16(ip[2:4], uint16(20+len(tcp)))
-	// The IP ID is derived from the sequence number so it advances with the
-	// stream and is reproducible.
-	binary.BigEndian.PutUint16(ip[4:6], uint16(s.Seq>>8))
-	binary.BigEndian.PutUint16(ip[6:8], 0x4000) // don't fragment
-	ip[8] = 64
-	ip[9] = capture.ProtoTCP
-	copy(ip[12:16], s4[:])
-	copy(ip[16:20], d4[:])
-	binary.BigEndian.PutUint16(ip[10:12], checksum(ip))
+		ip = make([]byte, 20)
+		ip[0] = 0x45
+		binary.BigEndian.PutUint16(ip[2:4], uint16(20+len(tcp)))
+		// The IP ID is derived from the sequence number so it advances with the
+		// stream and is reproducible. It also means a segment's IP ID reflects
+		// its original transmission order — which is exactly the property R07's
+		// reordering heuristic reads, so a fixture that replays a segment late
+		// carries the ID it was "first sent" with, the way a real NIC would.
+		binary.BigEndian.PutUint16(ip[4:6], uint16(s.Seq>>8))
+		binary.BigEndian.PutUint16(ip[6:8], 0x4000) // don't fragment
+		ip[8] = 64
+		ip[9] = capture.ProtoTCP
+		copy(ip[12:16], s4[:])
+		copy(ip[16:20], d4[:])
+		binary.BigEndian.PutUint16(ip[10:12], checksum(ip))
 
-	binary.BigEndian.PutUint16(tcp[16:18], tcpChecksum(s4, d4, tcp))
+		binary.BigEndian.PutUint16(tcp[16:18], tcpChecksum(s4, d4, tcp))
+		etherType = 0x0800
+	} else {
+		s16, d16 := src.Addr().As16(), dst.Addr().As16()
+
+		// A plain IPv6 header: no extension headers, and — the property the R07
+		// IPv6 fixture exists to exercise — no IP ID field at all.
+		ip = make([]byte, 40)
+		ip[0] = 0x60
+		binary.BigEndian.PutUint16(ip[4:6], uint16(len(tcp)))
+		ip[6] = capture.ProtoTCP // next header
+		ip[7] = 64               // hop limit
+		copy(ip[8:24], s16[:])
+		copy(ip[24:40], d16[:])
+
+		binary.BigEndian.PutUint16(tcp[16:18], tcpChecksum6(s16, d16, tcp))
+		etherType = 0x86dd
+	}
 
 	eth := make([]byte, 14)
-	copy(eth[0:6], macFor(d4))
-	copy(eth[6:12], macFor(s4))
-	binary.BigEndian.PutUint16(eth[12:14], 0x0800)
+	copy(eth[0:6], macForAddr(dst.Addr()))
+	copy(eth[6:12], macForAddr(src.Addr()))
+	binary.BigEndian.PutUint16(eth[12:14], etherType)
 
 	data := make([]byte, 0, len(eth)+len(ip)+len(tcp))
 	data = append(data, eth...)
@@ -145,6 +197,28 @@ func (b *Builder) AddTCP(s TCPSpec) {
 	data = append(data, tcp...)
 
 	b.frames = append(b.frames, frame{at: s.At, data: data})
+}
+
+// macForAddr derives a reproducible MAC for either address family.
+func macForAddr(a netip.Addr) []byte {
+	if a.Is4() {
+		return macFor(a.As4())
+	}
+	a16 := a.As16()
+	var last4 [4]byte
+	copy(last4[:], a16[12:16])
+	return macFor(last4)
+}
+
+// tcpChecksum6 is the TCP checksum over the IPv6 pseudo-header.
+func tcpChecksum6(src, dst [16]byte, tcp []byte) uint16 {
+	pseudo := make([]byte, 40, 40+len(tcp))
+	copy(pseudo[0:16], src[:])
+	copy(pseudo[16:32], dst[:])
+	binary.BigEndian.PutUint32(pseudo[32:36], uint32(len(tcp)))
+	pseudo[39] = capture.ProtoTCP
+	pseudo = append(pseudo, tcp...)
+	return checksum(pseudo)
 }
 
 // macFor derives a locally-administered MAC from an IPv4 address, so each host

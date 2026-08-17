@@ -206,8 +206,9 @@ func Build(res *analysis.Result, inv Invocation, version string) *Document {
 			RulesetVersion: RulesetVersion,
 			// Worded to stand on its own. It is rendered in the JSON, in the
 			// exported HTML report, and in the app, and referring to anything
-			// "below" would be wrong in at least one of them.
-			Build: "Partial build: 2 of the 15 v1 rules are implemented (R01 zero-window-stall, R04 server-response-outlier). Every other condition in the v1 rule set was not looked for at all.",
+			// "below" would be wrong in at least one of them. Derived from the
+			// rule registry so it cannot go stale as rules land.
+			Build: rules.BuildDisclosure(),
 		},
 		Invocation: inv,
 		Capture: Capture{

@@ -73,6 +73,26 @@ func Fixtures() []Fixture {
 			Build:         buildNoKernelDrops,
 			FormatsDiffer: true,
 		},
+		{
+			Name:    "r05-rto-burst",
+			Purpose: "R05 positive: three timeout retransmissions across two episodes costing 4.5s, with exponential backoff, against eight clean peers.",
+			Build:   buildR05Positive,
+		},
+		{
+			Name:    "r06-fast-retransmit",
+			Purpose: "R06 positive: two loss events recovered by fast retransmit after duplicate ACKs, at a rate that renders informational.",
+			Build:   buildR06Positive,
+		},
+		{
+			Name:    "r07-reordering",
+			Purpose: "R07 positive and R05/R06 negative: five reordered segment pairs with sane IP IDs, one under a duplicate-ACK run, producing no loss findings.",
+			Build:   buildR07Positive,
+		},
+		{
+			Name:    "r07-reordering-v6",
+			Purpose: "R07 degraded path: the same reordering over IPv6, where no IP ID exists and the reclassification is timing-only and inferred.",
+			Build:   buildR07PositiveV6,
+		},
 	}
 }
 
