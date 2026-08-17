@@ -5,7 +5,7 @@
     "name": "pcaptriage",
     "version": "test",
     "ruleset_version": "1.0.0-partial",
-    "build": "Partial build: 6 of the 15 v1 rules are implemented (R01 zero-window-stall, R04 server-response-outlier, R05 rto-retransmission, R06 fast-retransmission, R07 out-of-order-not-loss, R08 asymmetric-loss). Every other condition in the v1 rule set was not looked for at all."
+    "build": "Partial build: 7 of the 15 v1 rules are implemented (R01 zero-window-stall, R04 server-response-outlier, R05 rto-retransmission, R06 fast-retransmission, R07 out-of-order-not-loss, R08 asymmetric-loss, R15 capture-quality). Every other condition in the v1 rule set was not looked for at all."
   },
   "invocation": {
     "args": [
@@ -40,7 +40,7 @@
   "coverage": {
     "clean": true,
     "statement": "No significant problems found in what was checked",
-    "qualifier": "That is not the same as the capture being problem-free. 6 of 15 planned checks are built, and what they do not cover has not been examined. What each check looked at, and what could not be assessed on this capture, is below.",
+    "qualifier": "That is not the same as the capture being problem-free. 7 of 15 planned checks are built, and what they do not cover has not been examined. What each check looked at, and what could not be assessed on this capture, is below.",
     "not_checked": [
       {
         "rule_id": "R04",
@@ -48,14 +48,14 @@
       },
       {
         "rule_id": "R15",
-        "text": "Not assessed: whether the capture host dropped packets before writing them. The classic pcap format has no field to record it, so this file cannot say either way. Packets dropped by the capturing machine look the same as packets lost on the network. If that distinction matters here, re-capturing in pcapng format would record the count."
+        "text": "Not assessed: receive window sizing. 1 of 5 flows (20%) began before the capture started, so the window scale factor for them is unknown. Zero-window detection does not depend on it and was performed on every flow."
       },
       {
         "rule_id": "R15",
-        "text": "Not assessed: receive window sizing. 1 of 5 flows (20%) began before the capture started, so the window scale factor for them is unknown. Zero-window detection does not depend on it and was performed on every flow."
+        "text": "Not assessed: whether the capture host dropped packets before writing them. The classic pcap format has no field to record it, so this file cannot say either way. Packets dropped by the capturing machine look the same as packets lost on the network. If that distinction matters here, re-capturing in pcapng format would record the count."
       }
     ],
-    "unbuilt_checks": 9,
+    "unbuilt_checks": 8,
     "coverage_strong": false,
     "coverage_weak_reason": "some checks could not run on this capture",
     "minor_observations": 0
@@ -102,6 +102,13 @@
       "base_weight": 8,
       "status": "ran",
       "summary": "Retransmission rate on one flow was at least five times higher in one direction than the other, with at least 20 retransmissions — loss is not symmetric."
+    },
+    {
+      "id": "R15",
+      "name": "capture-quality",
+      "base_weight": 0,
+      "status": "ran",
+      "summary": "Reports what the capture itself may limit: flows already open when the capture began, connections seen in one direction only, and packets the capture host dropped before writing them."
     }
   ],
   "findings": [],
@@ -115,6 +122,11 @@
       "kind": "unavailable",
       "rule_id": "R04",
       "text": "Not assessed: server response time for 3 server endpoints with fewer than 5 completed request/response exchanges. Percentiles over that few samples would not describe a distribution."
+    },
+    {
+      "kind": "unavailable",
+      "rule_id": "R15",
+      "text": "Not assessed: receive window sizing. 1 of 5 flows (20%) began before the capture started, so the window scale factor for them is unknown. Zero-window detection does not depend on it and was performed on every flow."
     },
     {
       "kind": "unavailable",

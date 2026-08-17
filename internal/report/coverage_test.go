@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/Proxy-IT/pcaptriage/internal/analysis"
+	"github.com/Proxy-IT/pcaptriage/internal/findings"
 	"github.com/Proxy-IT/pcaptriage/internal/rules"
 	"github.com/Proxy-IT/pcaptriage/internal/synth"
 )
@@ -75,15 +76,20 @@ func TestCaptureWithNoTCPIsNotReportedAsClean(t *testing.T) {
 	}
 }
 
-// TestEvictedFlowsAreDisclosed checks the gap that arises from the tool's own
-// limits rather than the capture's: flows set aside because too many were open
-// at once were only analysed up to that point.
+// TestEvictedFlowsAreDisclosed checks that buildCoverage surfaces an
+// eviction gap R15 reported, the same way it surfaces any other rule's
+// unavailable note. The wording itself — and the "120 of 500" figure — is
+// R15's to get right and is tested where R15 lives (internal/rules); this is
+// only the pass-through, hand-supplying the note the way R15's Emit would
+// have, since this test builds a Result directly rather than through
+// analysis.Run.
 func TestEvictedFlowsAreDisclosed(t *testing.T) {
 	res := &analysis.Result{
-		Capture: analysis.CaptureInfo{
-			PacketsRead:  10000,
-			TCPFlows:     500,
-			FlowsEvicted: 120,
+		Capture: analysis.CaptureInfo{PacketsRead: 10000, TCPFlows: 500, FlowsEvicted: 120},
+		Notes: []findings.Note{
+			{Kind: "unavailable", RuleID: "R15",
+				Text: "Partly assessed: 120 of 500 flows were set aside before the capture ended, " +
+					"because more conversations were open at once than this run tracks."},
 		},
 	}
 

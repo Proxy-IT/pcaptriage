@@ -291,25 +291,34 @@ func Run(path string, opts Options) (*Result, error) {
 	summariseDrops(&info, drops, dropAvailability)
 
 	pop := &rules.Population{
-		TCPFlows:       info.TCPFlows,
-		TCPHosts:       sortedAddrs(hosts),
-		MidstreamFlows: midstreamFlows,
-		PartialFlows:   partialFlows,
-		CompleteFlows:  completeFlows,
-		CaptureStart:   info.FirstPacketTime,
-		CaptureEnd:     info.LastPacketTime,
-		Quality:        dropQuality(&info),
+		TCPFlows:         info.TCPFlows,
+		TCPHosts:         sortedAddrs(hosts),
+		MidstreamFlows:   midstreamFlows,
+		PartialFlows:     partialFlows,
+		CompleteFlows:    completeFlows,
+		OneWayFlows:      oneWayFlows,
+		FlowsEvicted:     fstats.Evicted,
+		CaptureStart:     info.FirstPacketTime,
+		CaptureEnd:       info.LastPacketTime,
+		PacketsRead:      info.PacketsRead,
+		DropAvailability: info.DropAvailability,
+		InterfaceDrops:   info.InterfaceDrops,
+		PacketsDropped:   info.PacketsDropped,
+		DropRatio:        info.DropRatio,
+		Quality:          dropQuality(&info),
 	}
 
+	// R15 owns the notes built from the fields above — the drop note, and the
+	// midstream/one-way/eviction gaps — through the same Emit call every
+	// other rule uses.
 	for _, d := range detectors {
 		d.Emit(pop, store)
 	}
 
-	// Said on every capture, whatever the answer. "No drops recorded" and "no
-	// drop counter exists" are different facts and the second must not be
-	// rendered as the first.
-	store.AddNote(dropNote(&info))
-
+	// Unlike R15's eviction gap above (what was NOT assessed on the affected
+	// flows), this is a plain heads-up that the run hit its own concurrency
+	// limit — a tool constraint, not a capture-file fact, so it stays outside
+	// R15's condition list and is added directly rather than through a rule.
 	if fstats.Evicted > 0 {
 		store.AddNote(findings.Note{
 			Kind:   "info",

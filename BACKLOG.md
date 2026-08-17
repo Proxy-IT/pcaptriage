@@ -198,6 +198,32 @@ Natural home is the About/Help area stubbed in the first GUI session.
 RULES.md's handoff notes but has never been built. The GUI half of P10 is
 closed by the guide; the dev-CLI `--list-checks` references remain open.
 
+## P10.5. R15's remaining conditions — snaplen truncation, TSO, timestamp/multi-interface
+
+**Added 2026-08-17, during Batch 1 Part 2b.** RULES.md's R15 condition list is
+snaplen truncation, midstream proportion, TSO/LRO segment-size artifacts,
+one-way flows, timestamp resolution, and multi-interface merges. Part 2b
+formalized R15 as a real rule (registered, owns its own reporting) but only for
+what the engine already tracked: midstream, one-way, and capture-host drops.
+Snaplen is read and shown as a raw banner value but was never turned into a
+completeness gap; TSO/LRO and timestamp/multi-interface have no tracking at
+all — not even the raw facts exist yet, only `Packet.Truncated` at the decode
+layer with nothing aggregated from it.
+
+The session brief's language ("consolidate snaplen, midstream, TSO, one-way,
+timestamp handling, and kernel drops under R15") assumed all six already
+existed to move; only three did. Flagged and resolved for that session by
+formalizing the built subset and writing R15's Summary to state only what it
+covers — GUIDE-CONTENT-BATCH1.md's R15 page describes an "oversized packets"
+notice this build cannot yet produce, so the same caveat applies there.
+
+This item is the actual detection work: aggregate `Packet.Truncated` into a
+snaplen-truncation gap, add TSO/LRO segment-size tracking (RULES.md's example:
+"segments up to 24KB observed"), and timestamp-resolution / multi-interface
+merge reporting. New fixtures per condition, wording per RULES.md's R15
+example, golden diffs called out rather than nil (this is new detection, not
+a move).
+
 ## P11. C2 — Idle-then-fail (firewall session reaping)
 
 First new detection after the UI run, because R05 currently gets this case

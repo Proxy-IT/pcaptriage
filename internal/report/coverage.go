@@ -130,79 +130,19 @@ func cleanWording(res *analysis.Result) (statement, qualifier string) {
 
 // coverageGaps collects everything the run could not assess.
 //
-// Two sources feed it. The rules and the capture-quality reporting emit
-// `unavailable` notes as they go, and the per-flow completeness counters record
-// conditions that limit what could be assessed without any rule having said so.
-// Both belong in the coverage; a reader cannot be expected to know which
-// mechanism produced which gap.
+// Every gap here comes from a rule's own unavailable note — R15's drop,
+// midstream, one-way and eviction notes among them. This function used to
+// also synthesise the midstream/one-way/eviction text itself, directly from
+// capture counters, because R15 didn't exist to own that reporting; now that
+// it does, this is nothing more than the filter every other rule's
+// unavailable notes already went through.
 func coverageGaps(res *analysis.Result) []CoverageGap {
 	gaps := make([]CoverageGap, 0, 4)
-
-	// Whatever the rules and the capture-quality checks already said.
 	for _, n := range res.Notes {
 		if n.Kind != "unavailable" {
 			continue
 		}
 		gaps = append(gaps, CoverageGap{RuleID: n.RuleID, Text: n.Text})
 	}
-
-	c := res.Capture
-
-	// Flows already established when the capture began. Their window scale
-	// factor was never negotiated in view, so anything sized in bytes is
-	// unavailable for them — while zero-window detection, which does not
-	// depend on the scale factor, is not affected.
-	if c.MidstreamFlows > 0 && c.TCPFlows > 0 {
-		gaps = append(gaps, CoverageGap{
-			RuleID: "R15",
-			Text: fmt.Sprintf(
-				"Not assessed: receive window sizing. %d of %d flows (%s) began before the capture started, "+
-					"so the window scale factor for them is unknown. Zero-window detection does not depend on it "+
-					"and was performed on every flow.",
-				c.MidstreamFlows, c.TCPFlows,
-				formatSharePercent(c.MidstreamFlows, c.TCPFlows)),
-		})
-	}
-
-	// Only one direction captured. Anything that compares the two directions
-	// has nothing to compare, which is a common consequence of a one-way SPAN
-	// configuration rather than anything wrong with the network.
-	if c.OneWayFlows > 0 {
-		gaps = append(gaps, CoverageGap{
-			RuleID: "R15",
-			Text: fmt.Sprintf(
-				"Not assessed: anything comparing the two directions of a conversation. "+
-					"%d of %d flows were captured in one direction only, which usually means the capture point "+
-					"saw traffic going one way. Loss direction analysis is unavailable for those.",
-				c.OneWayFlows, c.TCPFlows),
-		})
-	}
-
-	// Flows discarded mid-run because the concurrency cap was reached: those
-	// were analysed only up to the point they were dropped.
-	if c.FlowsEvicted > 0 {
-		gaps = append(gaps, CoverageGap{
-			RuleID: "R15",
-			Text: fmt.Sprintf(
-				"Partly assessed: %s of %s flows were set aside before the capture ended, because more "+
-					"conversations were open at once than this run tracks. Those flows were examined only up to "+
-					"that point.",
-				formatCount(c.FlowsEvicted), formatCount(uint64(c.TCPFlows))),
-		})
-	}
-
 	return gaps
-}
-
-// formatSharePercent renders part of whole as a percentage, never rounding a
-// real proportion down to nothing.
-func formatSharePercent(part, whole int) string {
-	if whole <= 0 {
-		return "0%"
-	}
-	pct := float64(part) * 100 / float64(whole)
-	if pct > 0 && pct < 1 {
-		return "under 1%"
-	}
-	return fmt.Sprintf("%.0f%%", pct)
 }

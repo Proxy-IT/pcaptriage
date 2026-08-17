@@ -100,9 +100,29 @@ type Population struct {
 	MidstreamFlows int
 	PartialFlows   int
 	CompleteFlows  int
+	// OneWayFlows is how many flows were captured in one direction only.
+	OneWayFlows int
+	// FlowsEvicted is how many flows were discarded mid-run because the
+	// concurrent flow cap was reached, before the capture ended.
+	FlowsEvicted uint64
 
 	CaptureStart time.Time
 	CaptureEnd   time.Time
+
+	// PacketsRead is every frame the reader produced, TCP or not — R15's
+	// wording states drop counts against what the capture host saw, which
+	// includes non-TCP traffic.
+	PacketsRead uint64
+	// DropAvailability, InterfaceDrops, PacketsDropped and DropRatio are the
+	// capture-host drop facts R15 reports on. Quality.KernelDropsSignificant
+	// (below) is the gating decision already derived from DropRatio; R15
+	// reads both — the raw facts to state them, the gating flag to decide
+	// which of the two messages ("dropped, and it may explain apparent loss"
+	// vs "dropped, but too little to matter") applies.
+	DropAvailability capture.DropAvailability
+	InterfaceDrops   []capture.InterfaceDrops
+	PacketsDropped   uint64
+	DropRatio        float64
 
 	// Quality is what the capture itself can and cannot support. Rules whose
 	// findings depend on the capture being faithful consult it before claiming
@@ -119,6 +139,12 @@ func (p *Population) TotalHosts() int { return len(p.TCPHosts) }
 // R04, R08, R10, R13 and R14; R07 runs before R05 and R06, and suppresses
 // their findings for reclassified segments; R08 runs after both.
 //
+// R15 is listed first, matching that interaction order, though the gating
+// fact it depends on (Population.Quality) is actually computed by the engine
+// before any detector's Emit runs — R15's own Emit only writes the notes the
+// capture-quality facts justify, so its list position here is documentation
+// of the dependency rather than a requirement Emit ordering enforces.
+//
 // The loss cluster shares one classifier. R07 sits ahead of R05 and R06 and
 // owns its packet path — the interaction order made literal — while R05, R06
 // and R08 read the classification at Emit; R08 last, since it consumes R05
@@ -127,6 +153,7 @@ func (p *Population) TotalHosts() int { return len(p.TCPHosts) }
 func Default() []Detector {
 	loss := newLossAnalyzer()
 	return []Detector{
+		NewCaptureQualityRule(),
 		NewZeroWindowStall(),
 		NewServerResponseOutlier(),
 		NewOutOfOrderNotLoss(loss),
