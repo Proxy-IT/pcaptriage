@@ -84,15 +84,15 @@
       "observation": "Advertised a zero receive window 6 times, stalling the sender for 4.2s total (longest single stall 2.9s). The other 12 hosts in this capture show no zero window events.",
       "check_next": "the receiving application on 10.2.2.7 — a zero window means the application is not reading from its socket buffer fast enough. Look at CPU, blocked threads, or a downstream dependency on that host.",
       "frames": [
-        7,
-        9,
         11,
-        14,
-        16,
-        18
+        59,
+        110,
+        113,
+        115,
+        117
       ],
-      "first_frame": 7,
-      "worst_frame": 14,
+      "first_frame": 11,
+      "worst_frame": 113,
       "total_count": 6,
       "quality": "confirmed",
       "severity": "significant",

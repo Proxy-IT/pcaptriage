@@ -16,6 +16,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"net/netip"
+	"sort"
 	"time"
 
 	"github.com/gopacket/gopacket"
@@ -179,6 +180,21 @@ func tcpChecksum(src, dst [4]byte, tcp []byte) uint16 {
 // Len reports how many frames have been added.
 func (b *Builder) Len() int { return len(b.frames) }
 
+// sortedFrames returns the frames in timestamp order.
+//
+// Fixtures are authored flow by flow for readability, but a real
+// single-interface capture is written in time order — emitting authored order
+// produced files capinfos flags as not strictly time-ordered, which no genuine
+// capture of this kind would be. The sort is stable, so frames placed at the
+// same instant keep their authored order: intra-instant ordering stays an
+// authoring decision, never a sort accident.
+func (b *Builder) sortedFrames() []frame {
+	out := make([]frame, len(b.frames))
+	copy(out, b.frames)
+	sort.SliceStable(out, func(i, j int) bool { return out[i].at < out[j].at })
+	return out
+}
+
 // Pcap renders the fixture as a classic pcap file.
 func (b *Builder) Pcap() ([]byte, error) {
 	var buf bytes.Buffer
@@ -186,7 +202,7 @@ func (b *Builder) Pcap() ([]byte, error) {
 	if err := w.WriteFileHeader(DefaultSnaplen, layers.LinkTypeEthernet); err != nil {
 		return nil, err
 	}
-	for _, f := range b.frames {
+	for _, f := range b.sortedFrames() {
 		if err := w.WritePacket(b.captureInfo(f), f.data); err != nil {
 			return nil, err
 		}
@@ -215,18 +231,20 @@ func (b *Builder) Pcapng() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	for _, f := range b.frames {
+	frames := b.sortedFrames()
+	for _, f := range frames {
 		if err := w.WritePacket(b.captureInfo(f), f.data); err != nil {
 			return nil, err
 		}
 	}
 
 	// Written after the packets, which is where a capture tool puts it: the
-	// counters are only final once capture stops.
+	// counters are only final once capture stops. With frames in time order,
+	// the last frame is also the latest.
 	if b.stats != nil {
 		last := BaseTime
-		if n := len(b.frames); n > 0 {
-			last = BaseTime.Add(b.frames[n-1].at)
+		if n := len(frames); n > 0 {
+			last = BaseTime.Add(frames[n-1].at)
 		}
 		if err := w.WriteInterfaceStats(0, pcapgo.NgInterfaceStatistics{
 			StartTime:       BaseTime,

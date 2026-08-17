@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>pcap triage — r04-server-response-outlier</title>
+<title>pcap triage — mixed-findings.pcap</title>
 <style>/* Design tokens — the single source of the palette, type base and radii for
    both rendering surfaces: the desktop app's stylesheet and the exported HTML
    report's. A finding must look like itself whether it is read in the app or
@@ -319,10 +319,10 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
 
 <header class="masthead">
   <h1>pcap triage report</h1>
-  <div class="file">testdata/fixtures/r04-server-response-outlier</div>
+  <div class="file">testdata\fixtures\mixed-findings.pcap</div>
   <div class="stamp">
-    pcaptriage test · ruleset 1.0.0-partial · schema 4
-    · capture 2024-03-14T09:00:00Z to 2024-03-14T09:00:32.26Z (UTC)
+    pcaptriage dev · ruleset 1.0.0-partial · schema 4
+    · capture 2024-03-14T09:00:00Z to 2024-03-14T09:00:20.66Z (UTC)
   </div>
   <p class="posture">
     <strong>Advisory, not diagnostic.</strong> Each finding states what was observed, why it
@@ -348,8 +348,8 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
   <div class="tiles">
     <div class="tile">
       <div class="tile-label">Packets read</div>
-      <div class="tile-value">318</div>
-      <div class="tile-context">318 TCP · 0 other · 0 undecodable</div>
+      <div class="tile-value">311</div>
+      <div class="tile-context">311 TCP · 0 other · 0 undecodable</div>
     </div>
     <div class="tile">
       <div class="tile-label">TCP flows</div>
@@ -395,20 +395,76 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
 
 
 <section>
-  <h2>Top findings <span class="count">all 1, most significant first</span></h2>
+  <h2>Top findings <span class="count">all 5, most significant first</span></h2>
   
     
 <article class="finding top sev-significant">
   <div class="finding-head">
     <span class="rank">#1</span>
-    <h3>One server much slower to respond than its peers — 10.2.2.7:443</h3>
+    <h3>One server much slower to respond than its peers — 10.4.4.1:443</h3>
     <span class="tag tag-rule">R04</span>
     <span class="tag tag-sev tag-sev-significant">Significant</span>
     <span class="tag tag-confirmed">confirmed</span>
   </div>
-  <p class="observation">Responded in 1.8s at p95 (max 4.1s) while the other 12 servers in this capture are under 40ms at p95. Measured from last request byte to first response byte, with network round-trip time subtracted — so this is time spent on the server, not on the network.</p>
-  <p class="frames">Frames 257, 296, 299, 302, 305, 308, 311, 314 <span class="of">(8 shown of 20 occurrences)</span></p>
-  <p class="next"><b>Check next:</b> application or backend dependency latency on 10.2.2.7. The network path to this host looks comparable to its peers.</p>
+  <p class="observation">Responded in 2.6s at p95 (max 2.6s) while the other 8 servers in this capture are under 40ms at p95. Measured from last request byte to first response byte, with network round-trip time subtracted — so this is time spent on the server, not on the network.</p>
+  <p class="frames">Frames 52, 61, 64, 67, 70, 73, 76, 79 <span class="of">(8 shown of 10 occurrences)</span></p>
+  <p class="next"><b>Check next:</b> application or backend dependency latency on 10.4.4.1. The network path to this host looks comparable to its peers.</p>
+  
+</article>
+
+<article class="finding top sev-significant">
+  <div class="finding-head">
+    <span class="rank">#2</span>
+    <h3>One server much slower to respond than its peers — 10.4.4.2:443</h3>
+    <span class="tag tag-rule">R04</span>
+    <span class="tag tag-sev tag-sev-significant">Significant</span>
+    <span class="tag tag-confirmed">confirmed</span>
+  </div>
+  <p class="observation">Responded in 1.5s at p95 (max 1.5s) while the other 8 servers in this capture are under 40ms at p95. Measured from last request byte to first response byte, with network round-trip time subtracted — so this is time spent on the server, not on the network.</p>
+  <p class="frames">Frames 88, 97, 100, 103, 106, 109, 112, 115 <span class="of">(8 shown of 10 occurrences)</span></p>
+  <p class="next"><b>Check next:</b> application or backend dependency latency on 10.4.4.2. The network path to this host looks comparable to its peers.</p>
+  
+</article>
+
+<article class="finding top sev-significant">
+  <div class="finding-head">
+    <span class="rank">#3</span>
+    <h3>Receiver stopped accepting data — 10.2.2.7:5432</h3>
+    <span class="tag tag-rule">R01</span>
+    <span class="tag tag-sev tag-sev-significant">Significant</span>
+    <span class="tag tag-confirmed">confirmed</span>
+  </div>
+  <p class="observation">Advertised a zero receive window 4 times, stalling the sender for 4.2s total (longest single stall 2.9s).</p>
+  <p class="frames">Frames 7, 9, 12, 14</p>
+  <p class="next"><b>Check next:</b> the receiving application on 10.2.2.7 — a zero window means the application is not reading from its socket buffer fast enough. Look at CPU, blocked threads, or a downstream dependency on that host.</p>
+  
+</article>
+
+<article class="finding top sev-significant">
+  <div class="finding-head">
+    <span class="rank">#4</span>
+    <h3>Receiver stopped accepting data — 10.2.2.9:5432</h3>
+    <span class="tag tag-rule">R01</span>
+    <span class="tag tag-sev tag-sev-significant">Significant</span>
+    <span class="tag tag-confirmed">confirmed</span>
+  </div>
+  <p class="observation">Advertised a zero receive window 2 times, stalling the sender for 600ms total (longest single stall 600ms).</p>
+  <p class="frames">Frames 43, 45</p>
+  <p class="next"><b>Check next:</b> the receiving application on 10.2.2.9 — a zero window means the application is not reading from its socket buffer fast enough. Look at CPU, blocked threads, or a downstream dependency on that host.</p>
+  
+</article>
+
+<article class="finding top sev-significant">
+  <div class="finding-head">
+    <span class="rank">#5</span>
+    <h3>Receiver stopped accepting data — 10.2.2.8:5432</h3>
+    <span class="tag tag-rule">R01</span>
+    <span class="tag tag-sev tag-sev-significant">Significant</span>
+    <span class="tag tag-confirmed">confirmed</span>
+  </div>
+  <p class="observation">Advertised a zero receive window 4 times, stalling the sender for 1.5s total (longest single stall 800ms).</p>
+  <p class="frames">Frames 25, 27, 30, 32</p>
+  <p class="next"><b>Check next:</b> the receiving application on 10.2.2.8 — a zero window means the application is not reading from its socket buffer fast enough. Look at CPU, blocked threads, or a downstream dependency on that host.</p>
   
 </article>
 
@@ -420,20 +476,75 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
 <section>
   <h2>All findings by rule</h2>
   
+    <h3 class="rule-head">R01 · zero-window-stall</h3>
+    <p class="section-note">A receiver advertised a zero window having previously advertised non-zero, blocking the sender until a window update arrived.</p>
+
+    
+    <div class="figure">
+      <h3>Time the sender was blocked, by receiver</h3>
+      <svg class="chart" viewBox="0 0 680 112" width="680" height="112" role="img" aria-label="Time the sender was blocked, by receiver"><title>Time the sender was blocked, by receiver</title><line x1="180" y1="6" x2="180" y2="104" class="axis"/><text x="170" y="25" class="lbl" text-anchor="end" dominant-baseline="middle">10.2.2.7:5432</text><path d="M180,16 h281.71 v18 h-281.71 Z" class="fill-strong"/><path d="M463.71,16 H584 A4,4 0 0 1 588,20 V30 A4,4 0 0 1 584,34 H463.71 Z" class="fill-soft"/><text x="596" y="25" class="val" text-anchor="start" dominant-baseline="middle">4.2s</text><text x="170" y="55" class="lbl" text-anchor="end" dominant-baseline="middle">10.2.2.9:5432</text><path d="M180,46 H234.29 A4,4 0 0 1 238.29,50 V60 A4,4 0 0 1 234.29,64 H180 Z" class="fill-strong"/><text x="246.29" y="55" class="val" text-anchor="start" dominant-baseline="middle">600ms</text><text x="170" y="85" class="lbl" text-anchor="end" dominant-baseline="middle">10.2.2.8:5432</text><path d="M180,76 h77.71 v18 h-77.71 Z" class="fill-strong"/><path d="M259.71,76 H321.71 A4,4 0 0 1 325.71,80 V90 A4,4 0 0 1 321.71,94 H259.71 Z" class="fill-soft"/><text x="333.71" y="85" class="val" text-anchor="start" dominant-baseline="middle">1.5s</text></svg>
+      
+      <div class="legend">
+        <span class="key"><span class="swatch fill-strong"></span>Longest single stall</span><span class="key"><span class="swatch fill-soft"></span>Remaining stall time</span>
+      </div>
+      
+      <p class="caption">Bars are ordered as the findings are, most significant first, which is not the same as longest: a shorter stall close to a reset outranks a longer one during steady state.</p>
+    </div>
+    
+
+    
+<article class="finding sev-significant">
+  <div class="finding-head">
+    <span class="rank">#3</span>
+    <h3>Receiver stopped accepting data — 10.2.2.7:5432</h3>
+    <span class="tag tag-rule">R01</span>
+    <span class="tag tag-sev tag-sev-significant">Significant</span>
+    <span class="tag tag-confirmed">confirmed</span>
+  </div>
+  <p class="observation">Advertised a zero receive window 4 times, stalling the sender for 4.2s total (longest single stall 2.9s).</p>
+  <p class="frames">Frames 7, 9, 12, 14</p>
+  <p class="next"><b>Check next:</b> the receiving application on 10.2.2.7 — a zero window means the application is not reading from its socket buffer fast enough. Look at CPU, blocked threads, or a downstream dependency on that host.</p>
+  
+</article>
+
+<article class="finding sev-significant">
+  <div class="finding-head">
+    <span class="rank">#4</span>
+    <h3>Receiver stopped accepting data — 10.2.2.9:5432</h3>
+    <span class="tag tag-rule">R01</span>
+    <span class="tag tag-sev tag-sev-significant">Significant</span>
+    <span class="tag tag-confirmed">confirmed</span>
+  </div>
+  <p class="observation">Advertised a zero receive window 2 times, stalling the sender for 600ms total (longest single stall 600ms).</p>
+  <p class="frames">Frames 43, 45</p>
+  <p class="next"><b>Check next:</b> the receiving application on 10.2.2.9 — a zero window means the application is not reading from its socket buffer fast enough. Look at CPU, blocked threads, or a downstream dependency on that host.</p>
+  
+</article>
+
+<article class="finding sev-significant">
+  <div class="finding-head">
+    <span class="rank">#5</span>
+    <h3>Receiver stopped accepting data — 10.2.2.8:5432</h3>
+    <span class="tag tag-rule">R01</span>
+    <span class="tag tag-sev tag-sev-significant">Significant</span>
+    <span class="tag tag-confirmed">confirmed</span>
+  </div>
+  <p class="observation">Advertised a zero receive window 4 times, stalling the sender for 1.5s total (longest single stall 800ms).</p>
+  <p class="frames">Frames 25, 27, 30, 32</p>
+  <p class="next"><b>Check next:</b> the receiving application on 10.2.2.8 — a zero window means the application is not reading from its socket buffer fast enough. Look at CPU, blocked threads, or a downstream dependency on that host.</p>
+  
+</article>
+
+  
     <h3 class="rule-head">R04 · server-response-outlier</h3>
     <p class="section-note">A server:port took materially longer to begin responding than its peers in the same capture, with network round-trip time subtracted.</p>
 
     
     <div class="figure">
       <h3>Server response time at p95, against the capture</h3>
-      <div class="tiles">
-        <div class="tile">
-          <div class="tile-label">Response time at p95 · 10.2.2.7:443</div>
-          <div class="tile-value">1.8s</div>
-          <div class="tile-context">max 4.1s · capture median p95 30ms</div>
-        </div>
-      </div>
-      <p class="caption">One server stood out in this capture, so there is nothing to compare it against here. Measured from last request byte to first response byte, with network round-trip time subtracted.</p>
+      <svg class="chart" viewBox="0 0 680 82" width="680" height="82" role="img" aria-label="Server response time at p95, against the capture"><title>Server response time at p95, against the capture</title><line x1="180" y1="6" x2="180" y2="74" class="axis"/><text x="170" y="25" class="lbl" text-anchor="end" dominant-baseline="middle">10.4.4.1:443</text><path d="M180,16 H584 A4,4 0 0 1 588,20 V30 A4,4 0 0 1 584,34 H180 Z" class="fill-strong"/><text x="596" y="25" class="val" text-anchor="start" dominant-baseline="middle">2.6s</text><text x="170" y="55" class="lbl" text-anchor="end" dominant-baseline="middle">10.4.4.2:443</text><path d="M180,46 H411.38 A4,4 0 0 1 415.38,50 V60 A4,4 0 0 1 411.38,64 H180 Z" class="fill-strong"/><text x="423.38" y="55" class="val" text-anchor="start" dominant-baseline="middle">1.5s</text><line x1="184.71" y1="6" x2="184.71" y2="74" class="threshold"/></svg>
+      
+      <p class="caption">Dashed line: the capture-wide median p95 of 30ms, taken across every server endpoint with enough exchanges to assess. Measured from last request byte to first response byte, with network round-trip time subtracted.</p>
     </div>
     
 
@@ -441,14 +552,28 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
 <article class="finding sev-significant">
   <div class="finding-head">
     <span class="rank">#1</span>
-    <h3>One server much slower to respond than its peers — 10.2.2.7:443</h3>
+    <h3>One server much slower to respond than its peers — 10.4.4.1:443</h3>
     <span class="tag tag-rule">R04</span>
     <span class="tag tag-sev tag-sev-significant">Significant</span>
     <span class="tag tag-confirmed">confirmed</span>
   </div>
-  <p class="observation">Responded in 1.8s at p95 (max 4.1s) while the other 12 servers in this capture are under 40ms at p95. Measured from last request byte to first response byte, with network round-trip time subtracted — so this is time spent on the server, not on the network.</p>
-  <p class="frames">Frames 257, 296, 299, 302, 305, 308, 311, 314 <span class="of">(8 shown of 20 occurrences)</span></p>
-  <p class="next"><b>Check next:</b> application or backend dependency latency on 10.2.2.7. The network path to this host looks comparable to its peers.</p>
+  <p class="observation">Responded in 2.6s at p95 (max 2.6s) while the other 8 servers in this capture are under 40ms at p95. Measured from last request byte to first response byte, with network round-trip time subtracted — so this is time spent on the server, not on the network.</p>
+  <p class="frames">Frames 52, 61, 64, 67, 70, 73, 76, 79 <span class="of">(8 shown of 10 occurrences)</span></p>
+  <p class="next"><b>Check next:</b> application or backend dependency latency on 10.4.4.1. The network path to this host looks comparable to its peers.</p>
+  
+</article>
+
+<article class="finding sev-significant">
+  <div class="finding-head">
+    <span class="rank">#2</span>
+    <h3>One server much slower to respond than its peers — 10.4.4.2:443</h3>
+    <span class="tag tag-rule">R04</span>
+    <span class="tag tag-sev tag-sev-significant">Significant</span>
+    <span class="tag tag-confirmed">confirmed</span>
+  </div>
+  <p class="observation">Responded in 1.5s at p95 (max 1.5s) while the other 8 servers in this capture are under 40ms at p95. Measured from last request byte to first response byte, with network round-trip time subtracted — so this is time spent on the server, not on the network.</p>
+  <p class="frames">Frames 88, 97, 100, 103, 106, 109, 112, 115 <span class="of">(8 shown of 10 occurrences)</span></p>
+  <p class="next"><b>Check next:</b> application or backend dependency latency on 10.4.4.2. The network path to this host looks comparable to its peers.</p>
   
 </article>
 
@@ -458,7 +583,7 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
 
 
 <section>
-  <h2>Subjects that produced findings <span class="count">1</span></h2>
+  <h2>Subjects that produced findings <span class="count">5</span></h2>
   <p class="section-note">
     Bounded to the subjects that raised something. A table of every flow in the capture,
     ranked by significance, needs per-flow state retained to the end of the run; flow state
@@ -471,11 +596,43 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
       <tbody>
       
         <tr>
-          <td class="mono">10.2.2.7:443</td>
+          <td class="mono">10.1.1.5:44210 &lt;-&gt; 10.2.2.7:5432</td>
+          <td>flow</td>
+          <td class="mono">R01</td>
+          <td class="num">4</td>
+          <td class="mono">7, 9, 12, 14</td>
+        </tr>
+      
+        <tr>
+          <td class="mono">10.1.1.5:44211 &lt;-&gt; 10.2.2.8:5432</td>
+          <td>flow</td>
+          <td class="mono">R01</td>
+          <td class="num">4</td>
+          <td class="mono">25, 27, 30, 32</td>
+        </tr>
+      
+        <tr>
+          <td class="mono">10.1.1.5:44212 &lt;-&gt; 10.2.2.9:5432</td>
+          <td>flow</td>
+          <td class="mono">R01</td>
+          <td class="num">2</td>
+          <td class="mono">43, 45</td>
+        </tr>
+      
+        <tr>
+          <td class="mono">10.4.4.1:443</td>
           <td>endpoint</td>
           <td class="mono">R04</td>
-          <td class="num">20</td>
-          <td class="mono">257, 296, 299, 302, 305, 308 …</td>
+          <td class="num">10</td>
+          <td class="mono">52, 61, 64, 67, 70, 73 …</td>
+        </tr>
+      
+        <tr>
+          <td class="mono">10.4.4.2:443</td>
+          <td>endpoint</td>
+          <td class="mono">R04</td>
+          <td class="num">10</td>
+          <td class="mono">88, 97, 100, 103, 106, 109 …</td>
         </tr>
       
       </tbody>
