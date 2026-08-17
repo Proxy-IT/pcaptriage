@@ -320,6 +320,10 @@ HTML report carries over into the app UI rather than being replaced by it.
 4. A secondary, clearly secondary, "full details" view holding the complete
    findings list, per-flow table, and completeness banner — for anyone who wants
    to go further, not required to reach a conclusion.
+5. An in-app guide, registry-driven: each finding card links to its rule's
+   plain-language page, and the guide index (reached from Help) lists exactly
+   the checks this build runs, with unbuilt checks disclosed by count — built,
+   as of the P4 session.
 
 **Report structure** (applies to both the GUI's built-in view and any exported
 HTML — see below):

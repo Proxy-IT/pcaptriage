@@ -582,3 +582,24 @@ R15's condition list now includes capture-host packet drops:
   (e.g. R01's 100 ms cumulative), and every emitted finding is shown. If a
   floor is ever introduced, it is a severity-calibration decision (BACKLOG P4),
   not a rendering convenience.
+
+### Severity mapping and coverage strength (added in the P4/P3.5 session)
+
+- **Severity is presentation-only**, derived from the existing significance
+  score at render time: `Significant ≥ 40`, `Worth noting ≥ 15`, informational
+  below, [chosen]. Anchored on this document's own language rather than picked
+  to make fixtures look varied: R06's healthy fast-retransmit contrast scores
+  18.1 and R06's wording calls that "worth noting", so the significant floor
+  sits above it; a mid-weight rule with about a second lost and clear isolation
+  scores just over 40. The mapping changes nothing about ranking, finding
+  content, or JSON beyond the added `severity`/`severity_label` fields, and the
+  word always renders beside the colour.
+- **Green for a clean result requires strong coverage**: no coverage gaps on
+  the capture *and* the complete rule set built, [chosen] — so at the current
+  build state every clean result renders neutral, which is the intended
+  outcome. Colour must not say what the clean-wording ban forbids the words
+  from saying. Error states (empty, unparseable, no-TCP) never carry severity
+  colours at all.
+- Per the standing constraint recorded above: **no display floor exists and
+  the severity work did not introduce one** — severity labels map onto existing
+  scores without changing what is shown.

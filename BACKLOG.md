@@ -75,6 +75,14 @@ Depends on nothing; blocks nothing; every real-world clean capture hits it.
 
 ## P3.5 Export coverage parity + design token unification
 
+**Done 2026-08-17, commit 92ee198.** Coverage moved into the report document
+(schema 4) so exports and the in-app clean screen render the same struct; the
+P3 banned-phrase test now runs against the export rendering. Tokens: colors,
+fonts, type base and radii extracted to one file both surfaces consume;
+spacing deliberately not tokenized — the two surfaces are a document and an
+application and legitimately space themselves differently, so a shared spacing
+scale would have unified values that weren't drifting.
+
 **Added after the P1–P3 session.** The clean-capture screen now shows "what
 could not be checked" in-app, but the exported HTML report does not carry
 coverage data at all — findings can render with no gaps section. The export is
@@ -92,6 +100,13 @@ been waiting for exactly this — extract shared tokens (colors, spacing, type
 scale) into one source both the GUI stylesheet and the report template consume.
 
 ## P4. A4 — Evidence quality badges + severity vocabulary
+
+**Done 2026-08-17, commits 0f741f7 (severity + badges) and 6059357 (guide +
+About).** Thresholds [chosen]: Significant ≥ 40, Worth noting ≥ 15,
+informational below — anchored on RULES.md's own R06 language (its healthy
+fast-retransmit example scores 18.1 and the spec calls it "worth noting").
+Green clean banner requires strong coverage (no gaps and complete rule set),
+so today it is always neutral. No display floor introduced, per the note below.
 
 Two related card-level signals, distinct and both needed:
 - **Evidence quality** (`confirmed` / `inferred` / `unavailable`) — already in
@@ -139,9 +154,16 @@ Done together — both are "help the user hand findings to the next person":
 
 ## P8. First-run privacy moment + A9 small items
 
+**Partial (2026-08-17, commit 6059357):** the privacy story landed on the About
+page — no longer invisible, but still only where a user goes looking for it.
+P8's remaining scope is the first-run moment itself plus the A9 small items
+below.
+
 - One screen, shown once: everything stays on this machine, no upload, no
-  telemetry. Content is P1's one-sentence data story. The no-network posture is
-  the strongest differentiator and is currently invisible.
+  telemetry. Content is P1's one-sentence data story — now written, on the
+  About page. The no-network posture is the strongest differentiator; the
+  first-run moment puts it in front of every user instead of only the ones who
+  open About.
 - A9 batch: friendly rejection of unsupported types, transparent `.gz` handling,
   size/time expectation before run ("2.3 GB — this may take a few minutes"),
   timezone as visible control (reads P1's preference).
@@ -150,6 +172,11 @@ Done together — both are "help the user hand findings to the next person":
 
 ## P9. A6 — Inline term explanations
 
+**Absorbed 2026-08-17 (commit 6059357):** the guide pages replace tooltips —
+each finding card links to its rule's plain-language page, which covers the
+terms in context. Revisit only if the pages prove too heavy for quick lookups;
+don't build a second explanation layer alongside them without that evidence.
+
 Tooltips/expandable definitions on terms (zero window, retransmission, RTT, p95,
 SYN). Layered on top of RULES.md wording, which stays verbatim. Progressive
 disclosure. Placed after P3–P7 because it improves comprehension of cards the
@@ -157,13 +184,19 @@ earlier items make trustworthy and actionable.
 
 ## P10. "What did you check?" screen
 
+**Absorbed 2026-08-17 (commit 6059357):** the registry-driven guide index is
+the checks screen — one entry per built check with its authored one-liner,
+unbuilt checks disclosed by count rather than named (naming them would need a
+hand-maintained list that could drift from RULES.md; the registry is the single
+source of truth). Reached from Help and from every guide page.
+
 The fifteen rules in plain language, in-app — makes the published-rules trust
 argument (§14) visible instead of living in a repo the user never visits.
 Natural home is the About/Help area stubbed in the first GUI session.
 
 **Note:** `--list-checks` is referenced in BRIEF.md's scope boundaries and
-RULES.md's handoff notes but has never been built. P10's scope is therefore the
-GUI checks screen plus its dev-CLI equivalent, closing all three references.
+RULES.md's handoff notes but has never been built. The GUI half of P10 is
+closed by the guide; the dev-CLI `--list-checks` references remain open.
 
 ## P11. C2 — Idle-then-fail (firewall session reaping)
 
@@ -267,7 +300,10 @@ Recorded so they don't get re-proposed.
 
 # Known review items (not proposals)
 
-- **Design token duplication** — moved into the queue as part of P3.5.
+- **Design token duplication** — resolved by P3.5 (2026-08-17, commit 92ee198):
+  one token file, a byte-equality test between the two copies, and a test that
+  neither consumer stylesheet declares a custom property or restates a token
+  colour as a literal. No longer held together by review.
 - **Screenshot/visual verification gap** — computer-use tooling can't resolve a
   freshly built exe; current coverage is `-preview` HTML render plus end-to-end
   tests, which misses the Wails IPC layer and native menu. Owner verification
