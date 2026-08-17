@@ -4,34 +4,82 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>pcap triage — r01-brief-zero-windows</title>
-<style>/* Inlined into every report. Nothing here may reference an external font,
-   stylesheet, or image: the report has to open with no network access.
+<style>/* Design tokens — the single source of the palette, type base and radii for
+   both rendering surfaces: the desktop app's stylesheet and the exported HTML
+   report's. A finding must look like itself whether it is read in the app or
+   in a report emailed to a vendor, and before this file existed that held only
+   by review.
+
+   This copy — internal/report/tokens.css — is canonical and is embedded into
+   every exported report ahead of the report styles. frontend/dist/tokens.css
+   is a byte-identical copy served to the webview, because Go's embed cannot
+   reach across package directories; a test compares the two byte for byte, so
+   editing one without the other fails the build rather than drifting silently.
+   Neither consumer stylesheet may declare a custom property of its own — that
+   is also enforced by test. */
+
+:root {
+  --page:      #f9f9f7;
+  --surface:   #fcfcfb;
+  --ink:       #0b0b0b;
+  --ink-2:     #52514e;
+  --ink-muted: #898781;
+  --rule:      #e1e0d9;
+  --axis:      #c3c2b7;
+  --border:    rgba(11, 11, 11, 0.10);
+
+  /* One blue hue, stepped, for charts and chrome. Ordinal, not categorical:
+     the steps carry "more observed state" rather than identity. Charts never
+     borrow the severity scale below — a red bar would assert a verdict the
+     figure has no basis for. */
+  --step-550:  #1c5cab;
+  --step-450:  #2a78d6;
+  --step-400:  #3987e5;
+  --step-250:  #86b6ef;
+  --wash:      #eef4fd;
+
+  /* Severity accents. Reserved for severity and nothing else: they are a
+     status scale, never a palette to draw other things from.
+
+     Contrast against --surface, measured: red 6.40:1, amber 5.29:1,
+     neutral 7.73:1 — all clear of 4.5:1 for text. Colour is never the only
+     carrier; the word rides beside it in every case. */
+  --sev-significant:      #b42318;
+  --sev-significant-wash: #fdf3f2;
+  --sev-worth-noting:     #b54708;
+  --sev-worth-noting-wash:#fdf6ee;
+  --sev-informational:      #52514e;
+  --sev-informational-wash: #f6f6f4;
+
+  /* Reserved for a clean result whose coverage is strong enough to justify
+     it. Currently unreachable — see the coverage-strength condition. */
+  --ok:      #146c43;
+  --ok-wash: #f0f8f3;
+
+  --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --mono: ui-monospace, SFMono-Regular, "Cascadia Mono", Menlo, Consolas, monospace;
+
+  /* Base type. Component sizes are stated locally — the two surfaces are a
+     document and an application and legitimately space themselves differently —
+     but the base they scale from is shared. */
+  --text-base: 15px;
+  --leading:   1.55;
+
+  /* Corner radii by visual family: cards, buttons and tables; notes and
+     banners; tags and code chips. */
+  --radius-card: 6px;
+  --radius-note: 4px;
+  --radius-tag:  3px;
+}
+
+/* Inlined into every report, after tokens.css — every colour, font stack and
+   radius here comes from those tokens, declared nowhere else. Nothing here may
+   reference an external font, stylesheet, or image: the report has to open
+   with no network access.
 
    Deliberately light-only. This is a document that gets printed and attached to
    a ticket, and a dark variant is not something BRIEF.md section 3 or 4 asks
    for. */
-
-:root {
-  --page:        #f9f9f7;
-  --surface:     #fcfcfb;
-  --ink:         #0b0b0b;
-  --ink-2:       #52514e;
-  --ink-muted:   #898781;
-  --rule:        #e1e0d9;
-  --axis:        #c3c2b7;
-  --border:      rgba(11, 11, 11, 0.10);
-
-  /* One blue hue, stepped. Ordinal, not categorical: the steps carry "more
-     observed state" rather than identity. No severity scale anywhere — the
-     tool makes no severity claim, and a red bar would assert one. */
-  --step-550:    #1c5cab;
-  --step-450:    #2a78d6;
-  --step-400:    #3987e5;
-  --step-250:    #86b6ef;
-
-  --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  --mono: ui-monospace, SFMono-Regular, "Cascadia Mono", Menlo, Consolas, monospace;
-}
 
 * { box-sizing: border-box; }
 
@@ -41,8 +89,8 @@ body {
   background: var(--page);
   color: var(--ink);
   font-family: var(--font);
-  font-size: 15px;
-  line-height: 1.55;
+  font-size: var(--text-base);
+  line-height: var(--leading);
   -webkit-text-size-adjust: 100%;
 }
 
@@ -61,7 +109,7 @@ body {
   background: var(--surface);
   border: 1px solid var(--border);
   border-left: 3px solid var(--step-450);
-  border-radius: 4px;
+  border-radius: var(--radius-note);
   font-size: .875rem;
   color: var(--ink-2);
 }
@@ -89,7 +137,7 @@ h2 .count { color: var(--ink-muted); font-weight: 400; text-transform: none; let
   min-width: 9rem;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-card);
   padding: .7rem .85rem;
 }
 .tile-label { font-size: .75rem; color: var(--ink-muted); }
@@ -102,7 +150,7 @@ h2 .count { color: var(--ink-muted); font-weight: 400; text-transform: none; let
 .figure {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-card);
   padding: 1rem 1.1rem 1.1rem;
   margin: 0 0 1.25rem;
   overflow-x: auto;
@@ -137,7 +185,7 @@ h2 .count { color: var(--ink-muted); font-weight: 400; text-transform: none; let
 .finding {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-card);
   padding: .95rem 1.1rem;
   margin: 0 0 .75rem;
 }
@@ -162,14 +210,13 @@ h2 .count { color: var(--ink-muted); font-weight: 400; text-transform: none; let
   letter-spacing: .04em;
   text-transform: uppercase;
   padding: .1rem .4rem;
-  border-radius: 3px;
+  border-radius: var(--radius-tag);
   flex: none;
   white-space: nowrap;
 }
 /* Evidence quality is colourless: it answers "how sure", not "how much it
    matters". Severity owns colour on this card, so the two cannot be read as one
-   combined signal. Kept in step with the app stylesheet by review until the
-   tokens are unified (BACKLOG P3.5). */
+   combined signal. */
 .tag-confirmed,
 .tag-inferred,
 .tag-unavailable {
@@ -180,15 +227,15 @@ h2 .count { color: var(--ink-muted); font-weight: 400; text-transform: none; let
 .tag-inferred { border-style: dashed; }
 .tag-rule { background: transparent; color: var(--ink-muted); border: 1px solid var(--rule); font-family: var(--mono); }
 
-/* Severity. Contrast against --surface: red 6.40:1, amber 5.29:1,
-   neutral 7.73:1. The word always accompanies the colour. */
+/* Severity. The palette and its contrast rationale live in tokens.css; the
+   word always accompanies the colour. */
 .tag-sev { border: 1px solid; font-weight: 600; }
-.tag-sev-significant   { color: #b42318; border-color: #b42318; background: #fdf3f2; }
-.tag-sev-worth-noting  { color: #b54708; border-color: #b54708; background: #fdf6ee; }
-.tag-sev-informational { color: var(--ink-2); border-color: var(--axis); background: #f6f6f4; }
+.tag-sev-significant   { color: var(--sev-significant); border-color: var(--sev-significant); background: var(--sev-significant-wash); }
+.tag-sev-worth-noting  { color: var(--sev-worth-noting); border-color: var(--sev-worth-noting); background: var(--sev-worth-noting-wash); }
+.tag-sev-informational { color: var(--ink-2); border-color: var(--axis); background: var(--sev-informational-wash); }
 
-.finding.sev-significant   { border-left-color: #b42318; }
-.finding.sev-worth-noting  { border-left-color: #b54708; }
+.finding.sev-significant   { border-left-color: var(--sev-significant); }
+.finding.sev-worth-noting  { border-left-color: var(--sev-worth-noting); }
 .finding.sev-informational { border-left-color: var(--axis); }
 
 @media print {
@@ -200,7 +247,7 @@ h2 .count { color: var(--ink-muted); font-weight: 400; text-transform: none; let
 /* ---------- tables ---------- */
 
 table { border-collapse: collapse; width: 100%; font-size: .87rem; }
-.table-wrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; }
+.table-wrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-card); }
 th, td { text-align: left; padding: .5rem .75rem; border-bottom: 1px solid var(--rule); vertical-align: top; }
 th { font-size: .75rem; text-transform: uppercase; letter-spacing: .03em; color: var(--ink-muted); font-weight: 600; }
 tr:last-child td { border-bottom: none; }
@@ -213,7 +260,7 @@ td.mono, .subject { font-family: var(--mono); font-size: .82rem; }
   background: var(--surface);
   border: 1px solid var(--border);
   border-left: 3px solid var(--axis);
-  border-radius: 4px;
+  border-radius: var(--radius-note);
   padding: .7rem .9rem;
   margin: 0 0 .6rem;
   font-size: .9rem;
@@ -222,6 +269,37 @@ td.mono, .subject { font-family: var(--mono); font-size: .82rem; }
 .note .who { font-family: var(--mono); font-size: .78rem; color: var(--ink-muted); display: block; margin-bottom: .15rem; }
 
 .empty { color: var(--ink-muted); font-style: italic; }
+
+/* ---------- clean result ---------- */
+
+/* Neutral by default, same as the in-app clean screen. Green is opt-in and
+   only when the coverage supports it — an all-clear colour over a result with
+   unrun checks would contradict the words inside it. */
+.clean-banner {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--step-450);
+  border-radius: var(--radius-card);
+  padding: 1rem 1.15rem;
+}
+.clean-banner.coverage-strong {
+  border-left-color: var(--ok);
+  background: var(--ok-wash);
+}
+.clean-banner.coverage-strong h3 { color: var(--ok); }
+.clean-banner h3 { font-size: 1.15rem; margin: 0; }
+.clean-banner p { margin: .45rem 0 0; color: var(--ink-2); font-size: .92rem; }
+
+.clean-minor {
+  margin: .75rem 0 0;
+  padding: .6rem .9rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--axis);
+  border-radius: var(--radius-note);
+  font-size: .87rem;
+  color: var(--ink-2);
+}
 
 footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule); font-size: .8rem; color: var(--ink-muted); }
 
@@ -243,7 +321,7 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
   <h1>pcap triage report</h1>
   <div class="file">testdata/fixtures/r01-brief-zero-windows</div>
   <div class="stamp">
-    pcaptriage test · ruleset 1.0.0-partial · schema 3
+    pcaptriage test · ruleset 1.0.0-partial · schema 4
     · capture 2024-03-14T09:00:00Z to 2024-03-14T09:00:06.21Z (UTC)
   </div>
   <p class="posture">
@@ -319,7 +397,14 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
 <section>
   <h2>Top findings <span class="count">none</span></h2>
   
-    <p class="empty">Nothing was surfaced by the checks that ran. See the checks section below for what was and was not assessed.</p>
+    
+    
+    <div class="clean-banner">
+      <h3>No significant problems found in what was checked</h3>
+      <p>That is not the same as the capture being problem-free. 2 of 15 planned checks are built, and what they do not cover has not been examined. What each check looked at, and what could not be assessed on this capture, is below.</p>
+    </div>
+    
+    
   
 </section>
 
@@ -344,7 +429,9 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
   <h2>Checks not performed, and why</h2>
   <p class="section-note">
     Rendered rather than dropped. A report that looks clean because half the checks never
-    ran will close a ticket on a fault that is still live.
+    ran will close a ticket on a fault that is still live. This is the same coverage the
+    application itself shows; the export carries it because a reader here has no other
+    way to know what was left unexamined.
   </p>
 
   
@@ -357,6 +444,11 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
     <div class="note unavailable">
       <span class="who">R15 · not assessed</span>
       Not assessed: whether the capture host dropped packets before writing them. The classic pcap format has no field to record it, so this file cannot say either way. Packets dropped by the capturing machine look the same as packets lost on the network. If that distinction matters here, re-capturing in pcapng format would record the count.
+    </div>
+    
+    <div class="note unavailable">
+      <span class="who">R15 · not assessed</span>
+      Not assessed: receive window sizing. 1 of 5 flows (20%) began before the capture started, so the window scale factor for them is unknown. Zero-window detection does not depend on it and was performed on every flow.
     </div>
     
   
@@ -382,9 +474,9 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
     </table>
   </div>
   <p class="caption">
-    Thirteen of the fifteen v1 rules are not implemented in this build and were therefore
-    not looked for at all. They are not listed above because listing them as "skipped"
-    would imply a decision was made per capture; none was.
+    13 of the fifteen v1 rules are not implemented in this build
+    and were therefore not looked for at all. They are not listed above because listing them
+    as "skipped" would imply a decision was made per capture; none was.
   </p>
 </section>
 

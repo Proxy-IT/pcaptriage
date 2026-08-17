@@ -1,0 +1,67 @@
+/* Design tokens — the single source of the palette, type base and radii for
+   both rendering surfaces: the desktop app's stylesheet and the exported HTML
+   report's. A finding must look like itself whether it is read in the app or
+   in a report emailed to a vendor, and before this file existed that held only
+   by review.
+
+   This copy — internal/report/tokens.css — is canonical and is embedded into
+   every exported report ahead of the report styles. frontend/dist/tokens.css
+   is a byte-identical copy served to the webview, because Go's embed cannot
+   reach across package directories; a test compares the two byte for byte, so
+   editing one without the other fails the build rather than drifting silently.
+   Neither consumer stylesheet may declare a custom property of its own — that
+   is also enforced by test. */
+
+:root {
+  --page:      #f9f9f7;
+  --surface:   #fcfcfb;
+  --ink:       #0b0b0b;
+  --ink-2:     #52514e;
+  --ink-muted: #898781;
+  --rule:      #e1e0d9;
+  --axis:      #c3c2b7;
+  --border:    rgba(11, 11, 11, 0.10);
+
+  /* One blue hue, stepped, for charts and chrome. Ordinal, not categorical:
+     the steps carry "more observed state" rather than identity. Charts never
+     borrow the severity scale below — a red bar would assert a verdict the
+     figure has no basis for. */
+  --step-550:  #1c5cab;
+  --step-450:  #2a78d6;
+  --step-400:  #3987e5;
+  --step-250:  #86b6ef;
+  --wash:      #eef4fd;
+
+  /* Severity accents. Reserved for severity and nothing else: they are a
+     status scale, never a palette to draw other things from.
+
+     Contrast against --surface, measured: red 6.40:1, amber 5.29:1,
+     neutral 7.73:1 — all clear of 4.5:1 for text. Colour is never the only
+     carrier; the word rides beside it in every case. */
+  --sev-significant:      #b42318;
+  --sev-significant-wash: #fdf3f2;
+  --sev-worth-noting:     #b54708;
+  --sev-worth-noting-wash:#fdf6ee;
+  --sev-informational:      #52514e;
+  --sev-informational-wash: #f6f6f4;
+
+  /* Reserved for a clean result whose coverage is strong enough to justify
+     it. Currently unreachable — see the coverage-strength condition. */
+  --ok:      #146c43;
+  --ok-wash: #f0f8f3;
+
+  --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --mono: ui-monospace, SFMono-Regular, "Cascadia Mono", Menlo, Consolas, monospace;
+
+  /* Base type. Component sizes are stated locally — the two surfaces are a
+     document and an application and legitimately space themselves differently —
+     but the base they scale from is shared. */
+  --text-base: 15px;
+  --leading:   1.55;
+
+  /* Corner radii by visual family: cards, buttons and tables; notes and
+     banners; tags and code chips. */
+  --radius-card: 6px;
+  --radius-note: 4px;
+  --radius-tag:  3px;
+}

@@ -366,7 +366,11 @@
   // nothing was found is exactly the reader least likely to go looking for the
   // caveats, so the caveats are put in front of them rather than behind a
   // toggle.
-  function renderCleanState(cov) {
+  function renderCleanState(doc) {
+    // Coverage rides inside the report document — the same struct the exported
+    // HTML and JSON carry, so this screen and an export cannot disagree.
+    var cov = doc.coverage || {};
+
     $("clean-statement").textContent = cov.statement || "Nothing was found";
     $("clean-qualifier").textContent = cov.qualifier || "";
 
@@ -380,9 +384,11 @@
       headline.classList.remove("coverage-strong");
     }
 
+    // What ran comes from the document's checks list — the coverage does not
+    // carry a second copy of it, so the two cannot disagree.
     var checked = $("clean-checked");
     checked.textContent = "";
-    (cov.checked || []).forEach(function (c) {
+    (doc.checks || []).forEach(function (c) {
       var li = el("li");
       li.appendChild(el("span", "check-name", c.id + " · " + c.name));
       li.appendChild(el("span", "check-summary", c.summary));
@@ -541,7 +547,7 @@
     list.textContent = "";
 
     if (findings.length === 0) {
-      renderCleanState(result.coverage || {});
+      renderCleanState(doc);
       $("clean-state").hidden = false;
     } else {
       $("clean-state").hidden = true;

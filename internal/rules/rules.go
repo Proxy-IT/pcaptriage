@@ -122,6 +122,15 @@ func Default() []Detector {
 	}
 }
 
+// TotalV1Rules is how many rules the finished v1 rule set contains, per
+// RULES.md's fifteen-rule ceiling.
+//
+// Every disclosure of the build state — the home screen, the clean-capture
+// screen, the exported report, the About page — derives its "N of 15" from this
+// constant and len(AllMeta()), so no surface can carry its own count and
+// quietly go stale as rules land.
+const TotalV1Rules = 15
+
 // AllMeta returns the metadata for every implemented rule.
 func AllMeta() []Meta {
 	ds := Default()

@@ -37,13 +37,16 @@ import (
 //
 // History:
 //
+//	4 — added coverage: what the run examined and what it could not, the same
+//	    data the in-app clean screen shows. The export is read by people with
+//	    zero context, so it carries the same §9 false-all-clear guard. Additive.
 //	3 — added schema_note, stating in the document itself that this format is
 //	    not a stability contract. Additive.
 //	2 — findings gained subject, scope_kind and subject_label, naming what each
 //	    finding is about and at what granularity. Additive: every field present
 //	    in 1 is still present and unchanged.
 //	1 — initial.
-const SchemaVersion = "3"
+const SchemaVersion = "4"
 
 // RulesetVersion versions the rules, thresholds and wording separately from
 // the tool itself. A user comparing a report from last month against one from
@@ -65,9 +68,13 @@ type Document struct {
 	Tool       ToolInfo   `json:"tool"`
 	Invocation Invocation `json:"invocation"`
 	Capture    Capture    `json:"capture"`
-	Checks     []Check    `json:"checks"`
-	Findings   []Finding  `json:"findings"`
-	Notes      []Note     `json:"notes"`
+	// Coverage is what the run examined and what it could not — the same data
+	// the in-app clean screen shows, carried in every export so a reader with
+	// no context sees the gaps beside the result.
+	Coverage Coverage  `json:"coverage"`
+	Checks   []Check   `json:"checks"`
+	Findings []Finding `json:"findings"`
+	Notes    []Note    `json:"notes"`
 }
 
 // ToolInfo stamps the versions.
@@ -272,6 +279,8 @@ func Build(res *analysis.Result, inv Invocation, version string) *Document {
 	for _, n := range res.Notes {
 		doc.Notes = append(doc.Notes, Note{Kind: n.Kind, RuleID: n.RuleID, Text: n.Text})
 	}
+
+	doc.Coverage = buildCoverage(res)
 
 	return doc
 }

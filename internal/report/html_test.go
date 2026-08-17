@@ -31,6 +31,19 @@ func sampleDoc(findings ...Finding) *Document {
 			{Kind: "unavailable", RuleID: "R04", Text: "Not assessed: something."},
 			{Kind: "info", RuleID: "R01", Text: "Suppressed below the floor."},
 		},
+		// Mirrors what Build produces: the unavailable note above appears in the
+		// gap list too, since that is where the template renders gaps from.
+		Coverage: Coverage{
+			Clean:     len(findings) == 0,
+			Statement: "No significant problems found in what was checked",
+			Qualifier: "That is not the same as the capture being problem-free. " +
+				"2 of 15 planned checks are built, and what they do not cover has not been examined.",
+			NotChecked: []CoverageGap{
+				{RuleID: "R04", Text: "Not assessed: something."},
+			},
+			UnbuiltChecks:      13,
+			CoverageWeakReason: "not all planned checks are built",
+		},
 	}
 }
 
@@ -244,14 +257,37 @@ func TestChartsReadTheMetricsRulesActuallyEmit(t *testing.T) {
 func TestEmptyReportStillStatesWhatWasNotChecked(t *testing.T) {
 	html := render(t, sampleDoc())
 
-	if !strings.Contains(html, "Nothing was surfaced by the checks that ran") {
-		t.Error("an empty report should say the checks found nothing, not simply show no findings")
+	// The findings section leads with the calibrated statement and its
+	// qualifier — the same wording the in-app clean screen shows — rendered
+	// neutral, since this document's coverage is not strong.
+	if !strings.Contains(html, "No significant problems found in what was checked") {
+		t.Error("an empty report should lead with the calibrated clean statement")
 	}
+	if !strings.Contains(html, "not the same as the capture being problem-free") {
+		t.Error("the clean statement renders without its qualifier, so it reads as a verdict")
+	}
+	// Scoped past the inlined stylesheet, which necessarily defines the class.
+	if _, body, ok := strings.Cut(html, "</style>"); !ok || strings.Contains(body, "coverage-strong") {
+		t.Error("a weakly-covered clean report picked up the green treatment")
+	}
+
 	if !strings.Contains(html, "Not assessed: something.") {
-		t.Error("unavailable notes must be rendered, not dropped")
+		t.Error("coverage gaps must be rendered, not dropped")
 	}
 	if !strings.Contains(html, "not implemented in this build") {
 		t.Error("the report must state that most of the rule set was never run")
+	}
+}
+
+// TestDocWithoutCoverageFallsBackToTheOldEmptyText guards the degenerate case:
+// a hand-built document with no coverage must not render an empty banner with
+// nothing in it.
+func TestDocWithoutCoverageFallsBackToTheOldEmptyText(t *testing.T) {
+	doc := sampleDoc()
+	doc.Coverage = Coverage{}
+
+	if !strings.Contains(render(t, doc), "Nothing was surfaced by the checks that ran") {
+		t.Error("a document without coverage should fall back to the plain empty-list text")
 	}
 }
 

@@ -1,50 +1,10 @@
 /* pcaptriage desktop app.
 
-   The palette and type scale are the same ones the exported HTML report uses,
-   so a finding looks like itself whether it is read in the app or in a report
-   emailed to a vendor. The values are duplicated rather than shared because the
-   report's stylesheet is embedded into the Go binary and this one is served to
-   the webview; keeping them in step is a review item.
-
-   No severity colours. The tool makes no severity claim, so a red card would
-   assert one it cannot support. Significance is carried by order alone. */
-
-:root {
-  --page:      #f9f9f7;
-  --surface:   #fcfcfb;
-  --ink:       #0b0b0b;
-  --ink-2:     #52514e;
-  --ink-muted: #898781;
-  --rule:      #e1e0d9;
-  --axis:      #c3c2b7;
-  --border:    rgba(11, 11, 11, 0.10);
-
-  --step-550:  #1c5cab;
-  --step-450:  #2a78d6;
-  --step-250:  #86b6ef;
-  --wash:      #eef4fd;
-
-  /* Severity accents. Reserved for severity and nothing else: they are a
-     status scale, never a palette to draw other things from.
-
-     Contrast against --surface, measured: red 6.40:1, amber 5.29:1,
-     neutral 7.73:1 — all clear of 4.5:1 for text. Colour is never the only
-     carrier; the word rides beside it in every case. */
-  --sev-significant:      #b42318;
-  --sev-significant-wash: #fdf3f2;
-  --sev-worth-noting:     #b54708;
-  --sev-worth-noting-wash:#fdf6ee;
-  --sev-informational:      #52514e;
-  --sev-informational-wash: #f6f6f4;
-
-  /* Reserved for a clean result whose coverage is strong enough to justify it.
-     Currently unreachable — see the coverage-strength condition. */
-  --ok:      #146c43;
-  --ok-wash: #f0f8f3;
-
-  --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  --mono: ui-monospace, "Cascadia Mono", Consolas, monospace;
-}
+   Loaded after tokens.css — every colour, font stack and radius here comes
+   from those shared tokens, which the exported HTML report consumes too, so a
+   finding looks like itself whether it is read in the app or in a report
+   emailed to a vendor. This sheet declares no custom properties of its own;
+   that is enforced by test, not by review. */
 
 * { box-sizing: border-box; }
 
@@ -55,8 +15,8 @@ body {
   background: var(--page);
   color: var(--ink);
   font-family: var(--font);
-  font-size: 15px;
-  line-height: 1.55;
+  font-size: var(--text-base);
+  line-height: var(--leading);
   overflow-y: auto;
   /* The window chrome is the app frame; text selection is for content only. */
   user-select: none;
@@ -118,7 +78,7 @@ h1, h2, h3 { letter-spacing: -0.01em; }
   background: var(--surface);
   border: 1px solid var(--border);
   border-left: 3px solid var(--step-450);
-  border-radius: 4px;
+  border-radius: var(--radius-note);
   font-size: .9rem;
   color: var(--ink-2);
   text-align: left;
@@ -145,7 +105,7 @@ h1, h2, h3 { letter-spacing: -0.01em; }
 .checks-list li {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-card);
   padding: .6rem .8rem;
   font-size: .88rem;
 }
@@ -235,7 +195,7 @@ h1, h2, h3 { letter-spacing: -0.01em; }
   background: var(--surface);
   color: var(--ink);
   border: 1px solid var(--axis);
-  border-radius: 6px;
+  border-radius: var(--radius-card);
   cursor: pointer;
   white-space: nowrap;
 }
@@ -250,7 +210,7 @@ h1, h2, h3 { letter-spacing: -0.01em; }
   background: var(--surface);
   border: 1px solid var(--border);
   border-left: 3px solid var(--step-450);
-  border-radius: 6px;
+  border-radius: var(--radius-card);
   padding: 1rem 1.15rem;
   user-select: text;
 }
@@ -282,7 +242,7 @@ h1, h2, h3 { letter-spacing: -0.01em; }
   letter-spacing: .04em;
   text-transform: uppercase;
   padding: .12rem .42rem;
-  border-radius: 3px;
+  border-radius: var(--radius-tag);
   white-space: nowrap;
 }
 .tag-rule { color: var(--ink-muted); border: 1px solid var(--rule); font-family: var(--mono); }
@@ -401,7 +361,7 @@ h1, h2, h3 { letter-spacing: -0.01em; }
   font-size: .75rem;
   background: var(--page);
   border: 1px solid var(--rule);
-  border-radius: 3px;
+  border-radius: var(--radius-tag);
   padding: .05rem .3rem;
   user-select: text;
 }
@@ -409,7 +369,7 @@ h1, h2, h3 { letter-spacing: -0.01em; }
 .empty {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-card);
   padding: 1.25rem;
   color: var(--ink-2);
 }
@@ -426,7 +386,7 @@ h1, h2, h3 { letter-spacing: -0.01em; }
   background: var(--surface);
   border: 1px solid var(--border);
   border-left: 3px solid var(--step-450);
-  border-radius: 6px;
+  border-radius: var(--radius-card);
   padding: 1rem 1.15rem;
 }
 .clean-headline.coverage-strong {
@@ -443,7 +403,7 @@ h1, h2, h3 { letter-spacing: -0.01em; }
   background: var(--surface);
   border: 1px solid var(--border);
   border-left: 3px solid var(--axis);
-  border-radius: 4px;
+  border-radius: var(--radius-note);
   font-size: .87rem;
   color: var(--ink-2);
 }
@@ -478,7 +438,7 @@ h1, h2, h3 { letter-spacing: -0.01em; }
   padding: .7rem .9rem;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: var(--radius-note);
   font-size: .88rem;
   color: var(--ink-2);
 }
@@ -496,7 +456,7 @@ h1, h2, h3 { letter-spacing: -0.01em; }
   background: var(--surface);
   border: 1px solid var(--border);
   border-left: 3px solid var(--axis);
-  border-radius: 4px;
+  border-radius: var(--radius-note);
   padding: .7rem .9rem;
   margin-bottom: .6rem;
   font-size: .9rem;
@@ -529,7 +489,7 @@ h1, h2, h3 { letter-spacing: -0.01em; }
   background: var(--wash);
   border: 1px solid var(--border);
   border-left: 3px solid var(--step-450);
-  border-radius: 6px;
+  border-radius: var(--radius-card);
   padding: .85rem 1.1rem;
   margin-bottom: 1.75rem;
   user-select: text;
@@ -588,7 +548,7 @@ h1, h2, h3 { letter-spacing: -0.01em; }
   background: var(--surface);
   border: 1px solid var(--border);
   border-left: 3px solid var(--step-450);
-  border-radius: 6px;
+  border-radius: var(--radius-card);
   padding: .7rem .9rem;
   cursor: pointer;
 }
@@ -628,7 +588,7 @@ h1, h2, h3 { letter-spacing: -0.01em; }
 .stub {
   background: var(--surface);
   border: 1px dashed var(--axis);
-  border-radius: 6px;
+  border-radius: var(--radius-card);
   padding: .85rem 1rem;
   color: var(--ink-muted);
   font-size: .9rem;

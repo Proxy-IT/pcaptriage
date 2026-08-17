@@ -1,31 +1,11 @@
-/* Inlined into every report. Nothing here may reference an external font,
-   stylesheet, or image: the report has to open with no network access.
+/* Inlined into every report, after tokens.css — every colour, font stack and
+   radius here comes from those tokens, declared nowhere else. Nothing here may
+   reference an external font, stylesheet, or image: the report has to open
+   with no network access.
 
    Deliberately light-only. This is a document that gets printed and attached to
    a ticket, and a dark variant is not something BRIEF.md section 3 or 4 asks
    for. */
-
-:root {
-  --page:        #f9f9f7;
-  --surface:     #fcfcfb;
-  --ink:         #0b0b0b;
-  --ink-2:       #52514e;
-  --ink-muted:   #898781;
-  --rule:        #e1e0d9;
-  --axis:        #c3c2b7;
-  --border:      rgba(11, 11, 11, 0.10);
-
-  /* One blue hue, stepped. Ordinal, not categorical: the steps carry "more
-     observed state" rather than identity. No severity scale anywhere — the
-     tool makes no severity claim, and a red bar would assert one. */
-  --step-550:    #1c5cab;
-  --step-450:    #2a78d6;
-  --step-400:    #3987e5;
-  --step-250:    #86b6ef;
-
-  --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  --mono: ui-monospace, SFMono-Regular, "Cascadia Mono", Menlo, Consolas, monospace;
-}
 
 * { box-sizing: border-box; }
 
@@ -35,8 +15,8 @@ body {
   background: var(--page);
   color: var(--ink);
   font-family: var(--font);
-  font-size: 15px;
-  line-height: 1.55;
+  font-size: var(--text-base);
+  line-height: var(--leading);
   -webkit-text-size-adjust: 100%;
 }
 
@@ -55,7 +35,7 @@ body {
   background: var(--surface);
   border: 1px solid var(--border);
   border-left: 3px solid var(--step-450);
-  border-radius: 4px;
+  border-radius: var(--radius-note);
   font-size: .875rem;
   color: var(--ink-2);
 }
@@ -83,7 +63,7 @@ h2 .count { color: var(--ink-muted); font-weight: 400; text-transform: none; let
   min-width: 9rem;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-card);
   padding: .7rem .85rem;
 }
 .tile-label { font-size: .75rem; color: var(--ink-muted); }
@@ -96,7 +76,7 @@ h2 .count { color: var(--ink-muted); font-weight: 400; text-transform: none; let
 .figure {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-card);
   padding: 1rem 1.1rem 1.1rem;
   margin: 0 0 1.25rem;
   overflow-x: auto;
@@ -131,7 +111,7 @@ h2 .count { color: var(--ink-muted); font-weight: 400; text-transform: none; let
 .finding {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-card);
   padding: .95rem 1.1rem;
   margin: 0 0 .75rem;
 }
@@ -156,14 +136,13 @@ h2 .count { color: var(--ink-muted); font-weight: 400; text-transform: none; let
   letter-spacing: .04em;
   text-transform: uppercase;
   padding: .1rem .4rem;
-  border-radius: 3px;
+  border-radius: var(--radius-tag);
   flex: none;
   white-space: nowrap;
 }
 /* Evidence quality is colourless: it answers "how sure", not "how much it
    matters". Severity owns colour on this card, so the two cannot be read as one
-   combined signal. Kept in step with the app stylesheet by review until the
-   tokens are unified (BACKLOG P3.5). */
+   combined signal. */
 .tag-confirmed,
 .tag-inferred,
 .tag-unavailable {
@@ -174,15 +153,15 @@ h2 .count { color: var(--ink-muted); font-weight: 400; text-transform: none; let
 .tag-inferred { border-style: dashed; }
 .tag-rule { background: transparent; color: var(--ink-muted); border: 1px solid var(--rule); font-family: var(--mono); }
 
-/* Severity. Contrast against --surface: red 6.40:1, amber 5.29:1,
-   neutral 7.73:1. The word always accompanies the colour. */
+/* Severity. The palette and its contrast rationale live in tokens.css; the
+   word always accompanies the colour. */
 .tag-sev { border: 1px solid; font-weight: 600; }
-.tag-sev-significant   { color: #b42318; border-color: #b42318; background: #fdf3f2; }
-.tag-sev-worth-noting  { color: #b54708; border-color: #b54708; background: #fdf6ee; }
-.tag-sev-informational { color: var(--ink-2); border-color: var(--axis); background: #f6f6f4; }
+.tag-sev-significant   { color: var(--sev-significant); border-color: var(--sev-significant); background: var(--sev-significant-wash); }
+.tag-sev-worth-noting  { color: var(--sev-worth-noting); border-color: var(--sev-worth-noting); background: var(--sev-worth-noting-wash); }
+.tag-sev-informational { color: var(--ink-2); border-color: var(--axis); background: var(--sev-informational-wash); }
 
-.finding.sev-significant   { border-left-color: #b42318; }
-.finding.sev-worth-noting  { border-left-color: #b54708; }
+.finding.sev-significant   { border-left-color: var(--sev-significant); }
+.finding.sev-worth-noting  { border-left-color: var(--sev-worth-noting); }
 .finding.sev-informational { border-left-color: var(--axis); }
 
 @media print {
@@ -194,7 +173,7 @@ h2 .count { color: var(--ink-muted); font-weight: 400; text-transform: none; let
 /* ---------- tables ---------- */
 
 table { border-collapse: collapse; width: 100%; font-size: .87rem; }
-.table-wrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; }
+.table-wrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-card); }
 th, td { text-align: left; padding: .5rem .75rem; border-bottom: 1px solid var(--rule); vertical-align: top; }
 th { font-size: .75rem; text-transform: uppercase; letter-spacing: .03em; color: var(--ink-muted); font-weight: 600; }
 tr:last-child td { border-bottom: none; }
@@ -207,7 +186,7 @@ td.mono, .subject { font-family: var(--mono); font-size: .82rem; }
   background: var(--surface);
   border: 1px solid var(--border);
   border-left: 3px solid var(--axis);
-  border-radius: 4px;
+  border-radius: var(--radius-note);
   padding: .7rem .9rem;
   margin: 0 0 .6rem;
   font-size: .9rem;
@@ -216,6 +195,37 @@ td.mono, .subject { font-family: var(--mono); font-size: .82rem; }
 .note .who { font-family: var(--mono); font-size: .78rem; color: var(--ink-muted); display: block; margin-bottom: .15rem; }
 
 .empty { color: var(--ink-muted); font-style: italic; }
+
+/* ---------- clean result ---------- */
+
+/* Neutral by default, same as the in-app clean screen. Green is opt-in and
+   only when the coverage supports it — an all-clear colour over a result with
+   unrun checks would contradict the words inside it. */
+.clean-banner {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--step-450);
+  border-radius: var(--radius-card);
+  padding: 1rem 1.15rem;
+}
+.clean-banner.coverage-strong {
+  border-left-color: var(--ok);
+  background: var(--ok-wash);
+}
+.clean-banner.coverage-strong h3 { color: var(--ok); }
+.clean-banner h3 { font-size: 1.15rem; margin: 0; }
+.clean-banner p { margin: .45rem 0 0; color: var(--ink-2); font-size: .92rem; }
+
+.clean-minor {
+  margin: .75rem 0 0;
+  padding: .6rem .9rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--axis);
+  border-radius: var(--radius-note);
+  font-size: .87rem;
+  color: var(--ink-2);
+}
 
 footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule); font-size: .8rem; color: var(--ink-muted); }
 

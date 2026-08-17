@@ -249,10 +249,9 @@ type AnalysisResult struct {
 	FileSize int64            `json:"file_size"`
 	Report   *report.Document `json:"report"`
 
-	// Coverage is what the run examined and what it could not. Always present;
-	// the clean-capture screen is built from it, and the findings screen uses
-	// its gap list too.
-	Coverage Coverage `json:"coverage"`
+	// Coverage — what the run examined and what it could not — rides inside
+	// Report, where the exports carry it too. The frontend reads it from
+	// there; a second copy here would be the same data twice in every payload.
 
 	// Evidence carries the packets behind each finding, matched to it by rule
 	// and subject.
@@ -346,7 +345,6 @@ func (a *App) Analyze(path string) (*AnalysisResult, error) {
 		FilePath: path,
 		FileSize: info.Size(),
 		Report:   doc,
-		Coverage: buildCoverage(res),
 		Evidence: evidence,
 	}
 

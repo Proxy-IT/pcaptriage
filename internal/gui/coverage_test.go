@@ -6,9 +6,14 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Proxy-IT/pcaptriage/internal/analysis"
+	"github.com/Proxy-IT/pcaptriage/internal/report"
 	"github.com/Proxy-IT/pcaptriage/internal/synth"
 )
+
+// The coverage builder itself — wording, gap collection, the no-TCP and
+// evicted-flow cases — is tested in internal/report, where it now lives. The
+// tests here are about the binding layer: that the document the frontend
+// receives carries the coverage, and that what it carries survived the trip.
 
 // TestCleanCaptureState drives a capture with nothing wrong with it all the way
 // to the screen the user lands on, at the binding layer the frontend calls.
@@ -30,7 +35,9 @@ func TestCleanCaptureState(t *testing.T) {
 		t.Fatalf("the clean fixture produced %d findings; it is meant to be quiet", len(res.Report.Findings))
 	}
 
-	cov := res.Coverage
+	// Coverage rides inside the report document — the same one the exports
+	// carry — so the screen and an export of the same run cannot disagree.
+	cov := res.Report.Coverage
 	if !cov.Clean {
 		t.Error("a run with no findings was not marked clean")
 	}
@@ -49,12 +56,12 @@ func TestCleanCaptureState(t *testing.T) {
 		t.Errorf("the qualifier does not distinguish this from a clean bill of health: %q", cov.Qualifier)
 	}
 
-	// What was checked comes from the registry, so it cannot claim a check the
-	// engine does not run.
-	if len(cov.Checked) != len(checkInfos()) || len(cov.Checked) == 0 {
-		t.Fatalf("Checked has %d entries, registry has %d", len(cov.Checked), len(checkInfos()))
+	// What ran comes from the document's checks list, taken from the registry,
+	// so the screen cannot claim a check the engine does not perform.
+	if len(res.Report.Checks) != len(checkInfos()) || len(res.Report.Checks) == 0 {
+		t.Fatalf("document lists %d checks, registry has %d", len(res.Report.Checks), len(checkInfos()))
 	}
-	for _, c := range cov.Checked {
+	for _, c := range res.Report.Checks {
 		if c.ID == "" || c.Name == "" || c.Summary == "" {
 			t.Errorf("check %+v is missing text the screen renders", c)
 		}
@@ -103,7 +110,7 @@ func TestCleanStateListsMidstreamAndOneWayGaps(t *testing.T) {
 	}
 
 	var sawMidstream bool
-	for _, g := range res.Coverage.NotChecked {
+	for _, g := range res.Report.Coverage.NotChecked {
 		if strings.Contains(g.Text, "began before the capture started") {
 			sawMidstream = true
 			// It must also say what is *not* affected, or the reader
@@ -163,76 +170,16 @@ func TestUnparseableCaptureIsAnErrorNotACleanResult(t *testing.T) {
 	}
 }
 
-// TestCaptureWithNoTCPIsNotReportedAsClean checks the third case: the file
-// parses and holds packets, but none of them are TCP.
-//
-// Every check in this build looks at TCP, so "no significant problems found"
-// would be the tool taking credit for work it never did.
-func TestCaptureWithNoTCPIsNotReportedAsClean(t *testing.T) {
-	// A run that read packets but formed no TCP flows from them — a capture
-	// full of UDP, say. The file is fine and the run succeeded; there was
-	// simply nothing any check in this build looks at.
-	res := &analysis.Result{
-		Capture: analysis.CaptureInfo{
-			PacketsRead:   4096,
-			PacketsNonTCP: 4096,
-			TCPFlows:      0,
-		},
-	}
-
-	cov := buildCoverage(res)
-	if cov.Statement == "No significant problems found in what was checked" {
-		t.Error("a capture with no TCP was reported as having no problems found")
-	}
-	if !strings.Contains(cov.Statement, "No TCP traffic") {
-		t.Errorf("statement = %q", cov.Statement)
-	}
-	if !strings.Contains(cov.Qualifier, "anything to examine") {
-		t.Errorf("the qualifier does not say the checks had nothing to look at: %q", cov.Qualifier)
-	}
-	// The packet count is stated, so the reader can tell this from an empty file.
-	if !strings.Contains(cov.Qualifier, "4,096") {
-		t.Errorf("the qualifier does not say how much was in the file: %q", cov.Qualifier)
-	}
-	assertNoVerdict(t, cov.Statement)
-	assertNoVerdict(t, cov.Qualifier)
-}
-
-// TestEvictedFlowsAreDisclosed checks the gap that arises from the tool's own
-// limits rather than the capture's: flows set aside because too many were open
-// at once were only analysed up to that point.
-func TestEvictedFlowsAreDisclosed(t *testing.T) {
-	res := &analysis.Result{
-		Capture: analysis.CaptureInfo{
-			PacketsRead:  10000,
-			TCPFlows:     500,
-			FlowsEvicted: 120,
-		},
-	}
-
-	var found bool
-	for _, g := range buildCoverage(res).NotChecked {
-		if strings.Contains(g.Text, "set aside before the capture ended") {
-			found = true
-			if !strings.Contains(g.Text, "120") {
-				t.Errorf("the gap does not say how many: %q", g.Text)
-			}
-		}
-	}
-	if !found {
-		t.Error("flows dropped for want of tracking capacity were not disclosed")
-	}
-}
-
 // assertNoVerdict holds the clean-state wording to the same posture as the
 // findings: it may say what was examined, never what it means.
+//
+// The ban list is the report package's — the same one its export-rendering
+// tests use — so the in-app wording and the exported wording are held to one
+// list rather than two copies that could drift.
 func assertNoVerdict(t *testing.T, text string) {
 	t.Helper()
 	lower := strings.ToLower(text)
-	for _, banned := range []string{
-		"healthy", "all clear", "all-clear", "everything is fine", "no problems with",
-		"your network", "is working correctly", "nothing is wrong",
-	} {
+	for _, banned := range report.VerdictBans {
 		if strings.Contains(lower, banned) {
 			t.Errorf("wording contains a verdict %q:\n%s", banned, text)
 		}

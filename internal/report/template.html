@@ -85,7 +85,20 @@
   {{if .Top}}
     {{range .Top}}{{template "finding" .}}{{end}}
   {{else}}
+    {{/* The same calibrated statement the in-app clean screen leads with.
+         Green only when the coverage earns it — colour must not say what the
+         words below were forbidden from saying. */}}
+    {{if .Doc.Coverage.Statement}}
+    <div class="clean-banner{{if .Doc.Coverage.CoverageStrong}} coverage-strong{{end}}">
+      <h3>{{.Doc.Coverage.Statement}}</h3>
+      <p>{{.Doc.Coverage.Qualifier}}</p>
+    </div>
+    {{if gt .Doc.Coverage.MinorObservations 0}}
+    <p class="clean-minor">{{.Doc.Coverage.MinorObservations}} minor observation(s) were recorded but are not shown here, being below the threshold for the main list.</p>
+    {{end}}
+    {{else}}
     <p class="empty">Nothing was surfaced by the checks that ran. See the checks section below for what was and was not assessed.</p>
+    {{end}}
   {{end}}
 </section>
 
@@ -157,23 +170,25 @@
   {{end}}
 </section>
 
-{{/* ---- 5. Checks that could not be performed ---- */}}
+{{/* ---- 5. Coverage: what could not be assessed, and what ran ---- */}}
 <section>
   <h2>Checks not performed, and why</h2>
   <p class="section-note">
     Rendered rather than dropped. A report that looks clean because half the checks never
-    ran will close a ticket on a fault that is still live.
+    ran will close a ticket on a fault that is still live. This is the same coverage the
+    application itself shows; the export carries it because a reader here has no other
+    way to know what was left unexamined.
   </p>
 
-  {{if .Unavailable}}
-    {{range .Unavailable}}
+  {{if .Doc.Coverage.NotChecked}}
+    {{range .Doc.Coverage.NotChecked}}
     <div class="note unavailable">
       <span class="who">{{if .RuleID}}{{.RuleID}}{{else}}run{{end}} · not assessed</span>
       {{.Text}}
     </div>
     {{end}}
   {{else}}
-    <p class="empty">Every check that is implemented ran to completion on this capture.</p>
+    <p class="empty">Every check that is built ran to completion on this capture. Nothing was skipped for want of information in the file.</p>
   {{end}}
 
   {{range .Info}}
@@ -195,9 +210,9 @@
     </table>
   </div>
   <p class="caption">
-    Thirteen of the fifteen v1 rules are not implemented in this build and were therefore
-    not looked for at all. They are not listed above because listing them as "skipped"
-    would imply a decision was made per capture; none was.
+    {{.Doc.Coverage.UnbuiltChecks}} of the fifteen v1 rules are not implemented in this build
+    and were therefore not looked for at all. They are not listed above because listing them
+    as "skipped" would imply a decision was made per capture; none was.
   </p>
 </section>
 

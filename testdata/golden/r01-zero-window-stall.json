@@ -1,5 +1,5 @@
 {
-  "schema_version": "3",
+  "schema_version": "4",
   "schema_note": "This format is internal to pcaptriage and may change in any release. It is not a stability contract; do not build tooling that depends on its shape.",
   "tool": {
     "name": "pcaptriage",
@@ -36,6 +36,25 @@
     "flow_cap": 16384,
     "flows_evicted": 0,
     "peak_live_flows": 12
+  },
+  "coverage": {
+    "clean": false,
+    "statement": "No significant problems found in what was checked",
+    "qualifier": "That is not the same as the capture being problem-free. 2 of 15 planned checks are built, and what they do not cover has not been examined. What each check looked at, and what could not be assessed on this capture, is below.",
+    "not_checked": [
+      {
+        "rule_id": "R04",
+        "text": "Not assessed: server response time for 11 server endpoints with fewer than 5 completed request/response exchanges. Percentiles over that few samples would not describe a distribution."
+      },
+      {
+        "rule_id": "R15",
+        "text": "Not assessed: whether the capture host dropped packets before writing them. The classic pcap format has no field to record it, so this file cannot say either way. Packets dropped by the capturing machine look the same as packets lost on the network. If that distinction matters here, re-capturing in pcapng format would record the count."
+      }
+    ],
+    "unbuilt_checks": 13,
+    "coverage_strong": false,
+    "coverage_weak_reason": "some checks could not run on this capture",
+    "minor_observations": 0
   },
   "checks": [
     {

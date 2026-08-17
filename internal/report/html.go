@@ -18,17 +18,33 @@ import (
 //go:embed template.html
 var templateSource string
 
+// tokensSource is the shared design tokens — the one source of the palette
+// both this report and the desktop app consume. frontend/dist/tokens.css is a
+// byte-identical copy of it, enforced by test; see tokens.css for why the copy
+// exists at all.
+//
+//go:embed tokens.css
+var tokensSource string
+
 //go:embed style.css
-var styleSource string
+var baseStyleSource string
+
+// styleSource is what gets inlined into every report: the shared tokens first,
+// then the report's own styles, which reference them.
+var styleSource = tokensSource + "\n" + baseStyleSource
 
 var pageTemplate = template.Must(template.New("report").Parse(templateSource))
 
-// StyleSheet returns the embedded report stylesheet.
+// StyleSheet returns the embedded report stylesheet, tokens included.
 //
 // Exported so tests can assert properties of it — that evidence quality carries
 // no severity colour, in particular — without a second copy of the rules to
 // drift from.
 func StyleSheet() string { return styleSource }
+
+// Tokens returns the shared design tokens on their own, for tests that assert
+// the token file is the single source of the palette.
+func Tokens() string { return tokensSource }
 
 // TopFindingLimit is how many findings lead the report.
 //
@@ -118,8 +134,11 @@ type pageView struct {
 	Groups     []groupView
 	Subjects   []subjectRow
 
-	Unavailable []Note
-	Info        []Note
+	// Info is the non-gap notes. The gaps themselves render from
+	// Doc.Coverage.NotChecked, which is a superset of the unavailable notes:
+	// it also carries the completeness-derived gaps (midstream, one-way,
+	// evicted flows) that no rule announced.
+	Info []Note
 }
 
 // WriteHTML renders a self-contained HTML report.
@@ -168,9 +187,10 @@ func buildPage(doc *Document) *pageView {
 	p.Subjects = buildSubjects(doc)
 
 	for _, n := range doc.Notes {
-		if n.Kind == "unavailable" {
-			p.Unavailable = append(p.Unavailable, n)
-		} else {
+		// Unavailable notes are already inside Doc.Coverage.NotChecked, which
+		// is what the template renders; repeating them here would list every
+		// gap twice.
+		if n.Kind != "unavailable" {
 			p.Info = append(p.Info, n)
 		}
 	}

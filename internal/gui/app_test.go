@@ -491,22 +491,25 @@ func TestWritePreview(t *testing.T) {
 	case "force-strong":
 		// Green is withheld today because the rule set is incomplete. Forcing it
 		// shows the treatment; it is not something a real run can produce.
-		res.Coverage.CoverageStrong = true
-		res.Coverage.CoverageWeakReason = ""
-		res.Coverage.NotChecked = nil
-		res.Coverage.UnbuiltChecks = 0
-		res.Coverage.Qualifier = "CONSTRUCTED FOR REVIEW — no real run reaches this state yet: " +
-			"green requires every planned check built and no gaps on the capture. " + res.Coverage.Qualifier
+		res.Report.Coverage.CoverageStrong = true
+		res.Report.Coverage.CoverageWeakReason = ""
+		res.Report.Coverage.NotChecked = nil
+		res.Report.Coverage.UnbuiltChecks = 0
+		res.Report.Coverage.Qualifier = "CONSTRUCTED FOR REVIEW — no real run reaches this state yet: " +
+			"green requires every planned check built and no gaps on the capture. " + res.Report.Coverage.Qualifier
 	case "no-tcp":
 		res.Report.Capture.TCPFlows = 0
 		res.Report.Capture.PacketsNonTCP = res.Report.Capture.PacketsRead
 		res.Report.Capture.PacketsTCP = 0
 		res.Report.Findings = nil
-		res.Coverage = buildCoverage(&analysis.Result{Capture: analysis.CaptureInfo{
+		// Rebuilt through report.Build so the constructed state carries the
+		// same coverage a real no-TCP run would, rather than a hand-mixed one.
+		noTCP := report.Build(&analysis.Result{Capture: analysis.CaptureInfo{
 			PacketsRead:   res.Report.Capture.PacketsRead,
 			PacketsNonTCP: res.Report.Capture.PacketsRead,
-		}})
-		res.Coverage.Qualifier = "CONSTRUCTED FOR REVIEW — " + res.Coverage.Qualifier
+		}}, report.Invocation{}, "preview")
+		res.Report.Coverage = noTCP.Coverage
+		res.Report.Coverage.Qualifier = "CONSTRUCTED FOR REVIEW — " + res.Report.Coverage.Qualifier
 	default:
 		t.Fatalf("unknown -preview-variant %q", *previewVariant)
 	}
@@ -550,6 +553,10 @@ func TestWritePreview(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	tokens, err := os.ReadFile(filepath.Join(dist, "tokens.css"))
+	if err != nil {
+		t.Fatal(err)
+	}
 	css, err := os.ReadFile(filepath.Join(dist, "app.css"))
 	if err != nil {
 		t.Fatal(err)
@@ -565,6 +572,8 @@ func TestWritePreview(t *testing.T) {
 	// file:// preview cannot satisfy either, so both are inlined here. The
 	// markup itself is untouched.
 	page = stripTag(page, `<meta http-equiv="Content-Security-Policy"`, ">")
+	page = strings.Replace(page, `<link rel="stylesheet" href="tokens.css">`,
+		"<style>"+string(tokens)+"</style>", 1)
 	page = strings.Replace(page, `<link rel="stylesheet" href="app.css">`,
 		"<style>"+string(css)+"</style>", 1)
 
