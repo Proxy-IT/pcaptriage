@@ -12,22 +12,12 @@ import (
 	"github.com/Proxy-IT/pcaptriage/internal/synth"
 )
 
-// TestGuideRegistryBijection is the no-orphans check in both directions.
-//
-// A guide page for a rule that does not exist teaches the reader about
-// something the tool never looks for — the home screen's registry-honesty
-// problem moved to a page with more words on it. That direction is strict and
-// permanent.
-//
-// The forward direction is INTERIM, weakened between Batch 1's Part 1/2 and
-// Part 3: R05, R06, R07, R08 and R15 are built but their guide content (the
-// combined loss page and the R15 page in GUIDE-CONTENT-BATCH1.md) is not
-// wired in until Part 3 updates this contract to many-to-one. Until then the
-// invariant that matters — a
-// finding card never links to a page that does not exist — is enforced at the
-// index (HasPage) and the card link renders only when HasPage is true, both
-// asserted here. Part 3 restores the strict form: every built rule maps to
-// exactly one guide entry.
+// TestGuideRegistryBijection is the no-orphans check in both directions,
+// restored to strict many-to-one by Part 3: every built rule maps to exactly
+// one guide entry — a page, plus an anchor within it when that page serves
+// more than one rule — and every guide entry is reachable from at least one
+// built rule. The cardinality changed (a page can now serve several rules);
+// the honesty the check enforces did not.
 func TestGuideRegistryBijection(t *testing.T) {
 	pages, err := guide.Pages()
 	if err != nil {
@@ -38,58 +28,86 @@ func TestGuideRegistryBijection(t *testing.T) {
 	for _, m := range rules.AllMeta() {
 		registered[m.ID] = true
 	}
-	documented := map[string]bool{}
-	for _, p := range pages {
-		documented[p.RuleID] = true
-	}
 
-	// Backward direction, strict: no page without a rule.
-	for id := range documented {
-		if !registered[id] {
-			t.Errorf("guide page %s describes a rule that is not registered: the guide would "+
-				"teach a check the tool does not run", id)
+	// Backward: every rule ID any page claims to serve must be registered —
+	// a guide page for a rule that does not exist teaches the reader about
+	// something the tool never looks for.
+	documented := map[string]guide.Page{}
+	for _, p := range pages {
+		for _, id := range p.RuleIDs {
+			if prior, dup := documented[id]; dup {
+				t.Errorf("%s is served by two guide pages (%q and %q); exactly one guide entry per rule",
+					id, prior.Title, p.Title)
+			}
+			documented[id] = p
+			if !registered[id] {
+				t.Errorf("guide page %q describes %s, which is not registered: the guide would "+
+					"teach a check the tool does not run", p.Title, id)
+			}
 		}
 	}
 
-	// Forward direction, interim: a built rule without a page must be exactly
-	// one the index discloses as page-less, so nothing renders a dead link.
+	// Forward, strict: every built rule has exactly one guide entry now —
+	// the Batch 1 interim tolerance is gone.
+	for id := range registered {
+		p, ok := documented[id]
+		if !ok {
+			t.Errorf("%s is built but has no guide page: its finding cards would link nowhere", id)
+			continue
+		}
+		// A rule on a page it shares with others needs its own landing spot;
+		// a rule alone on its page needs none — landing "at that rule's
+		// spot" and landing at the top are the same place there.
+		if len(p.RuleIDs) > 1 {
+			var anchors int
+			for _, s := range p.Sections {
+				if strings.EqualFold(s.Anchor, id) {
+					anchors++
+				}
+			}
+			if anchors != 1 {
+				t.Errorf("%s shares a page with %d other rule(s) but has %d anchored sections there, want 1",
+					id, len(p.RuleIDs)-1, anchors)
+			}
+		}
+	}
+
+	// The index is the other reachability path Part 3a names, and must not
+	// disagree with what was just proven true of the guide content directly.
 	idx, err := New("test").Guide()
 	if err != nil {
 		t.Fatal(err)
 	}
 	for _, e := range idx.Entries {
-		if e.HasPage != documented[e.RuleID] {
-			t.Errorf("%s: index says has_page=%v but the guide content says %v — "+
-				"the card link gate would be wrong", e.RuleID, e.HasPage, documented[e.RuleID])
+		for _, id := range e.RuleIDs {
+			if !e.HasPage {
+				t.Errorf("%s: index entry says has_page=false for a rule the guide content documents", id)
+			}
 		}
-	}
-
-	// TODO(batch1 part 3): wire GUIDE-CONTENT-BATCH1.md and restore the
-	// strict forward assertion — every built rule has a guide entry.
-	pending := 0
-	for id := range registered {
-		if !documented[id] {
-			pending++
-		}
-	}
-	if pending > 5 {
-		t.Errorf("%d built rules lack guide pages; only the Batch 1 interim (R05, R06, R07, R08, R15) is tolerated", pending)
 	}
 }
 
-// TestGuideIndexIsRegistryDriven checks the index reports what the tool actually
-// does, and discloses what it does not.
+// TestGuideIndexIsRegistryDriven checks the index reports what the tool
+// actually does, and discloses what it does not. Entries are grouped by page,
+// so the entry count is pages, not rules — the registry-driven property is
+// that every rule appears exactly once, either as an entry or as a member of
+// one, which TestGuideRegistryBijection already proves; this test is about
+// each entry's own content being correct and complete.
 func TestGuideIndexIsRegistryDriven(t *testing.T) {
 	idx, err := New("test").Guide()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if len(idx.Entries) != len(rules.AllMeta()) {
-		t.Errorf("index has %d entries, registry has %d", len(idx.Entries), len(rules.AllMeta()))
+	metas := rules.AllMeta()
+	byID := map[string]rules.Meta{}
+	for _, m := range metas {
+		byID[m.ID] = m
 	}
+
+	seen := map[string]bool{}
 	for _, e := range idx.Entries {
-		if e.RuleID == "" || e.Name == "" || e.Summary == "" {
+		if e.RuleID == "" || e.Name == "" || e.Summary == "" || len(e.RuleIDs) == 0 {
 			t.Errorf("index entry %+v is missing text", e)
 		}
 		if !e.Built {
@@ -101,18 +119,64 @@ func TestGuideIndexIsRegistryDriven(t *testing.T) {
 		if e.HasPage != hasPage {
 			t.Errorf("%s: HasPage = %v, guide content says %v", e.RuleID, e.HasPage, hasPage)
 		}
-		// The index uses the authored one-liner, which is written for this
-		// reader rather than for a developer reading the registry.
-		if p, ok := guide.Lookup(e.RuleID); ok && e.Summary != p.Summary() {
-			t.Errorf("%s index summary is not the authored one-line summary", e.RuleID)
+		if p, ok := guide.Lookup(e.RuleID); ok {
+			// The index uses the authored one-liner, which is written for
+			// this reader rather than for a developer reading the registry.
+			if e.Summary != p.Summary() {
+				t.Errorf("%s index summary is not the authored one-line summary", e.RuleID)
+			}
+			// RuleIDs must match the page's own served set exactly — an
+			// entry that silently dropped a member would be the bijection
+			// bug in a place TestGuideRegistryBijection cannot see, since it
+			// checks the guide content and the index independently, not
+			// that the two agree on which rule IDs go together.
+			if len(e.RuleIDs) != len(p.RuleIDs) {
+				t.Errorf("%s entry lists %v, page serves %v", e.RuleID, e.RuleIDs, p.RuleIDs)
+			}
+		}
+
+		for _, id := range e.RuleIDs {
+			if seen[id] {
+				t.Errorf("%s appears in more than one index entry", id)
+			}
+			seen[id] = true
+			m, ok := byID[id]
+			if !ok {
+				t.Errorf("entry lists %s, which is not a registered rule", id)
+				continue
+			}
+			// Every member (or the entry itself) must carry that rule's own
+			// name and summary somewhere reachable — the entry-level Name is
+			// the page's title for a group, so it is the members, not the
+			// top-level fields, that carry each rule's own identity there.
+			if id == e.RuleID {
+				continue
+			}
+			var found bool
+			for _, mm := range e.Members {
+				if mm.RuleID == id {
+					found = true
+					if mm.Name != m.Name {
+						t.Errorf("%s member name = %q, registry says %q", id, mm.Name, m.Name)
+					}
+				}
+			}
+			if !found {
+				t.Errorf("%s is in RuleIDs but has no Members entry", id)
+			}
+		}
+	}
+	for id := range byID {
+		if !seen[id] {
+			t.Errorf("%s is a built rule but appears in no index entry", id)
 		}
 	}
 
-	if want := rules.TotalV1Rules - len(rules.AllMeta()); idx.PlannedCount != want {
+	if want := rules.TotalV1Rules - len(metas); idx.PlannedCount != want {
 		t.Errorf("PlannedCount = %d, want %d (registry-derived)", idx.PlannedCount, want)
 	}
 	if idx.PlannedNote == "" {
-		t.Error("the index does not disclose the unbuilt checks, so two entries would read as the whole tool")
+		t.Error("the index does not disclose the unbuilt checks, so a short entry list would read as the whole tool")
 	}
 }
 
@@ -124,14 +188,24 @@ func TestGuidePageLookup(t *testing.T) {
 	if err != nil {
 		t.Fatalf("R01: %v", err)
 	}
-	if p.RuleID != "R01" || len(p.Sections) != len(guide.Skeleton) {
-		t.Errorf("R01 page = %+v", p.RuleID)
+	if len(p.RuleIDs) != 1 || p.RuleIDs[0] != "R01" || len(p.Sections) != len(guide.Skeleton) {
+		t.Errorf("R01 page = %+v", p)
+	}
+
+	// R05 shares a page with R06, R07 and R08 — GuidePage still resolves it,
+	// and returns the whole shared page, not a slice of it.
+	loss, err := app.GuidePage("R05")
+	if err != nil {
+		t.Fatalf("R05: %v", err)
+	}
+	if !loss.ServesRule("R05") || !loss.ServesRule("R08") {
+		t.Errorf("R05 page = %+v, want it to also serve R08", loss)
 	}
 
 	// An unbuilt rule has no page, and asking for one is an error rather than an
 	// empty page that would look like missing content.
-	if _, err := app.GuidePage("R07"); err == nil {
-		t.Error("R07 is not built but returned a guide page")
+	if _, err := app.GuidePage("R10"); err == nil {
+		t.Error("R10 is not built but returned a guide page")
 	}
 	if _, err := app.GuidePage("nonsense"); err == nil {
 		t.Error("a nonsense rule ID returned a page")

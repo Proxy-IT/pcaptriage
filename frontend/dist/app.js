@@ -258,12 +258,17 @@
   // openGuide shows a rule's guide page.
   //
   // finding is the card the reader clicked from, or null when they arrived from
-  // the index. Its presence is what decides whether the context block appears —
-  // a reader browsing from Help has no specific case to be reminded of.
+  // the index. Its presence decides two things: whether the context block
+  // appears (a reader browsing from Help has no specific case to be reminded
+  // of), and, on a page shared by several rules, whether the page scrolls to
+  // that rule's own section. Arriving from the index always lands at the top —
+  // the reader asked "what does this tool check", not about one specific rule
+  // — so the scroll only happens when a finding named which rule brought them
+  // here.
   function openGuide(ruleID, finding) {
     window.go.gui.App.GuidePage(ruleID)
       .then(function (page) {
-        $("guide-rule-id").textContent = page.rule_id;
+        $("guide-rule-id").textContent = (page.rule_ids || [ruleID]).join(" · ");
         $("guide-title").textContent = page.title;
         $("btn-guide-back").textContent = "← " + returnTo.label;
 
@@ -280,14 +285,26 @@
 
         var body = $("guide-body");
         body.textContent = "";
+        var landingSection = null;
         (page.sections || []).forEach(function (s) {
           var sec = el("section", "guide-section");
+          if (s.anchor) sec.id = "guide-anchor-" + s.anchor.toLowerCase();
           sec.appendChild(el("h3", null, s.heading));
           renderBlocks(sec, s.blocks);
           body.appendChild(sec);
+          if (finding && s.anchor && s.anchor.toLowerCase() === ruleID.toLowerCase()) {
+            landingSection = sec;
+          }
         });
 
         show("guide");
+        // A hidden element has no scroll position to land on, so this runs
+        // only once the view above has made the page visible — the same
+        // reason goBack() restores its scroll position after show(), not
+        // before.
+        if (landingSection) {
+          landingSection.scrollIntoView();
+        }
       })
       .catch(function (err) { fail(String(err && err.message ? err.message : err)); });
   }
@@ -303,10 +320,14 @@
           var li = el("li", "index-entry");
           var btn = el("button", "index-link");
           btn.type = "button";
-          btn.appendChild(el("span", "check-name", e.rule_id + " · " + e.name));
+          var ids = (e.rule_ids && e.rule_ids.length ? e.rule_ids : [e.rule_id]).join(" · ");
+          btn.appendChild(el("span", "check-name", ids + " · " + e.name));
           if (e.has_page) {
             btn.addEventListener("click", function () {
               rememberReturn("guide-index", "All checks");
+              // Index arrival always lands at the page top, even for a page
+              // that serves several rules — the reader asked "what does this
+              // tool check" generally, not about any one of them.
               openGuide(e.rule_id, null);
             });
           } else {
@@ -320,6 +341,22 @@
             btn.appendChild(el("span", "tag tag-unavailable index-tag", "No guide yet"));
           }
           btn.appendChild(el("span", "check-summary", e.summary));
+
+          // A page serving several rules lists them, so the row says what it
+          // actually covers without the reader opening it first — one row
+          // standing in for four checks must not read as "four checks
+          // collapsed into one and now invisible."
+          if (e.members && e.members.length) {
+            var covers = el("ul", "index-members");
+            e.members.forEach(function (m) {
+              var mli = el("li", "index-member");
+              mli.appendChild(el("span", "check-name", m.rule_id + " · " + m.name));
+              mli.appendChild(el("span", "check-summary", m.summary));
+              covers.appendChild(mli);
+            });
+            btn.appendChild(covers);
+          }
+
           li.appendChild(btn);
           list.appendChild(li);
         });
@@ -659,6 +696,19 @@
     $("btn-index-home").addEventListener("click", function () { show("home"); });
     $("btn-about-home").addEventListener("click", function () { show("home"); });
 
+    // R15 renders in the banner, never as a card, so its guide entry has no
+    // per-finding link to hang off of. One link covers it, from wherever its
+    // notices appear — the clean-capture gaps column and the full findings
+    // view's "what wasn't checked" section — rather than one per notice,
+    // since every R15 notice leads to the same page regardless of which one
+    // was clicked.
+    var openR15Guide = function () {
+      rememberReturn(currentView(), labelFor(currentView()));
+      openGuide("R15", null);
+    };
+    $("btn-clean-gaps-guide").addEventListener("click", openR15Guide);
+    $("btn-notes-guide").addEventListener("click", openR15Guide);
+
     // Drag feedback only. The path itself arrives from the Go side, because a
     // webview's drop event exposes file contents but not a usable filesystem
     // path.
@@ -706,7 +756,14 @@
     window.go.gui.App.Guide()
       .then(function (idx) {
         (idx.entries || []).forEach(function (e) {
-          if (e.has_page) guideAvailable[e.rule_id] = true;
+          if (!e.has_page) return;
+          // A page serving several rules groups them into one index entry
+          // (e.rule_id is only the first); every rule it actually covers —
+          // the entry itself and each of its members — needs its own card
+          // link to work, or a finding for any rule but the first silently
+          // gets no "What does this mean?" link at all.
+          guideAvailable[e.rule_id] = true;
+          (e.members || []).forEach(function (m) { guideAvailable[m.rule_id] = true; });
         });
       })
       .catch(function () { /* no guide index: links simply do not render */ });

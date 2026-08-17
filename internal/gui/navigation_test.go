@@ -110,6 +110,113 @@ func TestGuideIndexGatesBothTheHandlerAndTheAppearance(t *testing.T) {
 	}
 }
 
+// TestGuideLandingScrollsToAnchorOnlyFromAFinding is Part 3b's landing
+// behaviour: arriving from a finding on a multi-rule page scrolls to that
+// rule's anchored section; arriving from the index lands at the top. Both
+// paths call the same openGuide(ruleID, finding), so the only signal
+// available to tell them apart is whether finding is non-null — this asserts
+// the scroll is conditioned on exactly that, not on the page shape alone
+// (which would scroll on index arrival too, contradicting 3b).
+func TestGuideLandingScrollsToAnchorOnlyFromAFinding(t *testing.T) {
+	js := readFrontend(t, "app.js")
+	fn := extractFunction(t, js, "openGuide")
+
+	if !strings.Contains(fn, "scrollIntoView") {
+		t.Fatal("openGuide never scrolls to a section; a multi-rule page arrived at from a finding " +
+			"would always land at the top, same as index arrival")
+	}
+	// The variable that ends up scrolled-to must only be assigned inside a
+	// condition that includes `finding` — a page-only condition would scroll
+	// on both arrival paths, and an unconditional one would fire even from
+	// the index.
+	assign := regexp.MustCompile(`(?s)if\s*\(finding\s*&&.*?\)\s*\{\s*landingSection\s*=`)
+	if !assign.MatchString(fn) {
+		t.Error("the scroll target is not gated on `finding` being present — index arrival would scroll too")
+	}
+	// And the index's own call site must pass null explicitly, not omit the
+	// argument (which is also falsy, but a reader of the call site should not
+	// have to know that to trust the landing behaviour is intentional).
+	js2 := readFrontend(t, "app.js")
+	indexCall := regexp.MustCompile(`openGuide\(e\.rule_id,\s*null\)`)
+	if !indexCall.MatchString(js2) {
+		t.Error("the index's click handler does not pass null explicitly for the finding argument")
+	}
+}
+
+// TestR15HasAGuideLinkFromBothBannerLocations is Part 3c: R15 renders in the
+// banner rather than as cards, so its guide entry needs a link from wherever
+// its notices appear rather than from a per-finding button. Both locations —
+// the clean-capture gaps column and the full findings view's "what wasn't
+// checked" section — are checked, since R15's notices can land in either
+// depending on whether the capture was clean.
+func TestR15HasAGuideLinkFromBothBannerLocations(t *testing.T) {
+	html := readFrontend(t, "index.html")
+	js := readFrontend(t, "app.js")
+
+	for _, id := range []string{"btn-clean-gaps-guide", "btn-notes-guide"} {
+		if !strings.Contains(html, `id="`+id+`"`) {
+			t.Errorf("index.html has no #%s", id)
+		}
+		wire := regexp.MustCompile(`\$\("` + regexp.QuoteMeta(id) + `"\)\.addEventListener\(\s*"click"`)
+		if !wire.MatchString(js) {
+			t.Errorf("#%s has no click handler wired", id)
+		}
+	}
+	if !strings.Contains(js, `openGuide("R15", null)`) {
+		t.Error(`no call site opens R15's guide page with openGuide("R15", null) — ` +
+			"the banner link would either dangle or falsely imply a finding context")
+	}
+}
+
+// TestGroupedIndexEntriesRenderTheirMembers is Part 3d: a page serving
+// several rules is one row in the index, but the row must still say all four
+// rules it covers — collapsing four checks into one visual row without
+// disclosing what got folded in would be the registry-honesty failure this
+// index exists to prevent, one level up.
+func TestGroupedIndexEntriesRenderTheirMembers(t *testing.T) {
+	js := readFrontend(t, "app.js")
+	fn := extractFunction(t, js, "openGuideIndex")
+
+	if !strings.Contains(fn, "e.members") {
+		t.Fatal("openGuideIndex never reads e.members — a page serving several rules would render as " +
+			"one row with no indication of what else it covers")
+	}
+	if !regexp.MustCompile(`e\.members\s*&&\s*e\.members\.length`).MatchString(fn) {
+		t.Error("the members branch is not gated on members actually being present")
+	}
+	if !strings.Contains(fn, "m.rule_id") || !strings.Contains(fn, "m.name") {
+		t.Error("a member's own rule ID and name are not both rendered — the row would list a check without saying which")
+	}
+}
+
+// TestCardLinkAvailabilityCoversGroupedMembers is the bug the R06-from-a-
+// finding checkpoint render caught interactively: guideAvailable was built
+// from e.rule_id alone, so a rule folded into a group as a Member (every
+// served rule but the first) never got its card's "What does this mean?"
+// link at all — not merely disabled, silently absent, because the code never
+// considered it. R05 is the primary of the loss group and would have passed
+// a check that only looked at rule_id; this asserts the sibling rules do too.
+func TestCardLinkAvailabilityCoversGroupedMembers(t *testing.T) {
+	js := readFrontend(t, "app.js")
+	fn := extractFunction(t, js, "start")
+
+	guideBlock := regexp.MustCompile(`(?s)window\.go\.gui\.App\.Guide\(\).*?\.catch`)
+	m := guideBlock.FindString(fn)
+	if m == "" {
+		t.Fatal("start() has no Guide() handler to check")
+	}
+	if !strings.Contains(m, "e.rule_id") {
+		t.Error("the Guide() handler no longer marks the entry's own rule_id available")
+	}
+	if !strings.Contains(m, "e.members") {
+		t.Fatal("the Guide() handler does not read e.members — a rule grouped into a page as anything " +
+			"but the first served rule would never get a working card link")
+	}
+	if !regexp.MustCompile(`m\.rule_id`).MatchString(m) {
+		t.Error("members are read but their own rule_id is never used to populate guideAvailable")
+	}
+}
+
 // extractFunction returns the source of a top-level `function name(...) { ... }`
 // declaration, by brace counting from its opening brace. Good enough for this
 // file's hand-written functions; not a general JS parser.

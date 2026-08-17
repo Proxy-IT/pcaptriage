@@ -47,7 +47,7 @@ var previewVariant = flag.String("preview-variant", "", "construct an otherwise 
 //	guide-from-index    the same page reached from the index (no context block)
 //	guide-index         the index
 //	about               the About page
-var previewLand = flag.String("preview-land", "", "open the preview on a view: guide-from-finding | guide-from-index | guide-index | about")
+var previewLand = flag.String("preview-land", "", "open the preview on a view: guide-from-finding | guide-from-index | guide-index | r15-from-banner | about")
 
 // landingScript drives the preview into a secondary view after load.
 //
@@ -60,13 +60,20 @@ func landingScript(land string) string {
 	case "":
 		return ""
 	case "guide-from-finding":
-		steps = `document.querySelectorAll(".guide-link-row .linkish")[2].click();`
+		// Index 0: correct for a single-finding fixture (r06-fast-retransmit,
+		// for Checkpoint 3's R06-anchor-landing render). Pass a fixture whose
+		// first card is the finding you want if reusing this for another rule.
+		steps = `document.querySelectorAll(".guide-link-row .linkish")[0].click();`
 	case "guide-from-index":
 		steps = `window.__emit("nav:guide");
       await pause(500);
       document.querySelectorAll("#guide-index-list .index-link")[0].click();`
 	case "guide-index":
 		steps = `window.__emit("nav:guide");`
+	case "r15-from-banner":
+		// Use with -preview-fixture clean-capture: the clean-state screen's
+		// gaps column carries R15's one banner link (3c).
+		steps = `document.getElementById("btn-clean-gaps-guide").click();`
 	case "about":
 		steps = `window.__emit("nav:about");`
 	default:
@@ -531,10 +538,17 @@ func TestWritePreview(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// Keyed by every rule ID each page serves, not just each index entry's
+	// primary — GuidePage("R06") must resolve here exactly as it does through
+	// the real binding, which looks the page up by any of its served rules.
 	pages := map[string]guide.Page{}
 	for _, e := range idx.Entries {
-		if p, ok := guide.Lookup(e.RuleID); ok {
-			pages[e.RuleID] = p
+		p, ok := guide.Lookup(e.RuleID)
+		if !ok {
+			continue
+		}
+		for _, id := range p.RuleIDs {
+			pages[id] = p
 		}
 	}
 	pagesJSON, err := json.Marshal(pages)

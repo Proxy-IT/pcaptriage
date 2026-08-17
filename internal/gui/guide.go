@@ -18,17 +18,45 @@ import (
 // the test that asserts this package cannot.
 const ProjectURL = "https://proxy-it.co"
 
-// GuideEntry is one line of the guide index.
+// GuideEntry is one line of the guide index. Most represent a single rule; an
+// entry whose page serves several rules (the loss cluster's) lists them as
+// Members instead of appearing as several separate entries — one row per
+// PAGE, not one row per rule, which is what keeps a reader from clicking four
+// nearly-identical rows before realising they all open the same document.
 type GuideEntry struct {
+	// RuleID is the lookup key this entry navigates with when clicked from
+	// the index — GuidePage(RuleID). For a multi-rule entry it is the first
+	// served rule encountered in registry order; which one does not matter
+	// for that click, since arriving from the index always lands at the page
+	// top, never scrolled to a particular rule's section.
 	RuleID string `json:"rule_id"`
-	Name   string `json:"name"`
-	// Summary is the one-line explanation for built checks, and the registry's
-	// own one-liner for the rest.
+	// RuleIDs is every rule this entry represents, in the page's own
+	// document order. Length 1 for an ordinary entry.
+	RuleIDs []string `json:"rule_ids"`
+	// Name is the page's title for a multi-rule entry, and the rule's own
+	// registry name otherwise — a title naming one of four rules would
+	// misrepresent what the row actually covers.
+	Name string `json:"name"`
+	// Summary is the page's own one-line summary for built checks, and the
+	// registry's one-liner for the rest.
 	Summary string `json:"summary"`
-	// Built reports whether the check exists. Planned entries have no page.
+	// Built reports whether every rule this entry represents exists. Planned
+	// entries have no page.
 	Built bool `json:"built"`
 	// HasPage reports whether there is guide prose to link to.
 	HasPage bool `json:"has_page"`
+	// Members lists every rule this entry represents, beyond the first, for a
+	// page that serves more than one — so the index can say what is actually
+	// covered without the reader opening the page first. Empty for an
+	// ordinary single-rule entry.
+	Members []GuideEntryMember `json:"members,omitempty"`
+}
+
+// GuideEntryMember is one rule within a multi-rule GuideEntry.
+type GuideEntryMember struct {
+	RuleID  string `json:"rule_id"`
+	Name    string `json:"name"`
+	Summary string `json:"summary"`
 }
 
 // GuideIndex is the answer to "what does this tool check?".
@@ -46,31 +74,75 @@ type GuideIndex struct {
 // Entries come from the registry rather than a hand-written list, for the same
 // reason the home screen's check list does: two lists of what the tool checks
 // would eventually disagree, and this one is what a reader consults to decide
-// whether the tool looked at their problem.
+// whether the tool looked at their problem. Rules that share a guide page are
+// grouped into one entry while the grouping itself — which rules share which
+// page — still comes from the guide content, not a hand-maintained list here.
 func (a *App) Guide() (GuideIndex, error) {
 	pages, err := guide.Pages()
 	if err != nil {
 		return GuideIndex{}, fmt.Errorf("the guide content could not be read: %w", err)
 	}
-	hasPage := make(map[string]bool, len(pages))
+	// pageFor maps a rule ID to the page that documents it, so building each
+	// registry rule's entry is one lookup regardless of how many rules that
+	// page serves.
+	pageFor := make(map[string]guide.Page, len(pages)*2)
 	for _, p := range pages {
-		hasPage[p.RuleID] = true
+		for _, id := range p.RuleIDs {
+			pageFor[id] = p
+		}
 	}
 
 	metas := rules.AllMeta()
-	idx := GuideIndex{Entries: make([]GuideEntry, 0, len(metas))}
+	byID := make(map[string]rules.Meta, len(metas))
 	for _, m := range metas {
+		byID[m.ID] = m
+	}
+
+	idx := GuideIndex{Entries: make([]GuideEntry, 0, len(metas))}
+	grouped := make(map[string]bool, len(metas)) // rule IDs already folded into an earlier entry
+
+	for _, m := range metas {
+		if grouped[m.ID] {
+			continue
+		}
+
+		page, hasPage := pageFor[m.ID]
 		entry := GuideEntry{
-			RuleID:  m.ID,
-			Name:    m.Name,
-			Summary: m.Summary,
-			Built:   true,
-			HasPage: hasPage[m.ID],
+			RuleID: m.ID, RuleIDs: []string{m.ID},
+			Name: m.Name, Summary: m.Summary, Built: true, HasPage: hasPage,
 		}
-		if p, ok := guide.Lookup(m.ID); ok {
+		if hasPage {
 			// Prefer the authored one-liner, which is written for this reader.
-			entry.Summary = p.Summary()
+			entry.Summary = page.Summary()
 		}
+
+		if hasPage && len(page.RuleIDs) > 1 {
+			// A multi-rule page: the row represents the page, not any one of
+			// its rules, so it takes the page's own title rather than the
+			// first rule's registry name. Every rule after the first that
+			// triggered this entry becomes a Member instead of its own
+			// top-level entry, and is marked grouped so the loop above skips
+			// it when it comes up.
+			entry.Name = page.Title
+			entry.RuleIDs = append([]string(nil), page.RuleIDs...)
+			for _, id := range page.RuleIDs {
+				grouped[id] = true
+				if id == m.ID {
+					continue
+				}
+				mm, ok := byID[id]
+				if !ok {
+					// The page claims a rule the registry does not have; the
+					// bijection test catches this, but an entry here must not
+					// silently drop it either.
+					continue
+				}
+				entry.Members = append(entry.Members, GuideEntryMember{
+					RuleID: mm.ID, Name: mm.Name, Summary: mm.Summary,
+				})
+			}
+		}
+
 		idx.Entries = append(idx.Entries, entry)
 	}
 
@@ -83,7 +155,11 @@ func (a *App) Guide() (GuideIndex, error) {
 	return idx, nil
 }
 
-// GuidePage returns the guide entry for a rule.
+// GuidePage returns the guide page documenting a rule. For a rule whose page
+// serves several rules, this returns the whole page — every section, not
+// only that rule's — since the page is authored to be read as one document;
+// the frontend scrolls to that rule's anchored section rather than being
+// handed a slice of the page.
 func (a *App) GuidePage(ruleID string) (guide.Page, error) {
 	p, ok := guide.Lookup(ruleID)
 	if !ok {

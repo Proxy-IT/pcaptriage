@@ -536,6 +536,17 @@ h1, h2, h3 { letter-spacing: -0.01em; }
 .linkish:hover { color: var(--sev-significant); }
 .linkish:focus-visible { outline: 2px solid var(--step-450); outline-offset: 2px; }
 
+/* R15's one link out of the banner (3c): sits beside the heading it
+   qualifies, so it reads as "more about this section" rather than inheriting
+   the heading's own uppercase, bold treatment. */
+.index-tag-link {
+  text-transform: none;
+  font-weight: 400;
+  font-size: .78rem;
+  margin-left: .6rem;
+  white-space: nowrap;
+}
+
 /* ---------------- guide index ---------------- */
 
 .index-list { list-style: none; margin: 0; padding: 0; display: grid; gap: .6rem; }
@@ -559,6 +570,21 @@ h1, h2, h3 { letter-spacing: -0.01em; }
    for a reader who has already learned to read them, not as the only cue. */
 .index-link:disabled { cursor: default; border-left-color: var(--axis); opacity: .7; }
 .index-tag { margin-left: .5rem; vertical-align: middle; }
+
+/* A page serving several rules lists them inside its own row, so "one row"
+   never reads as "one check" — see the comment in app.js beside where this
+   renders. Indented and separated from the row's own text, so the row still
+   reads top-to-bottom as one entry with a sub-list, not as a second entry. */
+.index-members {
+  list-style: none;
+  margin: .6rem 0 0;
+  padding: .55rem 0 0 .75rem;
+  border-top: 1px solid var(--rule);
+  display: grid;
+  gap: .4rem;
+}
+.index-member .check-name { font-size: .78rem; }
+.index-member .check-summary { font-size: .82rem; }
 
 /* ---------------- about / error ---------------- */
 
