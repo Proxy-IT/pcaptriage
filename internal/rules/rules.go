@@ -8,7 +8,7 @@
 // The wording in RULES.md is the specification. It is parameterised here, not
 // paraphrased: no rule states a cause.
 //
-// This build implements R01, R04, and the loss cluster R05/R06/R07. The
+// This build implements R01, R04, and the loss cluster R05/R06/R07/R08. The
 // remaining v1 rules are not present yet, which the report says explicitly —
 // via BuildDisclosure, derived from the registry — so it cannot be read as an
 // all-clear.
@@ -120,8 +120,9 @@ func (p *Population) TotalHosts() int { return len(p.TCPHosts) }
 // their findings for reclassified segments; R08 runs after both.
 //
 // The loss cluster shares one classifier. R07 sits ahead of R05 and R06 and
-// owns its packet path — the interaction order made literal — while R05 and
-// R06 read the classification at Emit. A fresh analyzer per call keeps runs
+// owns its packet path — the interaction order made literal — while R05, R06
+// and R08 read the classification at Emit; R08 last, since it consumes R05
+// and R06's per-direction totals. A fresh analyzer per call keeps runs
 // independent of each other.
 func Default() []Detector {
 	loss := newLossAnalyzer()
@@ -131,6 +132,7 @@ func Default() []Detector {
 		NewOutOfOrderNotLoss(loss),
 		NewRTORetransmission(loss),
 		NewFastRetransmission(loss),
+		NewAsymmetricLoss(loss),
 	}
 }
 

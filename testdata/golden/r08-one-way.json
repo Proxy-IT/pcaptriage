@@ -9,33 +9,33 @@
   },
   "invocation": {
     "args": [
-      "testdata/fixtures/r07-reordering"
+      "testdata/fixtures/r08-one-way"
     ],
-    "input": "testdata/fixtures/r07-reordering",
+    "input": "testdata/fixtures/r08-one-way",
     "max_flows": 0
   },
   "capture": {
-    "path": "testdata/fixtures/r07-reordering",
+    "path": "testdata/fixtures/r08-one-way",
     "format": "normalised",
     "link_type": "Ethernet",
     "snaplen": 262144,
-    "packets_read": 131,
-    "packets_tcp": 131,
+    "packets_read": 66,
+    "packets_tcp": 66,
     "packets_non_tcp": 0,
     "packets_undecoded": 0,
-    "first_packet_time": "2024-03-14T09:00:00Z",
-    "last_packet_time": "2024-03-14T09:00:00.536Z",
-    "duration_seconds": 0.536,
+    "first_packet_time": "2024-03-14T09:00:00.02Z",
+    "last_packet_time": "2024-03-14T09:00:01.02Z",
+    "duration_seconds": 1,
     "timezone": "UTC",
-    "tcp_flows": 5,
-    "tcp_hosts": 7,
-    "flows_complete": 5,
+    "tcp_flows": 4,
+    "tcp_hosts": 6,
+    "flows_complete": 3,
     "flows_partial": 0,
-    "flows_midstream": 0,
-    "flows_one_way": 0,
+    "flows_midstream": 1,
+    "flows_one_way": 1,
     "flow_cap": 16384,
     "flows_evicted": 0,
-    "peak_live_flows": 5
+    "peak_live_flows": 4
   },
   "coverage": {
     "clean": false,
@@ -44,11 +44,23 @@
     "not_checked": [
       {
         "rule_id": "R04",
-        "text": "Not assessed: server response time for 5 server endpoints with fewer than 5 completed request/response exchanges. Percentiles over that few samples would not describe a distribution."
+        "text": "Not assessed: server response time for 3 server endpoints with fewer than 5 completed request/response exchanges. Percentiles over that few samples would not describe a distribution."
+      },
+      {
+        "rule_id": "R08",
+        "text": "Not assessed: directional loss comparison on 1 flow captured in one direction only. This is a common consequence of a one-way SPAN or mirror configuration; asymmetric-loss detection requires both directions of a connection."
       },
       {
         "rule_id": "R15",
         "text": "Not assessed: whether the capture host dropped packets before writing them. The classic pcap format has no field to record it, so this file cannot say either way. Packets dropped by the capturing machine look the same as packets lost on the network. If that distinction matters here, re-capturing in pcapng format would record the count."
+      },
+      {
+        "rule_id": "R15",
+        "text": "Not assessed: receive window sizing. 1 of 4 flows (25%) began before the capture started, so the window scale factor for them is unknown. Zero-window detection does not depend on it and was performed on every flow."
+      },
+      {
+        "rule_id": "R15",
+        "text": "Not assessed: anything comparing the two directions of a conversation. 1 of 4 flows were captured in one direction only, which usually means the capture point saw traffic going one way. Loss direction analysis is unavailable for those."
       }
     ],
     "unbuilt_checks": 9,
@@ -103,34 +115,34 @@
   "findings": [
     {
       "rank": 1,
-      "rule_id": "R07",
-      "rule": "out-of-order-not-loss",
-      "subject": "10.8.8.5:53000 <-> 10.9.9.2:8080",
+      "rule_id": "R05",
+      "rule": "rto-retransmission",
+      "subject": "10.13.13.5:55200 <-> 10.14.14.2:1521",
       "scope_kind": "flow",
-      "subject_label": "10.8.8.5 ↔ 10.9.9.2",
-      "title": "Out-of-order delivery, not packet loss — 10.8.8.5 ↔ 10.9.9.2",
-      "observation": "5 segments arrived out of sequence with sub-millisecond gaps and consistent IP ID ordering. These were not retransmissions and no data was lost. Without this reclassification they would appear as a 14.7% loss rate.",
-      "check_next": "usually multipath routing, LACP hashing, or receive-side scaling on the capture host. Not a fault in itself, but it can degrade TCP throughput.",
+      "subject_label": "10.14.14.2 → 10.13.13.5",
+      "title": "Timeout-driven retransmissions — 10.14.14.2 → 10.13.13.5",
+      "observation": "3 segments retransmitted after timeout, costing 780ms of transfer time. Retransmission rate on this path is 14.3% against a capture-wide median of 0%.",
+      "check_next": "sustained loss on the path between these hosts. This is more disruptive than the fast-retransmit pattern in R06 — the sender stalled waiting for a timer rather than recovering from duplicate ACKs.",
       "frames": [
-        20,
-        34,
-        54,
-        72,
-        89
+        57,
+        64,
+        66
       ],
-      "first_frame": 20,
-      "worst_frame": 20,
-      "total_count": 5,
+      "first_frame": 57,
+      "worst_frame": 57,
+      "total_count": 3,
       "quality": "confirmed",
-      "severity": "informational",
-      "severity_label": "Informational",
+      "severity": "worth-noting",
+      "severity_label": "Worth noting",
       "metrics": {
-        "data_segments": 34,
-        "flow": "10.8.8.5:53000 <-> 10.9.9.2:8080",
-        "ip_id_checked": true,
-        "max_gap_ms": 0,
-        "reordered_segments": 5,
-        "would_be_loss_rate_percent": 14.706
+        "backoff_observed": false,
+        "capture_median_rate_percent": 0,
+        "data_segments_direction": 21,
+        "direction": "10.14.14.2 -> 10.13.13.5",
+        "flow": "10.13.13.5:55200 <-> 10.14.14.2:1521",
+        "retrans_rate_percent": 14.286,
+        "segments_retransmitted_after_timeout": 3,
+        "time_lost_ms": 780
       }
     }
   ],
@@ -138,7 +150,12 @@
     {
       "kind": "unavailable",
       "rule_id": "R04",
-      "text": "Not assessed: server response time for 5 server endpoints with fewer than 5 completed request/response exchanges. Percentiles over that few samples would not describe a distribution."
+      "text": "Not assessed: server response time for 3 server endpoints with fewer than 5 completed request/response exchanges. Percentiles over that few samples would not describe a distribution."
+    },
+    {
+      "kind": "unavailable",
+      "rule_id": "R08",
+      "text": "Not assessed: directional loss comparison on 1 flow captured in one direction only. This is a common consequence of a one-way SPAN or mirror configuration; asymmetric-loss detection requires both directions of a connection."
     },
     {
       "kind": "unavailable",

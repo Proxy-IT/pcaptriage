@@ -270,3 +270,141 @@ func buildR07PositiveV6() *Builder {
 
 	return b
 }
+
+// buildR08Positive is the R08 fixture: client-to-server retransmits at a high
+// rate (22 timer-driven retransmissions), server-to-client at a low rate (2),
+// on the same connection — asymmetric loss with both directions present, so
+// the comparison this rule makes is the two directions of one flow, not a
+// comparison against peers.
+func buildR08Positive() *Builder {
+	b := New()
+
+	c := b.NewConn(ConnOpts{
+		Client: "10.11.11.5:54100", Server: "10.12.12.2:445",
+		ClientISN: 90000, ServerISN: 190000,
+	})
+	c.HandshakeWithOptions(0, 10*ms, 1460, true)
+
+	// rtoEvent emits one segment, waits past the RTO gap in silence on this
+	// direction, then retransmits the same range — the shape R05's classifier
+	// reads as a timeout, reused here purely for retransmission volume.
+	rtoEventClient := func(t time.Duration) time.Duration {
+		seq := c.cseq
+		c.ClientSegmentAt(t, seq, 200)
+		c.ClientAdvance(200)
+		c.ClientSegmentAt(t+250*ms, seq, 200)
+		c.ServerAck(t+255*ms, 64000)
+		return t + 270*ms
+	}
+	rtoEventServer := func(t time.Duration) time.Duration {
+		seq := c.sseq
+		c.ServerSegmentAt(t, seq, 200)
+		c.ServerAdvance(200)
+		c.ServerSegmentAt(t+250*ms, seq, 200)
+		c.ClientAck(t+255*ms, 64000)
+		return t + 270*ms
+	}
+
+	t := 30 * ms
+	// Twenty clean segments each direction, establishing a data population
+	// before either side shows loss.
+	for i := 0; i < 20; i++ {
+		c.ClientData(t, 200)
+		c.ServerAck(t+5*ms, 64000)
+		t += 15 * ms
+	}
+	for i := 0; i < 20; i++ {
+		c.ServerData(t, 200)
+		c.ClientAck(t+5*ms, 64000)
+		t += 15 * ms
+	}
+
+	// Client-to-server: 22 timer-driven retransmissions — comfortably over
+	// R08's 20-retransmission minimum, and at a rate (roughly a third of
+	// forward segments) that towers over the reverse direction's.
+	for i := 0; i < 22; i++ {
+		t = rtoEventClient(t)
+	}
+
+	// Server-to-client: two retransmissions against a much larger clean
+	// population, so the reverse rate is low but not exactly zero — the
+	// general ratio comparison, not the "reverse direction perfectly clean"
+	// special case.
+	for i := 0; i < 140; i++ {
+		c.ServerData(t, 200)
+		c.ClientAck(t+3*ms, 64000)
+		t += 8 * ms
+	}
+	t = rtoEventServer(t)
+	for i := 0; i < 20; i++ {
+		c.ServerData(t, 200)
+		c.ClientAck(t+3*ms, 64000)
+		t += 8 * ms
+	}
+	t = rtoEventServer(t)
+
+	c.FinClose(t+20*ms, 5*ms)
+
+	// Clean peers, for population context alongside the other loss fixtures.
+	for i := 0; i < 4; i++ {
+		p := b.NewConn(ConnOpts{
+			Client:    fmt.Sprintf("10.11.13.5:%d", 51000+i),
+			Server:    fmt.Sprintf("10.11.14.%d:443", 10+i),
+			ClientISN: uint32(620000 + i*1000),
+			ServerISN: uint32(970000 + i*1000),
+		})
+		start := 40*ms + time.Duration(i)*160*ms
+		p.Handshake(start, 10*ms)
+		e := exchanges(p, start+30*ms, evenDeltas(4, 20*ms, 2*ms), 10*ms, 30*ms)
+		p.FinClose(e, 5*ms)
+	}
+
+	return b
+}
+
+// buildR08OneWay models a flow captured in one direction only — the common
+// consequence of a one-way SPAN or mirror port. No handshake, and no client
+// packet of any kind: the reverse direction has zero packets, not merely zero
+// retransmissions, so R08 cannot make the comparison this rule depends on and
+// must say so rather than silently finding nothing.
+func buildR08OneWay() *Builder {
+	b := New()
+
+	c := b.NewConn(ConnOpts{
+		Client: "10.13.13.5:55200", Server: "10.14.14.2:1521",
+		ClientISN: 100000, ServerISN: 200000,
+	})
+
+	t := 20 * ms
+	for i := 0; i < 15; i++ {
+		c.ServerData(t, 300)
+		t += 12 * ms
+	}
+	// Three timer-shaped retransmissions on the only direction this capture
+	// point could see.
+	for i := 0; i < 3; i++ {
+		seq := c.sseq
+		c.ServerSegmentAt(t, seq, 300)
+		c.ServerAdvance(300)
+		c.ServerSegmentAt(t+260*ms, seq, 300)
+		t += 280 * ms
+	}
+
+	// A couple of ordinary bidirectional peers, so the capture is not
+	// entirely one-way and the note reads as describing one flow, not the
+	// whole file.
+	for i := 0; i < 3; i++ {
+		p := b.NewConn(ConnOpts{
+			Client:    fmt.Sprintf("10.13.15.5:%d", 52000+i),
+			Server:    fmt.Sprintf("10.13.16.%d:443", 10+i),
+			ClientISN: uint32(720000 + i*1000),
+			ServerISN: uint32(270000 + i*1000),
+		})
+		start := 30*ms + time.Duration(i)*140*ms
+		p.Handshake(start, 10*ms)
+		e := exchanges(p, start+30*ms, evenDeltas(3, 20*ms, 2*ms), 10*ms, 25*ms)
+		p.FinClose(e, 5*ms)
+	}
+
+	return b
+}

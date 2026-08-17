@@ -179,6 +179,87 @@ func TestR07IPv6IsInferredAndSaysWhy(t *testing.T) {
 	}
 }
 
+// TestR08FixtureWordingAndSeverity holds the R08 card to its wording, its
+// role-aware phrasing, and confirms R05 firing on the same flow is expected
+// rather than a repetition-cap violation — R05 and R08 are different rules
+// answering different questions about the same segments.
+func TestR08FixtureWordingAndSeverity(t *testing.T) {
+	byRule := findingsByRule(runLossFixture(t, "r08-asymmetric-loss"))
+
+	if len(byRule["R06"]) != 0 || len(byRule["R07"]) != 0 {
+		t.Fatalf("the asymmetric fixture produced unexpected loss findings: R06=%d R07=%d",
+			len(byRule["R06"]), len(byRule["R07"]))
+	}
+	if len(byRule["R05"]) != 1 {
+		t.Fatalf("R05 findings = %d, want 1 — the worse direction's timeouts are a legitimate R05 finding too",
+			len(byRule["R05"]))
+	}
+	r08 := byRule["R08"]
+	if len(r08) != 1 {
+		t.Fatalf("R08 findings = %d, want 1", len(r08))
+	}
+	f := r08[0]
+
+	if f.Title != "Loss in one direction only — 10.11.11.5 → 10.12.12.2" {
+		t.Errorf("title = %q", f.Title)
+	}
+	// Role-aware phrasing: the handshake establishes which side is the
+	// server, so the wording uses "client-to-server" / "server-to-client"
+	// rather than bare addresses.
+	if !strings.Contains(f.Observation, "of segments retransmitted client-to-server, against") ||
+		!strings.Contains(f.Observation, "server-to-client on the same connection. Loss is not symmetric.") {
+		t.Errorf("observation does not use role-aware phrasing: %q", f.Observation)
+	}
+	if f.CheckNext != "something specific to the forward path — asymmetric routing, a congested uplink, or a policer applied in one direction. Symmetric loss would point at the shared path instead." {
+		t.Errorf("check-next drifted from RULES.md: %q", f.CheckNext)
+	}
+
+	// 34% against ~1% is a real asymmetry; the P4 anchors should not call it
+	// informational, but a single flow with no proximity bonus is not the
+	// significant band either.
+	if f.Severity != string(findings.SeverityWorthNoting) {
+		t.Errorf("severity = %q, want worth-noting for a clear but isolated asymmetry", f.Severity)
+	}
+	if f.Quality != string(findings.Confirmed) {
+		t.Errorf("quality = %q, want confirmed on a clean capture", f.Quality)
+	}
+}
+
+// TestR08OneWayFlowIsUnavailableNotSilent is the RULES.md-specified
+// degradation: a flow captured in one direction only cannot be compared, and
+// must say so rather than simply producing nothing.
+func TestR08OneWayFlowIsUnavailableNotSilent(t *testing.T) {
+	doc := runLossFixture(t, "r08-one-way")
+	byRule := findingsByRule(doc)
+
+	if len(byRule["R08"]) != 0 {
+		t.Fatalf("R08 produced a finding on a one-way flow: %d", len(byRule["R08"]))
+	}
+	// R05 is unaffected: timer-driven retransmissions on the one direction
+	// that was captured are a real, gradable finding independent of R08's
+	// cross-direction comparison.
+	if len(byRule["R05"]) != 1 {
+		t.Fatalf("R05 findings = %d, want 1 — one-way capture should not suppress single-direction detection",
+			len(byRule["R05"]))
+	}
+
+	var note *report.Note
+	for i := range doc.Notes {
+		if doc.Notes[i].RuleID == "R08" {
+			note = &doc.Notes[i]
+		}
+	}
+	if note == nil {
+		t.Fatal("no R08 note was emitted for the one-way flow")
+	}
+	if note.Kind != "unavailable" {
+		t.Errorf("R08's one-way note has kind %q, want unavailable", note.Kind)
+	}
+	if !strings.Contains(note.Text, "one direction only") || !strings.Contains(note.Text, "SPAN") {
+		t.Errorf("the note does not explain why the comparison could not be made: %q", note.Text)
+	}
+}
+
 // TestKernelDropGatingReachesTheLossRules is the R15 seam the brief asks to
 // verify: on a capture whose host discarded a significant share of traffic,
 // apparent loss may be capture loss, and R05's finding must degrade to
@@ -234,7 +315,10 @@ func TestKernelDropGatingReachesTheLossRules(t *testing.T) {
 // findings for the loss fixtures. The golden tests cover the CLI path; this
 // asserts the document built the way the GUI builds it matches.
 func TestLossFixturesAgreeAcrossEntryPoints(t *testing.T) {
-	for _, name := range []string{"r05-rto-burst", "r06-fast-retransmit", "r07-reordering", "r07-reordering-v6"} {
+	for _, name := range []string{
+		"r05-rto-burst", "r06-fast-retransmit", "r07-reordering", "r07-reordering-v6",
+		"r08-asymmetric-loss", "r08-one-way",
+	} {
 		a := runLossFixture(t, name)
 		b := runLossFixture(t, name)
 		if len(a.Findings) != len(b.Findings) {

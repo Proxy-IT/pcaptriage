@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>pcap triage — r04-server-response-outlier</title>
+<title>pcap triage — r08-asymmetric-loss</title>
 <style>/* Design tokens — the single source of the palette, type base and radii for
    both rendering surfaces: the desktop app's stylesheet and the exported HTML
    report's. A finding must look like itself whether it is read in the app or
@@ -319,10 +319,10 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
 
 <header class="masthead">
   <h1>pcap triage report</h1>
-  <div class="file">testdata/fixtures/r04-server-response-outlier</div>
+  <div class="file">testdata/fixtures/r08-asymmetric-loss</div>
   <div class="stamp">
     pcaptriage test · ruleset 1.0.0-partial · schema 4
-    · capture 2024-03-14T09:00:00Z to 2024-03-14T09:00:32.26Z (UTC)
+    · capture 2024-03-14T09:00:00Z to 2024-03-14T09:00:08.42Z (UTC)
   </div>
   <p class="posture">
     <strong>Advisory, not diagnostic.</strong> Each finding states what was observed, why it
@@ -348,18 +348,18 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
   <div class="tiles">
     <div class="tile">
       <div class="tile-label">Packets read</div>
-      <div class="tile-value">318</div>
-      <div class="tile-context">318 TCP · 0 other · 0 undecodable</div>
+      <div class="tile-value">550</div>
+      <div class="tile-context">550 TCP · 0 other · 0 undecodable</div>
     </div>
     <div class="tile">
       <div class="tile-label">TCP flows</div>
-      <div class="tile-value">13</div>
-      <div class="tile-context">across 14 hosts</div>
+      <div class="tile-value">5</div>
+      <div class="tile-context">across 7 hosts</div>
     </div>
     <div class="tile">
       <div class="tile-label">Began before capture</div>
       <div class="tile-value">0%</div>
-      <div class="tile-context">0 of 13 flows midstream</div>
+      <div class="tile-context">0 of 5 flows midstream</div>
     </div>
     <div class="tile">
       <div class="tile-label">Snaplen</div>
@@ -375,7 +375,7 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
     <div class="legend">
       
       <span class="key"><span class="swatch fill-strong"></span>Complete
-        <span class="num">13 (100%)</span></span>
+        <span class="num">5 (100%)</span></span>
       
       <span class="key"><span class="swatch fill-mid"></span>Partial
         <span class="num">0 (0%)</span></span>
@@ -395,20 +395,34 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
 
 
 <section>
-  <h2>Top findings <span class="count">all 1, most significant first</span></h2>
+  <h2>Top findings <span class="count">all 2, most significant first</span></h2>
   
     
 <article class="finding top sev-significant">
   <div class="finding-head">
     <span class="rank">#1</span>
-    <h3>One server much slower to respond than its peers — 10.2.2.7:443</h3>
-    <span class="tag tag-rule">R04</span>
+    <h3>Timeout-driven retransmissions — 10.11.11.5 → 10.12.12.2</h3>
+    <span class="tag tag-rule">R05</span>
     <span class="tag tag-sev tag-sev-significant">Significant</span>
     <span class="tag tag-confirmed">confirmed</span>
   </div>
-  <p class="observation">Responded in 1.8s at p95 (max 4.1s) while the other 12 servers in this capture are under 40ms at p95. Measured from last request byte to first response byte, with network round-trip time subtracted — so this is time spent on the server, not on the network.</p>
-  <p class="frames">Frames 257, 296, 299, 302, 305, 308, 311, 314 <span class="of">(8 shown of 20 occurrences)</span></p>
-  <p class="next"><b>Check next:</b> application or backend dependency latency on 10.2.2.7. The network path to this host looks comparable to its peers.</p>
+  <p class="observation">22 segments retransmitted after timeout, costing 5.5s of transfer time. Retransmission rate on this path is 34.4% against a capture-wide median of 0%.</p>
+  <p class="frames">Frames 157, 160, 163, 166, 169, 172, 175, 178 <span class="of">(8 shown of 22 occurrences)</span></p>
+  <p class="next"><b>Check next:</b> sustained loss on the path between these hosts. This is more disruptive than the fast-retransmit pattern in R06 — the sender stalled waiting for a timer rather than recovering from duplicate ACKs.</p>
+  
+</article>
+
+<article class="finding top sev-worth-noting">
+  <div class="finding-head">
+    <span class="rank">#2</span>
+    <h3>Loss in one direction only — 10.11.11.5 → 10.12.12.2</h3>
+    <span class="tag tag-rule">R08</span>
+    <span class="tag tag-sev tag-sev-worth-noting">Worth noting</span>
+    <span class="tag tag-confirmed">confirmed</span>
+  </div>
+  <p class="observation">34.4% of segments retransmitted client-to-server, against 1.1% server-to-client on the same connection. Loss is not symmetric.</p>
+  <p class="frames">Frames 157, 160, 163, 166, 169, 172, 175, 178 <span class="of">(8 shown of 22 occurrences)</span></p>
+  <p class="next"><b>Check next:</b> something specific to the forward path — asymmetric routing, a congested uplink, or a policer applied in one direction. Symmetric loss would point at the shared path instead.</p>
   
 </article>
 
@@ -420,35 +434,44 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
 <section>
   <h2>All findings by rule</h2>
   
-    <h3 class="rule-head">R04 · server-response-outlier</h3>
-    <p class="section-note">A server:port took materially longer to begin responding than its peers in the same capture, with network round-trip time subtracted.</p>
+    <h3 class="rule-head">R05 · rto-retransmission</h3>
+    <p class="section-note">Segments were retransmitted after a timer-shaped quiet gap with no duplicate ACKs asking for them — the sender stalled waiting for a timeout.</p>
 
-    
-    <div class="figure">
-      <h3>Server response time at p95, against the capture</h3>
-      <div class="tiles">
-        <div class="tile">
-          <div class="tile-label">Response time at p95 · 10.2.2.7:443</div>
-          <div class="tile-value">1.8s</div>
-          <div class="tile-context">max 4.1s · capture median p95 30ms</div>
-        </div>
-      </div>
-      <p class="caption">One server stood out in this capture, so there is nothing to compare it against here. Measured from last request byte to first response byte, with network round-trip time subtracted.</p>
-    </div>
     
 
     
 <article class="finding sev-significant">
   <div class="finding-head">
     <span class="rank">#1</span>
-    <h3>One server much slower to respond than its peers — 10.2.2.7:443</h3>
-    <span class="tag tag-rule">R04</span>
+    <h3>Timeout-driven retransmissions — 10.11.11.5 → 10.12.12.2</h3>
+    <span class="tag tag-rule">R05</span>
     <span class="tag tag-sev tag-sev-significant">Significant</span>
     <span class="tag tag-confirmed">confirmed</span>
   </div>
-  <p class="observation">Responded in 1.8s at p95 (max 4.1s) while the other 12 servers in this capture are under 40ms at p95. Measured from last request byte to first response byte, with network round-trip time subtracted — so this is time spent on the server, not on the network.</p>
-  <p class="frames">Frames 257, 296, 299, 302, 305, 308, 311, 314 <span class="of">(8 shown of 20 occurrences)</span></p>
-  <p class="next"><b>Check next:</b> application or backend dependency latency on 10.2.2.7. The network path to this host looks comparable to its peers.</p>
+  <p class="observation">22 segments retransmitted after timeout, costing 5.5s of transfer time. Retransmission rate on this path is 34.4% against a capture-wide median of 0%.</p>
+  <p class="frames">Frames 157, 160, 163, 166, 169, 172, 175, 178 <span class="of">(8 shown of 22 occurrences)</span></p>
+  <p class="next"><b>Check next:</b> sustained loss on the path between these hosts. This is more disruptive than the fast-retransmit pattern in R06 — the sender stalled waiting for a timer rather than recovering from duplicate ACKs.</p>
+  
+</article>
+
+  
+    <h3 class="rule-head">R08 · asymmetric-loss</h3>
+    <p class="section-note">Retransmission rate on one flow was at least five times higher in one direction than the other, with at least 20 retransmissions — loss is not symmetric.</p>
+
+    
+
+    
+<article class="finding sev-worth-noting">
+  <div class="finding-head">
+    <span class="rank">#2</span>
+    <h3>Loss in one direction only — 10.11.11.5 → 10.12.12.2</h3>
+    <span class="tag tag-rule">R08</span>
+    <span class="tag tag-sev tag-sev-worth-noting">Worth noting</span>
+    <span class="tag tag-confirmed">confirmed</span>
+  </div>
+  <p class="observation">34.4% of segments retransmitted client-to-server, against 1.1% server-to-client on the same connection. Loss is not symmetric.</p>
+  <p class="frames">Frames 157, 160, 163, 166, 169, 172, 175, 178 <span class="of">(8 shown of 22 occurrences)</span></p>
+  <p class="next"><b>Check next:</b> something specific to the forward path — asymmetric routing, a congested uplink, or a policer applied in one direction. Symmetric loss would point at the shared path instead.</p>
   
 </article>
 
@@ -471,11 +494,11 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
       <tbody>
       
         <tr>
-          <td class="mono">10.2.2.7:443</td>
-          <td>endpoint</td>
-          <td class="mono">R04</td>
-          <td class="num">20</td>
-          <td class="mono">257, 296, 299, 302, 305, 308 …</td>
+          <td class="mono">10.11.11.5:54100 &lt;-&gt; 10.12.12.2:445</td>
+          <td>flow</td>
+          <td class="mono">R05, R08</td>
+          <td class="num">44</td>
+          <td class="mono">157, 157, 160, 160, 163, 163 …</td>
         </tr>
       
       </tbody>
@@ -495,6 +518,11 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
   </p>
 
   
+    
+    <div class="note unavailable">
+      <span class="who">R04 · not assessed</span>
+      Not assessed: server response time for 5 server endpoints with fewer than 5 completed request/response exchanges. Percentiles over that few samples would not describe a distribution.
+    </div>
     
     <div class="note unavailable">
       <span class="who">R15 · not assessed</span>

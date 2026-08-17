@@ -330,7 +330,7 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
     that conclusion is yours to draw from the frames.
   </p>
   <p class="posture">
-    <strong>Partial build.</strong> Partial build: 5 of the 15 v1 rules are implemented (R01 zero-window-stall, R04 server-response-outlier, R05 rto-retransmission, R06 fast-retransmission, R07 out-of-order-not-loss). Every other condition in the v1 rule set was not looked for at all. An empty findings list below means
+    <strong>Partial build.</strong> Partial build: 6 of the 15 v1 rules are implemented (R01 zero-window-stall, R04 server-response-outlier, R05 rto-retransmission, R06 fast-retransmission, R07 out-of-order-not-loss, R08 asymmetric-loss). Every other condition in the v1 rule set was not looked for at all. An empty findings list below means
     these checks found nothing, not that the capture is healthy.
   </p>
 </header>
@@ -526,11 +526,13 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
       
         <tr><td class="mono">R07</td><td class="mono">out-of-order-not-loss</td><td>Segments arrived out of sequence within milliseconds and in original transmission order by IP ID — reordering on the path, not packet loss.</td></tr>
       
+        <tr><td class="mono">R08</td><td class="mono">asymmetric-loss</td><td>Retransmission rate on one flow was at least five times higher in one direction than the other, with at least 20 retransmissions — loss is not symmetric.</td></tr>
+      
       </tbody>
     </table>
   </div>
   <p class="caption">
-    10 of the fifteen v1 rules are not implemented in this build
+    9 of the fifteen v1 rules are not implemented in this build
     and were therefore not looked for at all. They are not listed above because listing them
     as "skipped" would imply a decision was made per capture; none was.
   </p>

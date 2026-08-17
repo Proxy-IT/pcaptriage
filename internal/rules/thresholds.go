@@ -131,6 +131,16 @@ var Thresholds = struct {
 	// [chosen] 1.5 is above any plausible jitter and below every doubling.
 	R05BackoffMinRatio float64
 
+	// R08MinRatio is how many times higher one direction's retransmission
+	// rate must be than the reverse direction's before loss is asymmetric.
+	// [RULES.md] "exceeding the reverse direction by ≥5×"
+	R08MinRatio float64
+
+	// R08MinRetransmissions is the minimum retransmission count the worse
+	// direction must reach before R08 considers the flow at all.
+	// [RULES.md] "a minimum of 20 retransmissions to qualify"
+	R08MinRetransmissions int
+
 	// R15KernelDropRatio is the share of the capture the capture host must have
 	// dropped before loss findings are treated as ambiguous.
 	//
@@ -164,6 +174,9 @@ var Thresholds = struct {
 	R06DupAckMin:       3,
 	R05MinRTOGap:       200 * time.Millisecond,
 	R05BackoffMinRatio: 1.5,
+
+	R08MinRatio:           5.0,
+	R08MinRetransmissions: 20,
 
 	R15KernelDropRatio: 0.001, // 0.1% of packets read
 }

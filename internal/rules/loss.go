@@ -169,6 +169,13 @@ type lossFlowResult struct {
 	// proximate reports a timeout retransmission within the proximity window
 	// of a RST on this flow.
 	proximate bool
+
+	// serverDir and serverKnown carry the flow's server identification from
+	// the handshake (or, on a midstream flow, the inferred first-data-sender
+	// deduction). R08's wording distinguishes "client-to-server" from
+	// "server-to-client"; without this a midstream flow would have to guess.
+	serverDir   flow.Direction
+	serverKnown bool
 }
 
 func (r *lossFlowResult) totalDataSegments() uint64 {
@@ -396,6 +403,10 @@ func (a *lossAnalyzer) onFlowEnd(s *lossFlowState, fl *flow.State) {
 		key:    fl.Key,
 		ipv6:   s.ipv6,
 		oneWay: fl.OneWay(),
+	}
+	if _, ok := fl.ServerEndpoint(); ok {
+		res.serverKnown = true
+		res.serverDir = fl.ServerDir
 	}
 	for d := flow.Direction(0); d < 2; d++ {
 		ds := &s.dir[d]

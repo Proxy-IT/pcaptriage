@@ -93,6 +93,16 @@ func Fixtures() []Fixture {
 			Purpose: "R07 degraded path: the same reordering over IPv6, where no IP ID exists and the reclassification is timing-only and inferred.",
 			Build:   buildR07PositiveV6,
 		},
+		{
+			Name:    "r08-asymmetric-loss",
+			Purpose: "R08 positive: 22 timer-driven retransmissions client-to-server against 2 server-to-client on the same connection, well over the 5x ratio and 20-count minimums.",
+			Build:   buildR08Positive,
+		},
+		{
+			Name:    "r08-one-way",
+			Purpose: "R08 unavailable: a flow captured in one direction only, with retransmissions on the visible side, so the directional comparison cannot be made.",
+			Build:   buildR08OneWay,
+		},
 	}
 }
 

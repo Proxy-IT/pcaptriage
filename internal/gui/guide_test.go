@@ -19,10 +19,10 @@ import (
 // problem moved to a page with more words on it. That direction is strict and
 // permanent.
 //
-// The forward direction is INTERIM, weakened between Batch 1's Part 1 and
-// Part 3: R05, R06 and R07 are built but their guide content (the combined
-// loss page in GUIDE-CONTENT-BATCH1.md) is not wired in until Part 3 updates
-// this contract to many-to-one. Until then the invariant that matters — a
+// The forward direction is INTERIM, weakened between Batch 1's Part 1/2 and
+// Part 3: R05, R06, R07 and R08 are built but their guide content (the
+// combined loss page in GUIDE-CONTENT-BATCH1.md) is not wired in until Part 3
+// updates this contract to many-to-one. Until then the invariant that matters — a
 // finding card never links to a page that does not exist — is enforced at the
 // index (HasPage) and the card link renders only when HasPage is true, both
 // asserted here. Part 3 restores the strict form: every built rule maps to
@@ -71,8 +71,8 @@ func TestGuideRegistryBijection(t *testing.T) {
 			pending++
 		}
 	}
-	if pending > 3 {
-		t.Errorf("%d built rules lack guide pages; only the Batch 1 interim (R05, R06, R07) is tolerated", pending)
+	if pending > 4 {
+		t.Errorf("%d built rules lack guide pages; only the Batch 1 interim (R05, R06, R07, R08) is tolerated", pending)
 	}
 }
 

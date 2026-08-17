@@ -66,12 +66,14 @@ var zeroWindowDivergence = map[string]struct {
 // reports through its findings. Drift on either side fails.
 type lossExpectation struct {
 	Tshark tsharkLossCounts
-	// EngineRTO, EngineFast and EngineReorder are the counts the engine's
-	// R05, R06 and R07 findings carry for this fixture.
-	EngineRTO     uint64
-	EngineFast    uint64
-	EngineReorder uint64
-	Reason        string
+	// EngineRTO, EngineFast, EngineReorder and EngineAsymmetric are the
+	// counts the engine's R05, R06, R07 and R08 findings carry for this
+	// fixture.
+	EngineRTO        uint64
+	EngineFast       uint64
+	EngineReorder    uint64
+	EngineAsymmetric uint64
+	Reason           string
 }
 
 // lossFlagExpectation documents every fixture expected to contain
@@ -106,6 +108,23 @@ var lossFlagExpectation = map[string]lossExpectation{
 		Reason: "IPv6 reordering with no duplicate-ACK runs: both sides classify all three " +
 			"swaps as out-of-order on timing; the engine additionally lowers its confidence " +
 			"to inferred because no IP ID exists to confirm original order",
+	},
+	"r08-asymmetric-loss": {
+		Tshark:           tsharkLossCounts{Retransmissions: 24},
+		EngineRTO:        22,
+		EngineAsymmetric: 22,
+		Reason: "24 timer-driven retransmissions total (22 forward, 2 reverse); R05 reports the " +
+			"worse direction's 22 as its own finding and R08 reports the same 22 again as the " +
+			"asymmetric-loss finding — the two rules answer different questions about the same " +
+			"segments and are not mutually suppressing",
+	},
+	"r08-one-way": {
+		Tshark:    tsharkLossCounts{Retransmissions: 3},
+		EngineRTO: 3,
+		Reason: "three timer-driven retransmissions on the only direction this capture point saw; " +
+			"R05 reports them as an ordinary finding, R08 reports none — the comparison it makes " +
+			"needs a reverse direction that was never captured, disclosed as an unavailable note " +
+			"rather than silence",
 	},
 }
 
@@ -310,7 +329,7 @@ func TestTsharkCrossValidation(t *testing.T) {
 					t.Errorf("tshark loss flags diverge from documented expectation:\n  tshark   %+v\n  expected %+v\n  reason on file: %s",
 						scan.Loss, want.Tshark, want.Reason)
 				}
-				var engRTO, engFast, engReorder uint64
+				var engRTO, engFast, engReorder, engAsym uint64
 				for _, fd := range res.Findings {
 					switch fd.RuleID {
 					case "R05":
@@ -319,13 +338,17 @@ func TestTsharkCrossValidation(t *testing.T) {
 						engFast += fd.TotalCount
 					case "R07":
 						engReorder += fd.TotalCount
+					case "R08":
+						engAsym += fd.TotalCount
 					}
 				}
-				if engRTO != want.EngineRTO || engFast != want.EngineFast || engReorder != want.EngineReorder {
+				if engRTO != want.EngineRTO || engFast != want.EngineFast ||
+					engReorder != want.EngineReorder || engAsym != want.EngineAsymmetric {
 					t.Errorf("engine loss classification diverges from documented expectation:\n"+
-						"  engine   rto=%d fast=%d reorder=%d\n  expected rto=%d fast=%d reorder=%d\n  reason on file: %s",
-						engRTO, engFast, engReorder,
-						want.EngineRTO, want.EngineFast, want.EngineReorder, want.Reason)
+						"  engine   rto=%d fast=%d reorder=%d asymmetric=%d\n"+
+						"  expected rto=%d fast=%d reorder=%d asymmetric=%d\n  reason on file: %s",
+						engRTO, engFast, engReorder, engAsym,
+						want.EngineRTO, want.EngineFast, want.EngineReorder, want.EngineAsymmetric, want.Reason)
 				}
 			})
 		}
