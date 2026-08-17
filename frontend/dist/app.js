@@ -304,7 +304,6 @@
           var btn = el("button", "index-link");
           btn.type = "button";
           btn.appendChild(el("span", "check-name", e.rule_id + " · " + e.name));
-          btn.appendChild(el("span", "check-summary", e.summary));
           if (e.has_page) {
             btn.addEventListener("click", function () {
               rememberReturn("guide-index", "All checks");
@@ -312,7 +311,15 @@
             });
           } else {
             btn.disabled = true;
+            // The disabled state alone — dimmed, default cursor, a duller
+            // border — reads as "still loading" or "same as the others" at a
+            // glance, not as "this one doesn't do anything." A row that looks
+            // interactive but silently isn't is worse than one that's plainly
+            // marked, so the difference is said in words too, the same reason
+            // severity and evidence quality are never colour alone.
+            btn.appendChild(el("span", "tag tag-unavailable index-tag", "No guide yet"));
           }
+          btn.appendChild(el("span", "check-summary", e.summary));
           li.appendChild(btn);
           list.appendChild(li);
         });
@@ -641,6 +648,16 @@
       rememberReturn("about", "About");
       openGuideIndex();
     });
+
+    // Home is a direct jump, not a step back: "← {label}" only ever undoes the
+    // last hop, so a reader several screens deep in the guide area (a finding's
+    // link, then All checks, then a menu-triggered index) has no way back to
+    // the drop zone except walking back through however many hops that was.
+    // Every guide-area screen gets this in addition to, not instead of, the
+    // context-sensitive back button.
+    $("btn-guide-home").addEventListener("click", function () { show("home"); });
+    $("btn-index-home").addEventListener("click", function () { show("home"); });
+    $("btn-about-home").addEventListener("click", function () { show("home"); });
 
     // Drag feedback only. The path itself arrives from the Go side, because a
     // webview's drop event exposes file contents but not a usable filesystem

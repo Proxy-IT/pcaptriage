@@ -554,7 +554,11 @@ h1, h2, h3 { letter-spacing: -0.01em; }
 }
 .index-link:hover:not(:disabled) { background: var(--wash); }
 .index-link:focus-visible { outline: 2px solid var(--step-450); outline-offset: 2px; }
+/* The dimming and cursor change are real, but neither is the primary signal —
+   see the "No guide yet" tag appended in app.js for why. Kept as reinforcement
+   for a reader who has already learned to read them, not as the only cue. */
 .index-link:disabled { cursor: default; border-left-color: var(--axis); opacity: .7; }
+.index-tag { margin-left: .5rem; vertical-align: middle; }
 
 /* ---------------- about / error ---------------- */
 
