@@ -168,9 +168,10 @@ and RTP jitter analysis, and per-protocol rule packs.
 
 ### Self-reporting capability
 
-The tool should be able to state its own coverage — `--list-checks` enumerating
-every rule, and a report section listing the checks that ran, the checks that were
-skipped, and why. This is the same mechanism as the `unavailable` tagging in
+The tool should be able to state its own coverage — an in-app checks screen (and
+a dev-CLI `--list-checks` equivalent, neither yet built; tracked as BACKLOG P10)
+enumerating every rule, and a report section listing the checks that ran, the
+checks that were skipped, and why. This is the same mechanism as the `unavailable` tagging in
 section 10, applied at the level of the tool rather than the individual finding,
 and it is what keeps the boundary honest as the rules grow.
 
@@ -889,19 +890,13 @@ the GUI pivot, simplifies what follows.
 
 ### Licence choice
 
-**MIT — decided.** Apache 2.0 was equally reasonable; neither was
-load-bearing.
+**MIT — chosen and in effect.** The LICENSE file is MIT and the repository
+reflects it.
 
-The earlier recommendation for Apache 2.0 was based on an intent to reuse the
-heuristics engine in a commercial monitoring product, which is no longer the
-plan. Its patent grant costs nothing to include and would still have been a
-fine default, but with the commercial-reuse plan gone this was a preference
-rather than a strategic decision, and MIT was chosen for being the shorter and
-more widely recognised of the two.
-
-The licence text lives in `LICENSE`, copyright Proxy-IT. The same line is
-carried in the app's binary metadata (`wails.json` and `winres/winres.json`),
-which is the place it most easily goes stale.
+For the record: the earlier recommendation for Apache 2.0 was based on an
+intent to reuse the heuristics engine in a commercial monitoring product, which
+is no longer the plan. With that gone, neither licence was load-bearing, and
+MIT was picked for simplicity.
 
 ### Copyright ownership
 
@@ -947,7 +942,7 @@ harder to understand in one sitting.
 | Capture completeness | Per-flow state tracking; findings tagged confirmed / inferred / unavailable |
 | Output | Desktop GUI (Wails), top findings first; internal dev CLI, same engine |
 | Charts | Server-rendered SVG, uPlot inlined for the timeline only |
-| Licensing | MIT — non-commercial, chosen from the two the brief sanctioned |
+| Licensing | MIT (chosen, in effect) — non-commercial |
 | Distribution | Signed installers, Windows + macOS release-blocking; Linux best-effort; no CLI releases |
 | Privacy | No payload in reports; `--redact` mode; zero network calls |
 | Validation | Synthesised fixtures per rule, `tc netem` for threshold calibration |

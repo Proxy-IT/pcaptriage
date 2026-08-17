@@ -536,3 +536,49 @@ For whoever implements this:
 - Every rule needs a test capture, real or synthesised, that triggers it and one
   that should not trigger it. The false-positive traps above are the second set.
 - `--list-checks` enumerates all fifteen with their current thresholds.
+
+
+---
+
+## Implementation addendum
+
+Clarifications and thresholds established during implementation. The rules above
+remain the spec; this section records how ambiguities were resolved so they are
+not rediscovered. (The repo copy of this file may carry earlier addendum entries
+from the R01/R04 session — merge, don't replace, if so.)
+
+### R15: kernel capture drops (added in the P2 session)
+
+R15's condition list now includes capture-host packet drops:
+
+- **pcapng:** read from the Interface Statistics Block via pcapgo's
+  `NgReaderOptions.StatisticsCallback`, with `NgNoValue64` distinguishing
+  "option absent" from "zero drops". Multiple interfaces are keyed separately.
+- **Classic pcap:** has no drop field. Reported as `unavailable` with wording
+  that states the format cannot say either way and suggests pcapng re-capture —
+  never treated as zero drops.
+- **pcapng without an ISB:** a third distinct state, also not zero.
+- **Threshold:** `R15KernelDropRatio = 0.001` (0.1% of packets read + dropped),
+  [chosen]. Rationale: it is the order of magnitude the loss rules operate at —
+  R06's own example contrasts 0.9% against a 0.1% capture median — so below it
+  capture loss cannot plausibly account for a rate a rule would flag.
+- **Gating:** when drops exceed the threshold, R05/R06/R08 findings are
+  downgraded to `inferred` with a basis sentence scoped to the capture host
+  ("some apparent loss may be capture loss rather than loss on the network").
+  The clean-drops note is deliberately scoped to the host itself and must not
+  claim anything about taps or SPAN ports upstream — a test forbids the
+  stronger phrasing.
+
+### Clean-capture and empty-capture semantics (added in the P3 session)
+
+- A capture that parses but contains no findings renders an explicit coverage
+  statement, never an empty list. Wording is calibrated, not celebratory; a
+  test bans "healthy", "all clear", "your network", "nothing is wrong".
+- A capture with packets but no TCP conversations is a third state, reported as
+  the absence of anything to assess — not as a clean result.
+- Zero packets or an unparseable file is an **error**, never a result. An
+  absence of data must never render as an absence of problems.
+- There is no display floor: rules suppress their own trivia at detection time
+  (e.g. R01's 100 ms cumulative), and every emitted finding is shown. If a
+  floor is ever introduced, it is a severity-calibration decision (BACKLOG P4),
+  not a rendering convenience.

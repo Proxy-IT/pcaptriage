@@ -73,6 +73,24 @@ significant found, what was checked, what couldn't be checked and why. The last
 part is the §9 false-all-clear guard applied to the GUI's most dangerous screen.
 Depends on nothing; blocks nothing; every real-world clean capture hits it.
 
+## P3.5 Export coverage parity + design token unification
+
+**Added after the P1–P3 session.** The clean-capture screen now shows "what
+could not be checked" in-app, but the exported HTML report does not carry
+coverage data at all — findings can render with no gaps section. The export is
+the artifact most likely to be read by someone with zero context (attached to a
+ticket, forwarded to a vendor), so it has the same §9 false-all-clear exposure
+the clean screen just fixed, in the surface with the least surrounding context.
+
+Bring coverage (checks run, checks unavailable and why, completeness counters)
+into the exported HTML and JSON. The always-zero `MinorObservations` field ships
+in the same structure for the same reason it exists in-app.
+
+**Do the design-token unification in the same session** (the long-standing
+review item): both tasks touch the report template, and the tokens item has
+been waiting for exactly this — extract shared tokens (colors, spacing, type
+scale) into one source both the GUI stylesheet and the report template consume.
+
 ## P4. A4 — Evidence quality badges + severity vocabulary
 
 Two related card-level signals, distinct and both needed:
@@ -84,6 +102,12 @@ Two related card-level signals, distinct and both needed:
 
 Do together because they're the same rendering surface and conflating them would
 be a design error — design the two-badge layout once.
+
+**Note from the P3 session:** there is currently no display floor — rules
+suppress their own trivia at detection time and everything emitted is shown.
+P4's severity work is where a floor would be calibrated if one is ever wanted;
+`MinorObservations` (always zero today) is the seam left for it. Don't introduce
+a floor casually as a side effect of badge work — it's a §9-relevant decision.
 
 ## P5. A5 — Redaction as a visible control
 
@@ -135,15 +159,11 @@ earlier items make trustworthy and actionable.
 
 The fifteen rules in plain language, in-app — makes the published-rules trust
 argument (§14) visible instead of living in a repo the user never visits.
-Natural home is the About/Help area stubbed in the first GUI session. Pairs with
-`--list-checks` (§ scope boundaries) as the GUI equivalent.
+Natural home is the About/Help area stubbed in the first GUI session.
 
-**Note:** `--list-checks` is referred to in BRIEF.md's scope-boundaries section
-and again in RULES.md's implementation handoff notes as though it exists, but it
-has never been built. P10's scope is therefore both halves: the GUI checks
-screen *and* its dev-CLI equivalent. The rule registry the GUI home screen
-already reads (`rules.AllMeta()`) is the shared source for both, so neither
-should hand-maintain a list.
+**Note:** `--list-checks` is referenced in BRIEF.md's scope boundaries and
+RULES.md's handoff notes but has never been built. P10's scope is therefore the
+GUI checks screen plus its dev-CLI equivalent, closing all three references.
 
 ## P11. C2 — Idle-then-fail (firewall session reaping)
 
@@ -247,9 +267,7 @@ Recorded so they don't get re-proposed.
 
 # Known review items (not proposals)
 
-- **Design token duplication** between GUI stylesheet and report template —
-  currently kept in step by review only. Cheap to unify now; fold into the next
-  session that touches both surfaces (likely P3 or P4).
+- **Design token duplication** — moved into the queue as part of P3.5.
 - **Screenshot/visual verification gap** — computer-use tooling can't resolve a
   freshly built exe; current coverage is `-preview` HTML render plus end-to-end
   tests, which misses the Wails IPC layer and native menu. Owner verification
