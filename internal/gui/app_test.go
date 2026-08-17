@@ -10,6 +10,7 @@ import (
 
 	"github.com/Proxy-IT/pcaptriage/internal/analysis"
 	"github.com/Proxy-IT/pcaptriage/internal/config"
+	"github.com/Proxy-IT/pcaptriage/internal/guide"
 	"github.com/Proxy-IT/pcaptriage/internal/report"
 	"github.com/Proxy-IT/pcaptriage/internal/synth"
 )
@@ -38,6 +39,53 @@ var previewFixture = flag.String("preview-fixture", "mixed-findings", "fixture t
 // Both are marked in the rendered page as constructed rather than observed, so a
 // screenshot of one cannot be mistaken for the tool's real output.
 var previewVariant = flag.String("preview-variant", "", "construct an otherwise unreachable state: force-strong | no-tcp")
+
+// previewLand opens the preview directly on a secondary view, so a render can
+// be looked at without clicking through to it.
+//
+//	guide-from-finding  a guide page reached from a card (context block present)
+//	guide-from-index    the same page reached from the index (no context block)
+//	guide-index         the index
+//	about               the About page
+var previewLand = flag.String("preview-land", "", "open the preview on a view: guide-from-finding | guide-from-index | guide-index | about")
+
+// landingScript drives the preview into a secondary view after load.
+//
+// It clicks the real controls rather than manipulating the views directly, so
+// what is rendered is what a user's clicks produce — including the back-button
+// label, which depends on where they came from.
+func landingScript(land string) string {
+	var steps string
+	switch land {
+	case "":
+		return ""
+	case "guide-from-finding":
+		steps = `document.querySelectorAll(".guide-link-row .linkish")[2].click();`
+	case "guide-from-index":
+		steps = `window.__emit("nav:guide");
+      await pause(500);
+      document.querySelectorAll("#guide-index-list .index-link")[0].click();`
+	case "guide-index":
+		steps = `window.__emit("nav:guide");`
+	case "about":
+		steps = `window.__emit("nav:about");`
+	default:
+		panic("unknown -preview-land " + land)
+	}
+
+	return `
+<script>
+// Preview landing: drives the real controls so the rendered state is one a
+// user's clicks can actually produce.
+(async function () {
+  var pause = function (ms) { return new Promise(function (r) { setTimeout(r, ms); }); };
+  await pause(400);
+  document.getElementById("dropzone").click();
+  await pause(2200);
+  ` + steps + `
+})();
+</script>`
+}
 
 // TestAnalyzeEndToEnd drives the exact method the frontend calls and requires
 // real findings from the real engine.
@@ -472,6 +520,29 @@ func TestWritePreview(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	idx, err := app.Guide()
+	if err != nil {
+		t.Fatal(err)
+	}
+	indexJSON, err := json.Marshal(idx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pages := map[string]guide.Page{}
+	for _, e := range idx.Entries {
+		if p, ok := guide.Lookup(e.RuleID); ok {
+			pages[e.RuleID] = p
+		}
+	}
+	pagesJSON, err := json.Marshal(pages)
+	if err != nil {
+		t.Fatal(err)
+	}
+	aboutJSON, err := json.Marshal(app.About())
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	root := filepath.Dir(filepath.Dir(synth.FixtureDir()))
 	dist := filepath.Join(root, "frontend", "dist")
 
@@ -500,9 +571,21 @@ func TestWritePreview(t *testing.T) {
 	stub := `<script>
 // Stand-in for the Wails bindings. The data below is verbatim engine output
 // for testdata/fixtures/mixed-findings.pcap, captured at preview build time.
-window.__preview = { info: ` + string(infoJSON) + `, result: ` + string(resultJSON) + ` };
+window.__preview = { info: ` + string(infoJSON) + `, result: ` + string(resultJSON) + `,
+                     guideIndex: ` + string(indexJSON) + `, guidePages: ` + string(pagesJSON) + `,
+                     about: ` + string(aboutJSON) + ` };
+window.__opened = [];
 window.go = { gui: { App: {
   Info:       function () { return Promise.resolve(window.__preview.info); },
+  Guide:      function () { return Promise.resolve(window.__preview.guideIndex); },
+  GuidePage:  function (id) {
+    var p = window.__preview.guidePages[id];
+    return p ? Promise.resolve(p) : Promise.reject(new Error("no guide page for " + id));
+  },
+  About:      function () { return Promise.resolve(window.__preview.about); },
+  // Records the handoff instead of performing it, so a preview cannot open a
+  // browser and the assertion is still observable.
+  OpenExternal: function (u) { window.__opened.push(u); return Promise.resolve(); },
   ChooseFile: function () { return Promise.resolve(window.__preview.result.file_path); },
   Analyze:    function () {
     return new Promise(function (resolve) {
@@ -526,7 +609,7 @@ window.runtime = { EventsOn: function (n, f) { (window.__handlers[n] = window.__
 </script>`
 
 	page = strings.Replace(page, `<script src="app.js"></script>`,
-		stub+"\n<script>"+string(js)+"</script>", 1)
+		stub+"\n<script>"+string(js)+"</script>"+landingScript(*previewLand), 1)
 
 	if err := os.WriteFile(*previewPath, []byte(page), 0o644); err != nil {
 		t.Fatal(err)

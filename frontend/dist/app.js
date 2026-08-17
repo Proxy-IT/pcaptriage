@@ -12,19 +12,49 @@
 (function () {
   "use strict";
 
-  var VIEWS = ["home", "loading", "findings", "about", "error"];
-  var lastView = "home";
+  var VIEWS = ["home", "loading", "findings", "guide", "guide-index", "about", "error"];
   var info = null;
   var busy = false;
 
+  // Where a secondary view was opened from, and how to put the reader back
+  // exactly where they were.
+  //
+  // Returning to the top of the results list would make the guide expensive to
+  // consult: a reader six cards down has to find their place again, so they
+  // learn not to click. The scroll position is part of the answer.
+  var returnTo = { view: "home", scrollY: 0, label: "Back" };
+
   function $(id) { return document.getElementById(id); }
 
-  function show(name) {
-    if (name !== "about") lastView = name;
+  // show reveals one view. Pass keepScroll to leave the scroll position alone,
+  // which is how a lossless return works.
+  function show(name, keepScroll) {
     VIEWS.forEach(function (v) {
       $("view-" + v).hidden = v !== name;
     });
-    window.scrollTo(0, 0);
+    if (!keepScroll) window.scrollTo(0, 0);
+  }
+
+  // rememberReturn records the current place before a secondary view opens.
+  function rememberReturn(view, label) {
+    returnTo = { view: view, scrollY: window.scrollY, label: label || "Back" };
+  }
+
+  function goBack() {
+    show(returnTo.view, true);
+    // Restore after the view is visible; a hidden element has no scroll height.
+    window.scrollTo(0, returnTo.scrollY);
+  }
+
+  function currentView() {
+    for (var i = 0; i < VIEWS.length; i++) {
+      if (!$("view-" + VIEWS[i]).hidden) return VIEWS[i];
+    }
+    return "home";
+  }
+
+  function labelFor(view) {
+    return { home: "Home", findings: "Findings", guide: "Guide", "guide-index": "All checks", about: "About" }[view] || "Back";
   }
 
   // ---------------------------------------------------------------- helpers
@@ -168,10 +198,163 @@
 
     if (f.quality_basis) card.appendChild(el("p", "basis", f.quality_basis));
 
+    // The link out to the explanation. Placed after "check next", so the card
+    // still reads top to bottom on its own and the guide is an offer rather
+    // than a prerequisite.
+    var more = el("p", "guide-link-row");
+    var link = el("button", "linkish");
+    link.type = "button";
+    link.textContent = "What does " + f.rule_id + " mean?";
+    link.addEventListener("click", function () {
+      rememberReturn("findings", "Findings");
+      openGuide(f.rule_id, f);
+    });
+    more.appendChild(link);
+    card.appendChild(more);
+
     var packets = evidenceFor(f);
     if (packets.length > 0) card.appendChild(packetDisclosure(f, packets));
 
     return card;
+  }
+
+  // ------------------------------------------------------------ guide
+
+  // renderRuns turns authored inline runs into DOM nodes.
+  //
+  // Built node by node with textContent rather than assembled as markup: the
+  // prose is trusted, but the same helper renders finding context alongside it,
+  // and that comes out of a capture.
+  function appendRuns(parent, runs) {
+    (runs || []).forEach(function (r) {
+      if (r.emphasis) {
+        parent.appendChild(el("em", null, r.text));
+        return;
+      }
+      parent.appendChild(document.createTextNode(r.text));
+    });
+  }
+
+  function renderBlocks(into, blocks) {
+    (blocks || []).forEach(function (b) {
+      if (b.kind === "bullets") {
+        var ul = el("ul", "prose-list");
+        (b.items || []).forEach(function (item) {
+          var li = el("li");
+          appendRuns(li, item);
+          ul.appendChild(li);
+        });
+        into.appendChild(ul);
+        return;
+      }
+      var p = el("p", "prose-p");
+      appendRuns(p, b.runs);
+      into.appendChild(p);
+    });
+  }
+
+  // openGuide shows a rule's guide page.
+  //
+  // finding is the card the reader clicked from, or null when they arrived from
+  // the index. Its presence is what decides whether the context block appears —
+  // a reader browsing from Help has no specific case to be reminded of.
+  function openGuide(ruleID, finding) {
+    window.go.gui.App.GuidePage(ruleID)
+      .then(function (page) {
+        $("guide-rule-id").textContent = page.rule_id;
+        $("guide-title").textContent = page.title;
+        $("btn-guide-back").textContent = "← " + returnTo.label;
+
+        var ctx = $("guide-context");
+        if (finding) {
+          $("guide-context-title").textContent = finding.title;
+          $("guide-context-observation").textContent = finding.observation;
+          $("guide-context-frames").textContent =
+            "Frames " + ((finding.frames || []).join(", ") || "—");
+          ctx.hidden = false;
+        } else {
+          ctx.hidden = true;
+        }
+
+        var body = $("guide-body");
+        body.textContent = "";
+        (page.sections || []).forEach(function (s) {
+          var sec = el("section", "guide-section");
+          sec.appendChild(el("h3", null, s.heading));
+          renderBlocks(sec, s.blocks);
+          body.appendChild(sec);
+        });
+
+        show("guide");
+      })
+      .catch(function (err) { fail(String(err && err.message ? err.message : err)); });
+  }
+
+  function openGuideIndex() {
+    window.go.gui.App.Guide()
+      .then(function (idx) {
+        $("btn-index-back").textContent = "← " + returnTo.label;
+
+        var list = $("guide-index-list");
+        list.textContent = "";
+        (idx.entries || []).forEach(function (e) {
+          var li = el("li", "index-entry");
+          var btn = el("button", "index-link");
+          btn.type = "button";
+          btn.appendChild(el("span", "check-name", e.rule_id + " · " + e.name));
+          btn.appendChild(el("span", "check-summary", e.summary));
+          if (e.has_page) {
+            btn.addEventListener("click", function () {
+              rememberReturn("guide-index", "All checks");
+              openGuide(e.rule_id, null);
+            });
+          } else {
+            btn.disabled = true;
+          }
+          li.appendChild(btn);
+          list.appendChild(li);
+        });
+
+        $("guide-index-planned").textContent = idx.planned_note || "";
+        show("guide-index");
+      })
+      .catch(function (err) { fail(String(err && err.message ? err.message : err)); });
+  }
+
+  function openAbout() {
+    window.go.gui.App.About()
+      .then(function (a) {
+        $("about-name").textContent = "About " + a.name;
+        $("about-tagline").textContent = a.tagline;
+        $("btn-about-back").textContent = "← " + returnTo.label;
+
+        var what = $("about-what");
+        what.textContent = "";
+        (a.what || []).forEach(function (s) { what.appendChild(el("p", "prose-p", s)); });
+
+        var priv = $("about-privacy");
+        priv.textContent = "";
+        (a.privacy || []).forEach(function (s) { priv.appendChild(el("p", "prose-p", s)); });
+
+        $("about-posture").textContent = a.posture;
+        $("about-coverage").textContent = a.coverage;
+        $("about-opensource").textContent = a.open_source;
+        $("about-version").textContent = a.version;
+        $("about-ruleset").textContent = a.ruleset_version;
+        $("about-schema").textContent = a.schema_version;
+
+        $("about-attribution").textContent = a.attribution + " — ";
+        var link = $("btn-about-link");
+        link.textContent = a.attribution_url;
+        link.onclick = function () {
+          // Handed to the operating system, never fetched here. The paragraph
+          // above this line promises no network calls.
+          window.go.gui.App.OpenExternal(a.attribution_url);
+        };
+
+        show("about");
+      })
+      .catch(function (err) { fail(String(err && err.message ? err.message : err)); });
   }
 
   // ------------------------------------------------------------ clean state
@@ -438,7 +621,18 @@
     $("dropzone").addEventListener("click", pickFile);
     $("btn-another").addEventListener("click", function () { show("home"); pickFile(); });
     $("btn-error-back").addEventListener("click", function () { show("home"); });
-    $("btn-about-back").addEventListener("click", function () { show(lastView); });
+
+    $("btn-guide-back").addEventListener("click", goBack);
+    $("btn-index-back").addEventListener("click", goBack);
+    $("btn-about-back").addEventListener("click", goBack);
+    $("btn-guide-index").addEventListener("click", function () {
+      rememberReturn("guide", "Guide");
+      openGuideIndex();
+    });
+    $("btn-about-index").addEventListener("click", function () {
+      rememberReturn("about", "About");
+      openGuideIndex();
+    });
 
     // Drag feedback only. The path itself arrives from the Go side, because a
     // webview's drop event exposes file contents but not a usable filesystem
@@ -463,7 +657,16 @@
 
     window.runtime.EventsOn("analysis:progress", onProgress);
     window.runtime.EventsOn("file:dropped", function (path) { analyze(path); });
-    window.runtime.EventsOn("nav:about", function () { show("about"); });
+    window.runtime.EventsOn("nav:about", function () {
+      var here = currentView();
+      if (here !== "about") rememberReturn(here, labelFor(here));
+      openAbout();
+    });
+    window.runtime.EventsOn("nav:guide", function () {
+      var here = currentView();
+      if (here !== "guide-index") rememberReturn(here, labelFor(here));
+      openGuideIndex();
+    });
     window.runtime.EventsOn("nav:open", function () { pickFile(); });
   }
 

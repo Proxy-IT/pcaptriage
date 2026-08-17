@@ -98,6 +98,10 @@ func appMenu(app *gui.App) *menu.Menu {
 	})
 
 	helpMenu := m.AddSubmenu("Help")
+	helpMenu.AddText("What does this tool check?", nil, func(*menu.CallbackData) {
+		wruntime.EventsEmit(appCtx(app), gui.EventShowGuide)
+	})
+	helpMenu.AddSeparator()
 	helpMenu.AddText("About pcaptriage", nil, func(*menu.CallbackData) {
 		wruntime.EventsEmit(appCtx(app), gui.EventShowAbout)
 	})

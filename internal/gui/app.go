@@ -33,6 +33,9 @@ const (
 	EventFileDropped = "file:dropped"
 	// EventShowAbout asks the frontend to show the about screen.
 	EventShowAbout = "nav:about"
+	// EventShowGuide asks the frontend to show the guide index, which is the
+	// in-app answer to "what does this tool check?".
+	EventShowGuide = "nav:guide"
 	// EventOpenRequested asks the frontend to start the file-picker flow.
 	EventOpenRequested = "nav:open"
 )
@@ -77,6 +80,11 @@ type App struct {
 	prefs       config.Preferences
 	prefsNotice string
 	prefsPath   string
+
+	// openExternal hands a URL to the operating system. Substituted in tests so
+	// the handoff can be asserted without launching a browser; nil in the real
+	// app, which uses the Wails runtime.
+	openExternal func(string)
 }
 
 // New returns an App.

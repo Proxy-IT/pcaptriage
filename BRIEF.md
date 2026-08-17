@@ -898,6 +898,12 @@ intent to reuse the heuristics engine in a commercial monitoring product, which
 is no longer the plan. With that gone, neither licence was load-bearing, and
 MIT was picked for simplicity.
 
+**The copyright line is duplicated into the app's Windows resources** —
+`wails.json` and `winres/winres.json`, from which the binary's version block is
+compiled. That copy said "Apache-2.0 licensed" for a while after the decision
+had been made, and nothing failed: it is not covered by any test and only shows
+up in the file's properties dialog. Change it with this section.
+
 ### Copyright ownership
 
 A DCO (Developer Certificate of Origin) on contributions is still worth having —

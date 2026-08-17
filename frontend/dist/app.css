@@ -512,7 +512,109 @@ h1, h2, h3 { letter-spacing: -0.01em; }
 }
 .build-note p { margin: 0; font-size: .85rem; color: var(--ink-muted); }
 
+/* ---------------- guide ---------------- */
+
+.guide { max-width: 52rem; margin: 0 auto; padding: 2.25rem 2rem 4rem; }
+.guide-nav { display: flex; gap: .5rem; flex-wrap: wrap; }
+.guide-crumb {
+  margin: 0 0 .15rem;
+  font-family: var(--mono);
+  font-size: .78rem;
+  color: var(--ink-muted);
+}
+
+/* The specific case, carried with the click. Visually distinct from the
+   general prose below so the reader can tell which is which at a glance. */
+.guide-context {
+  background: var(--wash);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--step-450);
+  border-radius: 6px;
+  padding: .85rem 1.1rem;
+  margin-bottom: 1.75rem;
+  user-select: text;
+}
+.guide-context h3 { font-size: .95rem; margin: 0; }
+.guide-context p { margin: .4rem 0 0; font-size: .9rem; }
+
+.guide-section { margin-bottom: 1.9rem; }
+.guide-section > h3 {
+  font-size: .78rem;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--ink-muted);
+  margin: 0 0 .55rem;
+  font-weight: 600;
+}
+
+/* Reading typography: the measure is constrained rather than following the
+   window, because a full-width paragraph is hard to track across on a maximised
+   window and this is prose meant to be read, not scanned. */
+.prose, .guide-section { max-width: 38rem; user-select: text; }
+.prose-p { margin: 0 0 .85rem; line-height: 1.65; }
+.prose-p:last-child { margin-bottom: 0; }
+.prose-list { margin: 0 0 .85rem; padding-left: 1.15rem; }
+.prose-list li { margin-bottom: .5rem; line-height: 1.6; }
+.prose-list li:last-child { margin-bottom: 0; }
+.guide-section em { font-style: italic; }
+
+/* The first two sections are the answer; they are never collapsible, so there
+   is no disclosure affordance on them at all. */
+
+.guide-link-row { margin: .7rem 0 0; }
+.linkish {
+  font: inherit;
+  font-size: .87rem;
+  color: var(--step-550);
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.linkish:hover { color: var(--sev-significant); }
+.linkish:focus-visible { outline: 2px solid var(--step-450); outline-offset: 2px; }
+
+/* ---------------- guide index ---------------- */
+
+.index-list { list-style: none; margin: 0; padding: 0; display: grid; gap: .6rem; }
+.index-entry { margin: 0; }
+.index-link {
+  display: block;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--step-450);
+  border-radius: 6px;
+  padding: .7rem .9rem;
+  cursor: pointer;
+}
+.index-link:hover:not(:disabled) { background: var(--wash); }
+.index-link:focus-visible { outline: 2px solid var(--step-450); outline-offset: 2px; }
+.index-link:disabled { cursor: default; border-left-color: var(--axis); opacity: .7; }
+
 /* ---------------- about / error ---------------- */
+
+.about-block { margin-top: 2rem; }
+.about-block > h3 {
+  font-size: .78rem;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--ink-muted);
+  margin: 0 0 .6rem;
+  font-weight: 600;
+}
+.about-attrib {
+  margin-top: 2.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--rule);
+  font-size: .87rem;
+  color: var(--ink-2);
+}
+.about-attrib-note { color: var(--ink-muted); font-size: .8rem; margin-left: .4rem; }
 
 .about-grid {
   display: grid;

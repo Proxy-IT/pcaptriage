@@ -119,23 +119,90 @@
   </div>
 </main>
 
-<!-- ==================== ABOUT (stub) ==================== -->
+<!-- ==================== GUIDE PAGE ==================== -->
+<main id="view-guide" class="view" hidden>
+  <div class="guide">
+    <header class="results-head">
+      <div>
+        <p class="guide-crumb"><span id="guide-rule-id"></span> · guide</p>
+        <h2 id="guide-title"></h2>
+      </div>
+      <div class="guide-nav">
+        <button type="button" id="btn-guide-back" class="btn"></button>
+        <button type="button" id="btn-guide-index" class="btn">All checks</button>
+      </div>
+    </header>
+
+    <!-- Present only when the reader arrived from a finding, so the general
+         explanation and their specific case share a screen. -->
+    <section id="guide-context" class="guide-context" hidden>
+      <h3 id="guide-context-title"></h3>
+      <p id="guide-context-observation"></p>
+      <p id="guide-context-frames" class="frames"></p>
+    </section>
+
+    <div id="guide-body" class="guide-body"></div>
+  </div>
+</main>
+
+<!-- ==================== GUIDE INDEX ==================== -->
+<main id="view-guide-index" class="view" hidden>
+  <div class="guide">
+    <header class="results-head">
+      <div>
+        <h2>What this tool checks</h2>
+        <p class="results-file">One entry per check. Each links to a fuller explanation.</p>
+      </div>
+      <button type="button" id="btn-index-back" class="btn"></button>
+    </header>
+
+    <ul id="guide-index-list" class="index-list"></ul>
+    <p id="guide-index-planned" class="caveat"></p>
+  </div>
+</main>
+
+<!-- ==================== ABOUT ==================== -->
 <main id="view-about" class="view" hidden>
   <div class="about">
     <header class="results-head">
-      <h2>About pcaptriage</h2>
-      <button type="button" id="btn-about-back" class="btn">Back</button>
+      <div>
+        <h2 id="about-name"></h2>
+        <p id="about-tagline" class="results-file"></p>
+      </div>
+      <div class="guide-nav">
+        <button type="button" id="btn-about-back" class="btn"></button>
+        <button type="button" id="btn-about-index" class="btn">What it checks</button>
+      </div>
     </header>
 
-    <dl class="about-grid">
-      <dt>Version</dt><dd id="about-version"></dd>
-      <dt>Ruleset</dt><dd id="about-ruleset"></dd>
-      <dt>Report schema</dt><dd id="about-schema"></dd>
-    </dl>
+    <div id="about-what" class="prose"></div>
 
-    <p class="stub">
-      Placeholder — the full about and help content is not written yet.
-    </p>
+    <section class="about-block">
+      <h3>Your data stays here</h3>
+      <div id="about-privacy" class="prose"></div>
+    </section>
+
+    <section class="about-block">
+      <h3>What it does and doesn't claim</h3>
+      <p id="about-posture" class="prose-p"></p>
+      <p id="about-coverage" class="prose-p"></p>
+    </section>
+
+    <section class="about-block">
+      <h3>Open source</h3>
+      <p id="about-opensource" class="prose-p"></p>
+      <dl class="about-grid">
+        <dt>Version</dt><dd id="about-version"></dd>
+        <dt>Ruleset</dt><dd id="about-ruleset"></dd>
+        <dt>Report schema</dt><dd id="about-schema"></dd>
+      </dl>
+    </section>
+
+    <footer class="about-attrib">
+      <span id="about-attribution"></span>
+      <button type="button" id="btn-about-link" class="linkish"></button>
+      <span class="about-attrib-note">opens in your browser</span>
+    </footer>
   </div>
 </main>
 
