@@ -22,7 +22,7 @@ body { min-height: 100%; }
 body {
   margin: 0;
   background: var(--page);
-  color: var(--ink);
+  color: var(--ink-primary);
   font-family: var(--font);
   font-size: var(--text-base);
   line-height: var(--leading);
@@ -146,7 +146,7 @@ h1, h2, h3 { letter-spacing: -0.01em; }
 }
 
 .identity h1 { font-size: 2rem; margin: 0; }
-.tagline { margin: .35rem 0 0; color: var(--ink-2); font-size: 1.02rem; }
+.tagline { margin: .35rem 0 0; color: var(--ink-secondary); font-size: 1.02rem; }
 
 .dropzone {
   display: flex;
@@ -157,7 +157,7 @@ h1, h2, h3 { letter-spacing: -0.01em; }
   margin: 2.25rem 0 0;
   padding: 2.5rem 2rem;
   background: var(--surface);
-  border: 2px dashed var(--axis);
+  border: 2px dashed var(--outline);
   border-radius: 10px;
   color: inherit;
   font: inherit;
@@ -175,7 +175,7 @@ h1, h2, h3 { letter-spacing: -0.01em; }
 .dz-primary { font-size: 1.08rem; font-weight: 600; }
 .dz-instruction {
   font-size: .9rem;
-  color: var(--ink-2);
+  color: var(--ink-secondary);
   max-width: 30rem;
   line-height: 1.5;
 }
@@ -188,7 +188,7 @@ h1, h2, h3 { letter-spacing: -0.01em; }
   border-left: 3px solid var(--accent);
   border-radius: var(--radius-note);
   font-size: .9rem;
-  color: var(--ink-2);
+  color: var(--ink-secondary);
   text-align: left;
 }
 
@@ -196,7 +196,7 @@ h1, h2, h3 { letter-spacing: -0.01em; }
    "something didn't work" message, but it is not an alarm and the tool has no
    severity vocabulary yet. */
 .prefs-notice {
-  border-left-color: var(--axis);
+  border-left-color: var(--outline);
   font-size: .85rem;
   word-break: break-word;
 }
@@ -218,7 +218,7 @@ h1, h2, h3 { letter-spacing: -0.01em; }
   font-size: .88rem;
 }
 .check-name { font-family: var(--mono); font-size: .8rem; color: var(--accent-strong); }
-.check-summary { display: block; color: var(--ink-2); margin-top: .1rem; }
+.check-summary { display: block; color: var(--ink-secondary); margin-top: .1rem; }
 .caveat { margin: .75rem 0 0; font-size: .82rem; color: var(--ink-muted); }
 
 /* ---------------- loading ---------------- */
@@ -234,7 +234,7 @@ h1, h2, h3 { letter-spacing: -0.01em; }
   margin: .3rem 0 1.75rem;
   font-family: var(--mono);
   font-size: .85rem;
-  color: var(--ink-2);
+  color: var(--ink-secondary);
   word-break: break-all;
 }
 
@@ -265,7 +265,7 @@ h1, h2, h3 { letter-spacing: -0.01em; }
 .loading-status {
   margin: .9rem 0 0;
   font-size: .9rem;
-  color: var(--ink-2);
+  color: var(--ink-secondary);
   font-variant-numeric: tabular-nums;
 }
 .loading-note { margin: 1.5rem 0 0; font-size: .82rem; color: var(--ink-muted); }
@@ -291,7 +291,7 @@ h1, h2, h3 { letter-spacing: -0.01em; }
   margin: .2rem 0 0;
   font-family: var(--mono);
   font-size: .82rem;
-  color: var(--ink-2);
+  color: var(--ink-secondary);
   word-break: break-all;
 }
 .posture-inline { margin-top: 0; margin-bottom: 1.25rem; }
@@ -301,8 +301,8 @@ h1, h2, h3 { letter-spacing: -0.01em; }
   font-size: .88rem;
   padding: .45rem .85rem;
   background: var(--surface);
-  color: var(--ink);
-  border: 1px solid var(--axis);
+  color: var(--ink-primary);
+  border: 1px solid var(--outline);
   border-radius: var(--radius-card);
   cursor: pointer;
   white-space: nowrap;
@@ -338,7 +338,7 @@ h1, h2, h3 { letter-spacing: -0.01em; }
 .finding .frames {
   font-family: var(--mono);
   font-size: .82rem;
-  color: var(--ink-2);
+  color: var(--ink-secondary);
 }
 .finding .frames .of { font-family: var(--font); color: var(--ink-muted); }
 .finding .next { font-size: .95rem; }
@@ -361,8 +361,8 @@ h1, h2, h3 { letter-spacing: -0.01em; }
 .tag-confirmed,
 .tag-inferred,
 .tag-unavailable {
-  color: var(--ink-2);
-  border: 1px solid var(--axis);
+  color: var(--ink-secondary);
+  border: 1px solid var(--outline);
   background: transparent;
 }
 .tag-inferred { border-style: dashed; }
@@ -381,7 +381,7 @@ h1, h2, h3 { letter-spacing: -0.01em; }
 }
 .tag-sev-informational {
   color: var(--sev-informational);
-  border-color: var(--axis);
+  border-color: var(--outline);
   background: var(--sev-informational-wash);
 }
 
@@ -389,7 +389,7 @@ h1, h2, h3 { letter-spacing: -0.01em; }
    without the reader having to read every badge. */
 .finding.sev-significant { border-left-color: var(--sev-significant); }
 .finding.sev-worth-noting { border-left-color: var(--sev-worth-noting); }
-.finding.sev-informational { border-left-color: var(--axis); }
+.finding.sev-informational { border-left-color: var(--outline); }
 
 /* ---------------- packet evidence ---------------- */
 
@@ -447,13 +447,13 @@ h1, h2, h3 { letter-spacing: -0.01em; }
 .pk-flagged { background: var(--wash); }
 .pk-flagged .pk-info { font-weight: 600; }
 .pk-flagged td:first-child { box-shadow: inset 2px 0 0 var(--accent); }
-.pk-context { color: var(--ink-2); }
+.pk-context { color: var(--ink-secondary); }
 
 .pk-note-row td { padding-top: 0; padding-bottom: .4rem; }
 .packet-table .pk-note {
   font-family: var(--font);
   font-size: .8rem;
-  color: var(--ink-2);
+  color: var(--ink-secondary);
   white-space: normal;
 }
 .pk-note-row.pk-flagged .pk-note { color: var(--accent-strong); }
@@ -479,9 +479,9 @@ h1, h2, h3 { letter-spacing: -0.01em; }
   border: 1px solid var(--border);
   border-radius: var(--radius-card);
   padding: 1.25rem;
-  color: var(--ink-2);
+  color: var(--ink-secondary);
 }
-.empty strong { color: var(--ink); }
+.empty strong { color: var(--ink-primary); }
 
 /* ---------------- clean-capture state ---------------- */
 
@@ -503,17 +503,17 @@ h1, h2, h3 { letter-spacing: -0.01em; }
 }
 .clean-headline.coverage-strong h3 { color: var(--ok); }
 .clean-headline h3 { font-size: 1.15rem; margin: 0; }
-.clean-headline p { margin: .45rem 0 0; color: var(--ink-2); font-size: .92rem; }
+.clean-headline p { margin: .45rem 0 0; color: var(--ink-secondary); font-size: .92rem; }
 
 .clean-minor {
   margin: .75rem 0 0;
   padding: .6rem .9rem;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-left: 3px solid var(--axis);
+  border-left: 3px solid var(--outline);
   border-radius: var(--radius-note);
   font-size: .87rem;
-  color: var(--ink-2);
+  color: var(--ink-secondary);
 }
 
 /* Two columns so "what was checked" and "what could not be" are read as a
@@ -548,7 +548,7 @@ h1, h2, h3 { letter-spacing: -0.01em; }
   border: 1px solid var(--border);
   border-radius: var(--radius-note);
   font-size: .88rem;
-  color: var(--ink-2);
+  color: var(--ink-secondary);
 }
 
 .notes-section, .build-note { margin-top: 2.25rem; }
@@ -563,7 +563,7 @@ h1, h2, h3 { letter-spacing: -0.01em; }
 .note {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-left: 3px solid var(--axis);
+  border-left: 3px solid var(--outline);
   border-radius: var(--radius-note);
   padding: .7rem .9rem;
   margin-bottom: .6rem;
@@ -675,7 +675,7 @@ h1, h2, h3 { letter-spacing: -0.01em; }
 /* The dimming and cursor change are real, but neither is the primary signal —
    see the "No guide yet" tag appended in app.js for why. Kept as reinforcement
    for a reader who has already learned to read them, not as the only cue. */
-.index-link:disabled { cursor: default; border-left-color: var(--axis); opacity: .7; }
+.index-link:disabled { cursor: default; border-left-color: var(--outline); opacity: .7; }
 .index-tag { margin-left: .5rem; vertical-align: middle; }
 
 /* A page serving several rules lists them inside its own row, so "one row"
@@ -709,7 +709,7 @@ h1, h2, h3 { letter-spacing: -0.01em; }
   padding-top: 1rem;
   border-top: 1px solid var(--rule);
   font-size: .87rem;
-  color: var(--ink-2);
+  color: var(--ink-secondary);
 }
 .about-attrib-note { color: var(--ink-muted); font-size: .8rem; margin-left: .4rem; }
 
@@ -724,7 +724,7 @@ h1, h2, h3 { letter-spacing: -0.01em; }
 .about-grid dd { margin: 0; font-family: var(--mono); font-size: .85rem; }
 .stub {
   background: var(--surface);
-  border: 1px dashed var(--axis);
+  border: 1px dashed var(--outline);
   border-radius: var(--radius-card);
   padding: .85rem 1rem;
   color: var(--ink-muted);
@@ -735,7 +735,7 @@ h1, h2, h3 { letter-spacing: -0.01em; }
 .errorbox h2 { font-size: 1.2rem; margin: 0 0 .5rem; }
 .error-message {
   margin: 0 0 1.5rem;
-  color: var(--ink-2);
+  color: var(--ink-secondary);
   user-select: text;
 }
 

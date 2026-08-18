@@ -59,7 +59,7 @@ func TestMissingFileIsNotAnError(t *testing.T) {
 func TestSaveThenLoadRoundTrips(t *testing.T) {
 	withConfigDir(t)
 
-	if err := Save(Preferences{Timezone: "Europe/London"}); err != nil {
+	if err := Save(Preferences{Timezone: "Europe/London", Theme: ThemeDark}); err != nil {
 		t.Fatalf("Save: %v", err)
 	}
 
@@ -72,6 +72,9 @@ func TestSaveThenLoadRoundTrips(t *testing.T) {
 	}
 	if res.Preferences.Timezone != "Europe/London" {
 		t.Errorf("timezone = %q", res.Preferences.Timezone)
+	}
+	if res.Preferences.Theme != ThemeDark {
+		t.Errorf("theme = %q, want %q", res.Preferences.Theme, ThemeDark)
 	}
 	if res.Preferences.Schema != SchemaVersion {
 		t.Errorf("schema = %d, want %d", res.Preferences.Schema, SchemaVersion)
@@ -88,7 +91,7 @@ func TestSaveThenLoadRoundTrips(t *testing.T) {
 	if !strings.HasSuffix(text, "\n") {
 		t.Error("the file does not end in a newline")
 	}
-	for _, want := range []string{`"schema"`, `"timezone"`} {
+	for _, want := range []string{`"schema"`, `"timezone"`, `"theme"`} {
 		if !strings.Contains(text, want) {
 			t.Errorf("file is missing %s:\n%s", want, text)
 		}
@@ -158,6 +161,36 @@ func TestUnknownTimezoneFallsBackAndSaysSo(t *testing.T) {
 	}
 }
 
+// TestUnknownThemeFallsBackAndSaysSo is TestUnknownTimezoneFallsBackAndSaysSo's
+// counterpart: a file that parses cleanly but names a theme this build does
+// not recognise (a value from a future version, or a typo) falls back to the
+// default rather than reaching the frontend as an opaque string no CSS rule
+// matches.
+func TestUnknownThemeFallsBackAndSaysSo(t *testing.T) {
+	withConfigDir(t)
+
+	path, _ := Path()
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	body, _ := json.Marshal(Preferences{Schema: SchemaVersion, Theme: "midnight"})
+	if err := os.WriteFile(path, body, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	res := Load()
+	if res.Preferences.Theme != ThemeLight {
+		t.Errorf("theme = %q, want %q", res.Preferences.Theme, ThemeLight)
+	}
+	if !strings.Contains(res.Notice, "theme") {
+		t.Errorf("notice does not explain the theme problem: %q", res.Notice)
+	}
+	after, _ := os.ReadFile(path)
+	if string(after) != string(body) {
+		t.Error("the file was rewritten; it must be left intact")
+	}
+}
+
 // TestPartialFileGetsDefaultsForMissingFields checks that a hand-edited file
 // with one key in it does not zero out everything else.
 func TestPartialFileGetsDefaultsForMissingFields(t *testing.T) {
@@ -177,6 +210,9 @@ func TestPartialFileGetsDefaultsForMissingFields(t *testing.T) {
 	}
 	if res.Preferences.Timezone != "UTC" {
 		t.Errorf("timezone = %q", res.Preferences.Timezone)
+	}
+	if res.Preferences.Theme != ThemeLight {
+		t.Errorf("theme = %q, want the default %q — a file that only sets timezone must not zero out theme", res.Preferences.Theme, ThemeLight)
 	}
 	if res.Preferences.Schema != SchemaVersion {
 		t.Errorf("schema = %d, want the default %d", res.Preferences.Schema, SchemaVersion)
@@ -227,6 +263,21 @@ func TestLocation(t *testing.T) {
 	}
 	if loc == nil {
 		t.Error("an unknown zone should still return a usable location")
+	}
+}
+
+// TestValidateTheme is TestLocation's counterpart for the other preference
+// SavePreferences rejects a bad value for: empty is not an error (no
+// preference asserted, same as an empty timezone), each recognised value
+// passes, and anything else is rejected before it reaches disk.
+func TestValidateTheme(t *testing.T) {
+	for _, theme := range []string{"", ThemeLight, ThemeDark, ThemeSystem} {
+		if err := (Preferences{Theme: theme}).ValidateTheme(); err != nil {
+			t.Errorf("ValidateTheme(%q) = %v, want nil", theme, err)
+		}
+	}
+	if err := (Preferences{Theme: "midnight"}).ValidateTheme(); err == nil {
+		t.Error("an unrecognised theme should report an error")
 	}
 }
 

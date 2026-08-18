@@ -13,7 +13,7 @@ body {
   margin: 0;
   padding: 2rem 1.5rem 4rem;
   background: var(--page);
-  color: var(--ink);
+  color: var(--ink-primary);
   font-family: var(--font);
   font-size: var(--text-base);
   line-height: var(--leading);
@@ -26,7 +26,7 @@ body {
 
 .masthead { border-bottom: 1px solid var(--rule); padding-bottom: 1.25rem; margin-bottom: 1.5rem; }
 .masthead h1 { font-size: 1.5rem; margin: 0 0 .35rem; letter-spacing: -0.01em; }
-.masthead .file { font-family: var(--mono); font-size: .85rem; color: var(--ink-2); word-break: break-all; }
+.masthead .file { font-family: var(--mono); font-size: .85rem; color: var(--ink-secondary); word-break: break-all; }
 .masthead .stamp { font-size: .8rem; color: var(--ink-muted); margin-top: .5rem; }
 
 .posture {
@@ -37,9 +37,9 @@ body {
   border-left: 3px solid var(--step-450);
   border-radius: var(--radius-note);
   font-size: .875rem;
-  color: var(--ink-2);
+  color: var(--ink-secondary);
 }
-.posture strong { color: var(--ink); }
+.posture strong { color: var(--ink-primary); }
 
 /* ---------- sections ---------- */
 
@@ -49,7 +49,7 @@ h2 {
   margin: 0 0 .3rem;
   letter-spacing: .02em;
   text-transform: uppercase;
-  color: var(--ink-2);
+  color: var(--ink-secondary);
 }
 h2 .count { color: var(--ink-muted); font-weight: 400; text-transform: none; letter-spacing: 0; }
 .section-note { margin: 0 0 1rem; font-size: .875rem; color: var(--ink-muted); max-width: 46rem; }
@@ -69,7 +69,7 @@ h2 .count { color: var(--ink-muted); font-weight: 400; text-transform: none; let
 .tile-label { font-size: .75rem; color: var(--ink-muted); }
 /* Proportional figures: tabular-nums makes a standalone value look loose. */
 .tile-value { font-size: 1.5rem; font-weight: 600; letter-spacing: -0.02em; margin-top: .1rem; }
-.tile-context { font-size: .78rem; color: var(--ink-2); margin-top: .15rem; }
+.tile-context { font-size: .78rem; color: var(--ink-secondary); margin-top: .15rem; }
 
 /* ---------- charts ---------- */
 
@@ -81,17 +81,17 @@ h2 .count { color: var(--ink-muted); font-weight: 400; text-transform: none; let
   margin: 0 0 1.25rem;
   overflow-x: auto;
 }
-.figure h3 { font-size: .85rem; margin: 0 0 .75rem; color: var(--ink-2); font-weight: 600; }
+.figure h3 { font-size: .85rem; margin: 0 0 .75rem; color: var(--ink-secondary); font-weight: 600; }
 .chart { display: block; max-width: 100%; height: auto; }
 /* The part-to-whole bar carries no text, so stretching it to the container is
    free; the bar charts stay at their natural size, where scaling would blow the
    axis labels up past body text. */
 .chart-stack { width: 100%; border-radius: 4px; }
 
-.chart .lbl { font-size: 12px; fill: var(--ink-2); font-family: var(--font); }
-.chart .val { font-size: 12px; fill: var(--ink); font-family: var(--font); font-variant-numeric: tabular-nums; }
-.chart .axis { stroke: var(--axis); stroke-width: 1; }
-.chart .threshold { stroke: var(--ink-2); stroke-width: 1; stroke-dasharray: 3 3; }
+.chart .lbl { font-size: 12px; fill: var(--ink-secondary); font-family: var(--font); }
+.chart .val { font-size: 12px; fill: var(--ink-primary); font-family: var(--font); font-variant-numeric: tabular-nums; }
+.chart .axis { stroke: var(--outline); stroke-width: 1; }
+.chart .threshold { stroke: var(--ink-secondary); stroke-width: 1; stroke-dasharray: 3 3; }
 
 /* Each ramp step is declared twice: `fill` paints the SVG mark, `background`
    paints the legend swatch that carries the same identity in HTML. One class
@@ -100,10 +100,10 @@ h2 .count { color: var(--ink-muted); font-weight: 400; text-transform: none; let
 .fill-mid    { fill: var(--step-400); background: var(--step-400); }
 .fill-soft   { fill: var(--step-250); background: var(--step-250); }
 
-.legend { display: flex; flex-wrap: wrap; gap: 1rem; margin-top: .75rem; font-size: .8rem; color: var(--ink-2); }
+.legend { display: flex; flex-wrap: wrap; gap: 1rem; margin-top: .75rem; font-size: .8rem; color: var(--ink-secondary); }
 .legend .key { display: inline-flex; align-items: center; gap: .4rem; }
 .swatch { width: 11px; height: 11px; border-radius: 2px; flex: none; }
-.legend .num { font-variant-numeric: tabular-nums; color: var(--ink); }
+.legend .num { font-variant-numeric: tabular-nums; color: var(--ink-primary); }
 .caption { margin: .7rem 0 0; font-size: .8rem; color: var(--ink-muted); }
 
 /* ---------- findings ---------- */
@@ -125,7 +125,7 @@ h2 .count { color: var(--ink-muted); font-weight: 400; text-transform: none; let
 }
 .finding h3 { font-size: 1rem; margin: 0; flex: 1 1 18rem; letter-spacing: -0.005em; }
 .observation { margin: .5rem 0 0; }
-.frames { margin: .55rem 0 0; font-family: var(--mono); font-size: .82rem; color: var(--ink-2); }
+.frames { margin: .55rem 0 0; font-family: var(--mono); font-size: .82rem; color: var(--ink-secondary); }
 .frames .of { font-family: var(--font); color: var(--ink-muted); }
 .next { margin: .55rem 0 0; font-size: .93rem; }
 .next b { font-weight: 600; }
@@ -147,8 +147,8 @@ h2 .count { color: var(--ink-muted); font-weight: 400; text-transform: none; let
 .tag-inferred,
 .tag-unavailable {
   background: transparent;
-  color: var(--ink-2);
-  border: 1px solid var(--axis);
+  color: var(--ink-secondary);
+  border: 1px solid var(--outline);
 }
 .tag-inferred { border-style: dashed; }
 .tag-rule { background: transparent; color: var(--ink-muted); border: 1px solid var(--rule); font-family: var(--mono); }
@@ -158,11 +158,11 @@ h2 .count { color: var(--ink-muted); font-weight: 400; text-transform: none; let
 .tag-sev { border: 1px solid; font-weight: 600; }
 .tag-sev-significant   { color: var(--sev-significant); border-color: var(--sev-significant); background: var(--sev-significant-wash); }
 .tag-sev-worth-noting  { color: var(--sev-worth-noting); border-color: var(--sev-worth-noting); background: var(--sev-worth-noting-wash); }
-.tag-sev-informational { color: var(--ink-2); border-color: var(--axis); background: var(--sev-informational-wash); }
+.tag-sev-informational { color: var(--ink-secondary); border-color: var(--outline); background: var(--sev-informational-wash); }
 
 .finding.sev-significant   { border-left-color: var(--sev-significant); }
 .finding.sev-worth-noting  { border-left-color: var(--sev-worth-noting); }
-.finding.sev-informational { border-left-color: var(--axis); }
+.finding.sev-informational { border-left-color: var(--outline); }
 
 @media print {
   /* Colour may not survive the printer, so the border weight carries the
@@ -185,7 +185,7 @@ td.mono, .subject { font-family: var(--mono); font-size: .82rem; }
 .note {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-left: 3px solid var(--axis);
+  border-left: 3px solid var(--outline);
   border-radius: var(--radius-note);
   padding: .7rem .9rem;
   margin: 0 0 .6rem;
@@ -214,17 +214,17 @@ td.mono, .subject { font-family: var(--mono); font-size: .82rem; }
 }
 .clean-banner.coverage-strong h3 { color: var(--ok); }
 .clean-banner h3 { font-size: 1.15rem; margin: 0; }
-.clean-banner p { margin: .45rem 0 0; color: var(--ink-2); font-size: .92rem; }
+.clean-banner p { margin: .45rem 0 0; color: var(--ink-secondary); font-size: .92rem; }
 
 .clean-minor {
   margin: .75rem 0 0;
   padding: .6rem .9rem;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-left: 3px solid var(--axis);
+  border-left: 3px solid var(--outline);
   border-radius: var(--radius-note);
   font-size: .87rem;
-  color: var(--ink-2);
+  color: var(--ink-secondary);
 }
 
 footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule); font-size: .8rem; color: var(--ink-muted); }

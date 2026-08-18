@@ -49,6 +49,13 @@ var previewVariant = flag.String("preview-variant", "", "construct an otherwise 
 //	about               the About page
 var previewLand = flag.String("preview-land", "", "open the preview on a view: guide-from-finding | guide-from-index | guide-index | r15-from-banner | about")
 
+// previewTheme overrides the resolved theme the preview's Info() stub
+// reports, so a dark render can be produced deterministically without
+// depending on whatever config.json happens to exist on the machine running
+// the test. Empty leaves whatever New() actually loaded, which is what
+// exercises the real preference path for a light render.
+var previewTheme = flag.String("preview-theme", "", "override the resolved theme in the preview: light | dark | system")
+
 // landingScript drives the preview into a secondary view after load.
 //
 // It clicks the real controls rather than manipulating the views directly, so
@@ -376,6 +383,32 @@ func TestInfoComesFromTheRuleRegistry(t *testing.T) {
 	}
 }
 
+// TestInfoCarriesTheResolvedTheme checks the one link in the theme chain this
+// package owns: whatever New() loaded into a.prefs.Theme reaches Info(),
+// which is what the frontend reads to call applyTheme() before the first
+// screen paints. A default-only test would pass even if Info() forgot to copy
+// the field, so this drives a real preference through config.Save first.
+func TestInfoCarriesTheResolvedTheme(t *testing.T) {
+	dir := t.TempDir()
+	if os.PathSeparator == '\\' {
+		t.Setenv("APPDATA", dir)
+	} else {
+		t.Setenv("XDG_CONFIG_HOME", dir)
+		t.Setenv("HOME", dir)
+	}
+
+	if got := New("test").Info().Theme; got != config.ThemeLight {
+		t.Errorf("with no preferences file, theme = %q, want the default %q", got, config.ThemeLight)
+	}
+
+	if err := config.Save(config.Preferences{Theme: config.ThemeDark}); err != nil {
+		t.Fatal(err)
+	}
+	if got := New("test").Info().Theme; got != config.ThemeDark {
+		t.Errorf("theme = %q, want %q (from the saved preference)", got, config.ThemeDark)
+	}
+}
+
 // TestPreferencesRoundTripThroughTheApp checks the binding surface the config
 // mechanism exists behind.
 func TestPreferencesRoundTripThroughTheApp(t *testing.T) {
@@ -537,7 +570,15 @@ func TestWritePreview(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	infoJSON, err := json.Marshal(app.Info())
+	info := app.Info()
+	switch *previewTheme {
+	case "":
+	case config.ThemeLight, config.ThemeDark, config.ThemeSystem:
+		info.Theme = *previewTheme
+	default:
+		t.Fatalf("unknown -preview-theme %q", *previewTheme)
+	}
+	infoJSON, err := json.Marshal(info)
 	if err != nil {
 		t.Fatal(err)
 	}

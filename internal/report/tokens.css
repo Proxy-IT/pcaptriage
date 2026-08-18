@@ -9,28 +9,87 @@
    is a byte-identical copy served to the webview, because Go's embed cannot
    reach across package directories; a test compares the two byte for byte, so
    editing one without the other fails the build rather than drifting silently.
-   Neither consumer stylesheet may declare a custom property of its own — that
-   is also enforced by test.
+   Neither consumer stylesheet may declare a custom property of its own, and
+   neither may reference a token this file does not declare — both enforced by
+   TestTokensAreTheSingleSourceOfThePalette.
 
-   Every text-on-background pair below is measured against WCAG AA by
-   TestPaletteMeetsContrastThresholds, which reads these declarations rather
-   than a copy of them. A value edited here to look better and left failing
-   breaks the build. */
+   Every text-on-background pair below is measured against WCAG AA, in both
+   themes, by TestPaletteMeetsContrastThresholds, which reads these
+   declarations rather than a copy of them. A value edited here to look better
+   and left failing breaks the build.
+
+   ---- theming ---------------------------------------------------------------
+
+   Every name below is what a colour is *for*, not what hue it happens to be —
+   that is what lets a theme swap the value underneath without touching a
+   consumer sheet, and it is why there is no token simply named for cyan or
+   teal: a name like that has already assumed the background it sits on, and
+   would be wrong the moment that background changed.
+   TestTokensAreTheSingleSourceOfThePalette bans exactly that shape of name.
+
+   Tokens fall into two groups:
+
+   - Theme-invariant: the top bar (--bar-*, always ink — dark mode does not
+     make it darker, because it is already the one dark surface, on every
+     screen, unconditionally), the chart ramp (--step-*, light-only, see
+     below), type and radii. Declared once, under :root, and never redeclared.
+   - Themed: everything a light or dark surface actually needs to differ on —
+     the neutrals, the identity accent, and severity. Declared under :root for
+     light (the default), then redeclared twice for dark: once gated on the OS
+     preference, once on an explicit choice. TestDarkOverridesAgreeWithEachOther
+     keeps the two from drifting apart.
+
+   The two dark selectors:
+
+     @media (prefers-color-scheme: dark) {
+       :root:not([data-theme="light"]) { ... }
+     }
+     :root[data-theme="dark"] { ... }
+
+   map onto the three-value theme preference (light/dark/system) exactly:
+   system sets no data-theme attribute at all, so only the OS-driven media
+   query can apply; light sets data-theme="light", which the :not() excludes
+   from the media query, so the base :root values stand regardless of the OS;
+   dark sets data-theme="dark", which applies unconditionally. No JavaScript
+   is needed for the system case — the browser's own media query does it.
+
+   The exported report is the one consumer that must never go dark, on
+   principle (BRIEF §3/4: a document that gets printed and attached to a
+   ticket has no "dark mode" to speak of) as well as by construction (a report
+   opened in a dark-mode browser must not silently render differently from the
+   same report opened in a light one — that would make the artifact
+   non-reproducible). template.html stamps data-theme="light" on its root
+   element for exactly this reason: it excludes the report from the media
+   query the same way an explicit light choice would in the app, so the report
+   is light regardless of what theme produced it or what browser opens it. */
 
 :root {
   /* ---- neutrals ----------------------------------------------------------
      Cool rather than the warm off-whites this file started with. The identity
      is a blue-green one and a warm page under it read as two unrelated
-     decisions sharing a screen. */
-  --page:      #f4f7f9;
-  --surface:   #fbfcfd;
-  --ink:       #15212e;
-  --ink-2:     #414e5a;
-  --ink-muted: #5f7183;
-  --rule:      #dce4e9;
-  --axis:      #b9c4cc;
-  --border:    rgba(21, 33, 46, 0.10);
-  --wash:      #f3f9fb;
+     decisions sharing a screen.
+
+     --ink-primary and --ink-secondary replace what were --ink and --ink-2 — a
+     bare ordinal, not a role, failing the same naming discipline a hue name
+     would: it says nothing about what the second ink is *for* until you
+     already know the first one exists. --page, --surface,
+     --ink-muted, --rule, --border and --wash keep their names: each already
+     says its own role (page background, card background, dimmest text,
+     divider line, hairline overlay, tinted panel) without needing the file
+     that declares them to explain it. --outline replaces what was the
+     chart-axis token for the same reason: it names where that token was first
+     needed (a chart's axis line) rather than what it is now used for
+     throughout both sheets — a muted structural border wherever one is
+     needed, chart or not. */
+  --page:          #f4f7f9;
+  --surface:       #fbfcfd;
+  --ink-primary:   #15212e;
+  --ink-secondary: #414e5a;
+  --ink-muted:     #5f7183;
+  --rule:          #dce4e9;
+  --outline:       #b9c4cc;
+  --border:        rgba(21, 33, 46, 0.10);
+  --wash:          #f3f9fb;
 
   /* ---- identity accent ---------------------------------------------------
      What the reader sees in content: links, rule IDs, the drop zone, the
@@ -54,6 +113,10 @@
      bar stays quiet, because guide pages are long-form prose and findings
      views are dense.
 
+     Theme-invariant (see the theming note above): the bar does not get darker
+     in dark mode because it is already the dark surface. It is declared once,
+     here, and never redeclared under either dark selector.
+
      --bar-surface-raised carries the active state's pill. It is deliberately
      a low-contrast lift (1.26:1) and is decorative — the active state is
      carried by the cyan, the weight, and aria-current, so the pill is never
@@ -72,7 +135,11 @@
      the severity scale below — a red bar would assert a verdict the figure
      has no basis for. Kept blue and kept apart from --accent: a chart is
      data, an accent is chrome, and a reader should not have to wonder
-     whether a teal bar means something. */
+     whether a teal bar means something.
+
+     Theme-invariant: charts render only in the exported report, which is
+     always light (see the theming note above), so there is no dark case for
+     this ramp to cover. */
   --step-550:  #1c5cab;
   --step-450:  #2a78d6;
   --step-400:  #3987e5;
@@ -86,10 +153,10 @@
      Contrast against --surface, measured: red 6.40:1, amber 5.28:1,
      neutral 7.73:1 — all clear of 4.5:1 for text. Colour is never the only
      carrier; the word rides beside it in every case. */
-  --sev-significant:      #b42318;
-  --sev-significant-wash: #fdf3f2;
-  --sev-worth-noting:     #b54708;
-  --sev-worth-noting-wash:#fdf6ee;
+  --sev-significant:        #b42318;
+  --sev-significant-wash:   #fdf3f2;
+  --sev-worth-noting:       #b54708;
+  --sev-worth-noting-wash:  #fdf6ee;
   --sev-informational:      #52514e;
   --sev-informational-wash: #f6f6f4;
 
@@ -103,13 +170,130 @@
 
   /* Base type. Component sizes are stated locally — the two surfaces are a
      document and an application and legitimately space themselves differently —
-     but the base they scale from is shared. */
+     but the base they scale from is shared. Theme-invariant: text does not
+     need to get bigger or looser-leaded because the background got darker. */
   --text-base: 15px;
   --leading:   1.55;
 
   /* Corner radii by visual family: cards, buttons and tables; notes and
-     banners; tags and code chips. */
+     banners; tags and code chips. Theme-invariant, for the same reason as
+     type: shape is not a colour decision. */
   --radius-card: 6px;
   --radius-note: 4px;
   --radius-tag:  3px;
+}
+
+/* ---- dark theme ------------------------------------------------------------
+
+   Only the themed subset above is redeclared here — the neutrals, the
+   identity accent, and severity. Everything theme-invariant (the bar, the
+   chart ramp, type, radii) is untouched: it already applies, unchanged, from
+   :root.
+
+   Neutrals reuse the bar's own values rather than inventing a second dark
+   family: --page is --bar-surface, --surface is --bar-surface-raised,
+   --ink-primary is --bar-ink-strong, --ink-secondary is --bar-ink,
+   --ink-muted is --bar-ink-muted. In dark mode the whole app becomes the
+   bar's ink, which is why the bar stops reading as a separate dark strip
+   sitting on a light page and instead reads as continuous with it — the same
+   surface the rest of the screen is now made of.
+
+   The identity accent is deliberately not --bar-accent. Cyan is reserved for
+   "you are here, in the bar" (Part 1) — reusing it for links and rule IDs in
+   dark content would blur that signal into decoration. --accent keeps the
+   light accent's hue (H 230° vs cyan's 204°) and raises lightness and chroma
+   until it clears AA against the dark neutrals: a brighter, distinctly
+   less-cyan teal, so the bar's active state stays the one thing in the app
+   that colour means.
+
+   --accent-strong took a second pass. Built the same way as --accent — same
+   hue, lightness and chroma raised together until AA cleared — it measured
+   C*ab 27 at L* 67, and in a rendered findings view (measured in-browser: the
+   two uses that cover real body-text area, "Show the packets" and "What does
+   R04 mean?", repeated once per card) it out-pulled the significant badge
+   1.48x to 1 — an accent beating severity to the eye, which is the one
+   outcome Part 1 was built to prevent.
+   So it stayed a light-mode-style "strong" rather than a naive dark-mode-
+   style one: --accent-strong is already lower-chroma than --accent in light
+   (C*ab 21 vs 26 — "strong" there means darker, not more saturated), and the
+   dark value follows that same relationship instead of reading "strong" as
+   "brighter and more saturated," which is what produced the imbalance.
+   Re-measured after the drop, same fixture, same browser: the badge pulls
+   1.20x the accent's weight, not the other way round — worse than light's
+   near-parity 1.04x, but the badge, not the accent, is again what the eye
+   lands on first.
+
+   Severity is re-derived, not just lightened: each level keeps its light-
+   theme hue and is raised in lightness and chroma until it clears 4.5:1
+   against --surface, and the relative "heat" ordering the light theme has —
+   significant redder and more saturated than worth-noting, both far more
+   saturated than the near-neutral informational — holds in the new values.
+   TestSeverityOrderingReadsHotter checks the hue and chroma relationship
+   directly, in both themes, rather than trusting the values by eye.
+   TestSeverityIsPerceptuallyDistinctFromNeutral covers the other half of the
+   same rule: the green --ok stays far enough in chroma from the neutral
+   family that "no colour" (the default, gappy-coverage state) and "green"
+   (the opt-in, strong-coverage state) cannot be mistaken for each other —
+   the same guarantee TestCleanBannerIsNeutralWhenCoverageIsGappy and
+   TestExportGappyCleanExportRendersNeutral hold at the markup level, checked
+   here at the level the eye actually reads. */
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --page:          #15212e;
+    --surface:       #24333f;
+    --ink-primary:   #f2f6f9;
+    --ink-secondary: #c8d4df;
+    --ink-muted:     #93a5b6;
+    --rule:          #2c3b4b;
+    --outline:       #3d4f5f;
+    --border:        rgba(242, 246, 249, 0.12);
+    --wash:          #1c2a37;
+
+    --accent:        #57aec3;
+    --accent-strong: #84a8b5;
+    --accent-wash:   #22394a;
+    --accent-veil:   rgba(87, 174, 195, 0.10);
+    --focus:         #84a8b5;
+    --focus-glow:    rgba(132, 168, 181, 0.26);
+    --on-accent:     #15212e;
+
+    --sev-significant:        #ff7a6c;
+    --sev-significant-wash:   #3a241f;
+    --sev-worth-noting:       #ffab5c;
+    --sev-worth-noting-wash:  #3a2c1c;
+    --sev-informational:      #aab8c4;
+    --sev-informational-wash: #212e39;
+    --ok:      #5fd39a;
+    --ok-wash: #16302a;
+  }
+}
+
+:root[data-theme="dark"] {
+  --page:          #15212e;
+  --surface:       #24333f;
+  --ink-primary:   #f2f6f9;
+  --ink-secondary: #c8d4df;
+  --ink-muted:     #93a5b6;
+  --rule:          #2c3b4b;
+  --outline:       #3d4f5f;
+  --border:        rgba(242, 246, 249, 0.12);
+  --wash:          #1c2a37;
+
+  --accent:        #57aec3;
+  --accent-strong: #84a8b5;
+  --accent-wash:   #22394a;
+  --accent-veil:   rgba(87, 174, 195, 0.10);
+  --focus:         #84a8b5;
+  --focus-glow:    rgba(132, 168, 181, 0.26);
+  --on-accent:     #15212e;
+
+  --sev-significant:        #ff7a6c;
+  --sev-significant-wash:   #3a241f;
+  --sev-worth-noting:       #ffab5c;
+  --sev-worth-noting-wash:  #3a2c1c;
+  --sev-informational:      #aab8c4;
+  --sev-informational-wash: #212e39;
+  --ok:      #5fd39a;
+  --ok-wash: #16302a;
 }

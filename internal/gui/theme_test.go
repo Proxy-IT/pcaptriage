@@ -81,3 +81,38 @@ func TestTheBarIsDarkOnEveryScreen(t *testing.T) {
 		}
 	}
 }
+
+// TestThemePreferenceAppliesBeforeFirstRender checks the frontend half of the
+// theme mechanism: applyTheme runs as soon as Info() resolves, before the home
+// screen is shown, and it sets data-theme only for the two values that need
+// it — "system" is deliberately left alone so tokens.css's own
+// @media (prefers-color-scheme: dark) answers it, with no JavaScript in the
+// loop at all.
+func TestThemePreferenceAppliesBeforeFirstRender(t *testing.T) {
+	js := readFrontend(t, "app.js")
+
+	fn := extractFunction(t, js, "applyTheme")
+	if !strings.Contains(fn, `setAttribute("data-theme"`) {
+		t.Error("applyTheme does not set data-theme for an explicit choice")
+	}
+	if !strings.Contains(fn, `removeAttribute("data-theme")`) {
+		t.Error(`applyTheme does not clear data-theme for "system" — ` +
+			"leaving a stale attribute would keep the reader on whichever theme was set before, not their OS preference")
+	}
+
+	start := extractFunction(t, js, "start")
+	call := regexp.MustCompile(`applyTheme\(\s*info\.theme\s*\)`)
+	if !call.MatchString(start) {
+		t.Error("start() does not call applyTheme(info.theme); the saved preference would never reach the screen")
+	}
+
+	// Applied from inside the Info()/Guide() .then(), not after renderHome —
+	// a theme set after the first paint is the flash this session's own
+	// applyTheme comment accepts as a known, narrow gap; setting it after
+	// content has already rendered would widen that gap for no reason.
+	callIdx := call.FindStringIndex(start)
+	renderIdx := strings.Index(start, "renderHome(")
+	if callIdx == nil || renderIdx < 0 || callIdx[0] > renderIdx {
+		t.Error("applyTheme is not called before renderHome; the theme would apply after the first screen already painted")
+	}
+}

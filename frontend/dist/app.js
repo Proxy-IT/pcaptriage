@@ -118,6 +118,27 @@
     return { home: "Home", findings: "Findings", guide: "Guide", "guide-index": "All checks", about: "About" }[view] || "Back";
   }
 
+  // applyTheme sets or clears data-theme on the root element from the
+  // resolved preference. "system" asks for nothing here — it is the one
+  // value tokens.css answers on its own, through
+  // @media (prefers-color-scheme: dark), so leaving the attribute unset is
+  // the correct behaviour for it, not a missing case. "light" and "dark" each
+  // set the attribute their own selector in tokens.css keys on.
+  //
+  // Called once Info() resolves, which is after first paint — a reader whose
+  // explicit choice disagrees with their OS can see one brief flash of the
+  // wrong theme before this runs. Accepted rather than engineered around: it
+  // requires an explicit dark or light choice, which nothing in this build
+  // can make yet (BACKLOG's settings-UI item), so nobody can hit it by using
+  // the app normally today.
+  function applyTheme(theme) {
+    if (theme === "light" || theme === "dark") {
+      document.documentElement.setAttribute("data-theme", theme);
+    } else {
+      document.documentElement.removeAttribute("data-theme");
+    }
+  }
+
   // ---------------------------------------------------------------- helpers
 
   function el(tag, className, text) {
@@ -838,6 +859,8 @@
       .then(function (results) {
         info = results[0];
         var idx = results[1];
+
+        applyTheme(info.theme);
 
         (idx.entries || []).forEach(function (e) {
           if (!e.has_page) return;

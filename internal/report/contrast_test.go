@@ -3,7 +3,6 @@ package report
 import (
 	"fmt"
 	"math"
-	"regexp"
 	"strconv"
 	"strings"
 	"testing"
@@ -21,18 +20,46 @@ const (
 	aaUI   = 3.0
 )
 
-// tokenColour pulls one declared value out of tokens.css. Reading the sheet
+// themedTokens resolves every token to the value it has under theme, the same
+// way a browser's cascade would: dark starts from the light declarations and
+// overlays whatever the [data-theme="dark"] block redeclares, so a
+// theme-invariant token (the bar, the chart ramp, type, radii) still resolves
+// correctly even though dark never mentions it.
+//
+// Reading the explicit [data-theme="dark"] block rather than the OS-media-
+// query one is arbitrary but not a gap: TestDarkOverridesAgreeWithEachOther
+// is what guarantees the two agree, so this test does not need to check both.
+func themedTokens(t *testing.T, theme string) map[string]string {
+	t.Helper()
+	src := stripCSSComments(tokensSource)
+
+	light := declarationsIn(t, src, `:root \{`)
+	if theme == "light" {
+		return light
+	}
+
+	dark := declarationsIn(t, src, `:root\[data-theme="dark"\] \{`)
+	merged := make(map[string]string, len(light))
+	for k, v := range light {
+		merged[k] = v
+	}
+	for k, v := range dark {
+		merged[k] = v
+	}
+	return merged
+}
+
+// tokenColour pulls one token's resolved value for theme. Reading the sheet
 // rather than restating the hexes is the whole point — a table of expected
 // values here would be a second source of the palette, which is the thing
 // tokens.css exists to prevent.
-func tokenColour(t *testing.T, name string) string {
+func tokenColour(t *testing.T, theme, name string) string {
 	t.Helper()
-	re := regexp.MustCompile(`(?m)^\s*--` + regexp.QuoteMeta(name) + `\s*:\s*([^;]+);`)
-	m := re.FindStringSubmatch(tokensSource)
-	if m == nil {
-		t.Fatalf("tokens.css declares no --%s", name)
+	v, ok := themedTokens(t, theme)[name]
+	if !ok {
+		t.Fatalf("tokens.css declares no --%s resolvable under theme %q", name, theme)
 	}
-	return strings.TrimSpace(m[1])
+	return v
 }
 
 // srgbToLinear inverts the sRGB transfer function, per WCAG's definition of
@@ -104,12 +131,13 @@ func ratio(fg, bg [3]float64) float64 {
 	return (lf + 0.05) / (lb + 0.05)
 }
 
-// contrast resolves two token names and returns their ratio. Translucent
-// foregrounds composite over the background being measured against.
-func contrast(t *testing.T, fg, bg string) float64 {
+// contrast resolves two token names under theme and returns their ratio.
+// Translucent foregrounds composite over the background being measured
+// against.
+func contrast(t *testing.T, theme, fg, bg string) float64 {
 	t.Helper()
-	bgc := parseColour(t, tokenColour(t, bg), [3]float64{1, 1, 1})
-	fgc := parseColour(t, tokenColour(t, fg), bgc)
+	bgc := parseColour(t, tokenColour(t, theme, bg), [3]float64{1, 1, 1})
+	fgc := parseColour(t, tokenColour(t, theme, fg), bgc)
 	return ratio(fgc, bgc)
 }
 
@@ -119,18 +147,21 @@ type pair struct {
 	what   string
 }
 
-// lightPairs is every text-on-background and meaningful-boundary combination
-// the light theme actually renders. Kept as data so Part 2's dark theme extends
-// the table rather than forking the test.
-func lightPairs() []pair {
+// themedPairs is every text-on-background and meaningful-boundary combination
+// the app's own content renders — the tokens that actually change between
+// light and dark. Kept as data, checked against both themes' resolved values,
+// so dark extends this table rather than forking the test: one set of pairs
+// that must hold whichever theme is in force, exactly the shape 2b's brief
+// asks for ("extend it rather than duplicating it").
+func themedPairs() []pair {
 	return []pair{
 		// Body text, everywhere it lands.
-		{"ink", "page", aaBody, "primary text on the page"},
-		{"ink", "surface", aaBody, "primary text on a card"},
-		{"ink", "wash", aaBody, "primary text on a tinted panel"},
-		{"ink-2", "page", aaBody, "secondary text on the page"},
-		{"ink-2", "surface", aaBody, "secondary text on a card"},
-		{"ink-2", "wash", aaBody, "secondary text on a tinted panel"},
+		{"ink-primary", "page", aaBody, "primary text on the page"},
+		{"ink-primary", "surface", aaBody, "primary text on a card"},
+		{"ink-primary", "wash", aaBody, "primary text on a tinted panel"},
+		{"ink-secondary", "page", aaBody, "secondary text on the page"},
+		{"ink-secondary", "surface", aaBody, "secondary text on a card"},
+		{"ink-secondary", "wash", aaBody, "secondary text on a tinted panel"},
 		{"ink-muted", "page", aaBody, "muted text on the page"},
 		{"ink-muted", "surface", aaBody, "muted text on a card"},
 		{"ink-muted", "wash", aaBody, "muted text on a tinted panel"},
@@ -178,17 +209,16 @@ func barPairs() []pair {
 	}
 }
 
+// TestPaletteMeetsContrastThresholds checks every themed pair under both
+// themes, and the bar pairs once — the bar is theme-invariant (see tokens.css:
+// dark mode does not redeclare it, because it is already the dark surface),
+// so its ratios cannot differ by theme and checking it under "dark" as well
+// would only re-run the identical arithmetic under a different label.
 func TestPaletteMeetsContrastThresholds(t *testing.T) {
-	for _, group := range []struct {
-		name  string
-		pairs []pair
-	}{
-		{"light", lightPairs()},
-		{"bar", barPairs()},
-	} {
-		t.Run(group.name, func(t *testing.T) {
-			for _, p := range group.pairs {
-				got := contrast(t, p.fg, p.bg)
+	for _, theme := range []string{"light", "dark"} {
+		t.Run(theme, func(t *testing.T) {
+			for _, p := range themedPairs() {
+				got := contrast(t, theme, p.fg, p.bg)
 				if got < p.min {
 					t.Errorf("--%s on --%s is %.2f:1, want at least %.1f:1 (%s)",
 						p.fg, p.bg, got, p.min, p.what)
@@ -196,26 +226,232 @@ func TestPaletteMeetsContrastThresholds(t *testing.T) {
 			}
 		})
 	}
+	t.Run("bar", func(t *testing.T) {
+		for _, p := range barPairs() {
+			got := contrast(t, "light", p.fg, p.bg)
+			if got < p.min {
+				t.Errorf("--%s on --%s is %.2f:1, want at least %.1f:1 (%s)",
+					p.fg, p.bg, got, p.min, p.what)
+			}
+		}
+	})
 }
 
-// TestContrastReport prints the measured table. Not an assertion — the
-// checkpoint report has to quote real numbers, and re-deriving them by hand
-// each time is how a stale figure ends up in a document.
+// TestContrastReport prints the measured table for both themes. Not an
+// assertion — the checkpoint report has to quote real numbers, and
+// re-deriving them by hand each time is how a stale figure ends up in a
+// document.
 func TestContrastReport(t *testing.T) {
 	if !testing.Verbose() {
 		t.Skip("run with -v to print the contrast table")
 	}
-	for _, group := range []struct {
-		name  string
-		pairs []pair
-	}{
-		{"light surfaces", lightPairs()},
-		{"ink bar", barPairs()},
-	} {
-		fmt.Printf("\n%s\n", strings.ToUpper(group.name))
-		for _, p := range group.pairs {
+	for _, theme := range []string{"light", "dark"} {
+		fmt.Printf("\n%s THEME\n", strings.ToUpper(theme))
+		for _, p := range themedPairs() {
 			fmt.Printf("  %-44s %5.2f:1  (min %.1f)  %s\n",
-				"--"+p.fg+" on --"+p.bg, contrast(t, p.fg, p.bg), p.min, p.what)
+				"--"+p.fg+" on --"+p.bg, contrast(t, theme, p.fg, p.bg), p.min, p.what)
 		}
+	}
+	fmt.Printf("\nINK BAR (theme-invariant)\n")
+	for _, p := range barPairs() {
+		fmt.Printf("  %-44s %5.2f:1  (min %.1f)  %s\n",
+			"--"+p.fg+" on --"+p.bg, contrast(t, "light", p.fg, p.bg), p.min, p.what)
+	}
+}
+
+// ---------------------------------------------------------------- perceptual
+//
+// Contrast ratio answers "can this be read". It does not answer "does this
+// look like the colour it is supposed to be" — a ratio is computed from
+// luminance alone, so a saturated red and a desaturated brown at the same
+// luminance score identically. Severity's two informal rules — "significant
+// reads hotter than worth-noting reads hotter than informational" and
+// "neutral is not green" — are both claims about how a colour *looks*, which
+// needs CIELAB, not WCAG. These two tests are what make Part 1 and 2b's
+// colour-science reasoning (chroma, hue) checkable rather than eyeballed —
+// the same measurements used to derive the dark palette, run here as
+// assertions against whatever the tokens actually declare.
+
+// labChannel and its inverse implement CIE L*a*b* via the standard D65 path,
+// matching the arithmetic used throughout this session's colour derivation
+// (and the browser-side measurements from Part 1's checkpoint).
+func labChannel(t float64) float64 {
+	const delta = 6.0 / 29.0
+	if t > delta*delta*delta {
+		return math.Cbrt(t)
+	}
+	return t/(3*delta*delta) + 4.0/29.0
+}
+
+// lab converts an sRGB hex colour to CIE L*a*b*, returning L*, a*, b*.
+func lab(t *testing.T, hex string) (l, a, b float64) {
+	t.Helper()
+	ch := parseColour(t, hex, [3]float64{1, 1, 1})
+	r, g, bl := srgbToLinear(ch[0]), srgbToLinear(ch[1]), srgbToLinear(ch[2])
+
+	x := r*0.4124 + g*0.3576 + bl*0.1805
+	y := r*0.2126 + g*0.7152 + bl*0.0722
+	z := r*0.0193 + g*0.1192 + bl*0.9505
+
+	const xn, yn, zn = 0.95047, 1.0, 1.08883
+	fx, fy, fz := labChannel(x/xn), labChannel(y/yn), labChannel(z/zn)
+
+	l = 116*fy - 16
+	a = 500 * (fx - fy)
+	b = 200 * (fy - fz)
+	return
+}
+
+// chroma is CIELAB's C*ab: how far a colour sits from grey, independent of
+// how light or dark it is. This is what "saturated" means numerically.
+func chroma(t *testing.T, hex string) float64 {
+	_, a, b := lab(t, hex)
+	return math.Hypot(a, b)
+}
+
+// hue is CIELAB's h_ab in degrees, 0-360. Meaningless at zero chroma (a grey
+// has no hue), which is why every use of it below is paired with a chroma
+// floor first.
+func hue(t *testing.T, hex string) float64 {
+	_, a, b := lab(t, hex)
+	d := math.Atan2(b, a) * 180 / math.Pi
+	if d < 0 {
+		d += 360
+	}
+	return d
+}
+
+// hotChroma is the floor a severity colour must clear to read as "hot" —
+// saturated and warm — rather than a tinted neutral. informationalCeiling is
+// the ceiling the neutral level must stay under.
+//
+// 30 rather than a rounder number: it is set just below the least-saturated
+// of the four real "hot" values across both themes (light --ok, C*ab 38.8 —
+// green is the hardest hue to make both AA-legible and highly saturated at
+// once, so it is the tightest fit of the four, not amber or red), with margin
+// kept below it rather than raised to meet a round number, and every other
+// hot value (65-71 light, 57-59 dark) clears it with room to spare. The gap
+// to informationalCeiling stays wide (30 vs 20 against real informational
+// values of 1.9-8.1) because this is a legibility signal, not a threshold
+// meant to be approached.
+const (
+	hotChroma            = 30.0
+	informationalCeiling = 20.0
+)
+
+// TestSeverityOrderingReadsHotter checks the "significant reads hotter than
+// worth-noting reads hotter than informational" rule directly, in both
+// themes, rather than trusting it holds because the light values were chosen
+// by eye and the dark values were derived to match.
+//
+// "Hotter" is operationalised as two independent claims, both of which must
+// hold: significant and worth-noting are both clearly saturated (chroma
+// clears hotChroma) while informational is clearly not (chroma stays under
+// informationalCeiling) — the chroma gap that reads as "warm colour" versus
+// "no colour" — and between the two warm levels, significant sits at a lower
+// hue angle than worth-noting, i.e. closer to red than to amber, which is the
+// specific way redder reads hotter than more-orange on this part of the wheel.
+func TestSeverityOrderingReadsHotter(t *testing.T) {
+	for _, theme := range []string{"light", "dark"} {
+		t.Run(theme, func(t *testing.T) {
+			sig := tokenColour(t, theme, "sev-significant")
+			wn := tokenColour(t, theme, "sev-worth-noting")
+			info := tokenColour(t, theme, "sev-informational")
+
+			cSig, cWn, cInfo := chroma(t, sig), chroma(t, wn), chroma(t, info)
+			if cSig < hotChroma {
+				t.Errorf("sev-significant (%s) has chroma %.1f, wanted >= %.1f — it does not read as saturated", sig, cSig, hotChroma)
+			}
+			if cWn < hotChroma {
+				t.Errorf("sev-worth-noting (%s) has chroma %.1f, wanted >= %.1f — it does not read as saturated", wn, cWn, hotChroma)
+			}
+			if cInfo >= informationalCeiling {
+				t.Errorf("sev-informational (%s) has chroma %.1f, wanted < %.1f — it reads as coloured, not neutral", info, cInfo, informationalCeiling)
+			}
+
+			hSig, hWn := hue(t, sig), hue(t, wn)
+			if hSig >= hWn {
+				t.Errorf("sev-significant hue %.1f°  is not below sev-worth-noting hue %.1f° — significant no longer reads redder/hotter", hSig, hWn)
+			}
+		})
+	}
+}
+
+// TestSeverityIsPerceptuallyDistinctFromNeutral is the neutral-not-green rule,
+// checked at the level the eye actually reads rather than at the level of
+// which CSS class rendered.
+//
+// TestCleanBannerIsNeutralWhenCoverageIsGappy and the export's equivalent
+// already prove the *class* is withheld correctly — a gappy clean result never
+// carries "coverage-strong", in either theme, because the class only exists in
+// the markup and does not vary with which theme resolves its colours. What
+// those tests cannot show is whether the fallback a reader actually sees when
+// the class is absent could be mistaken for green. This test closes that gap:
+// --ok must stay clearly saturated and green-hued, and --sev-informational
+// (what "no colour" actually looks like on this card) must stay clearly
+// desaturated, in both themes — so the two states cannot converge by
+// coincidence of a future palette edit.
+func TestSeverityIsPerceptuallyDistinctFromNeutral(t *testing.T) {
+	const greenHueMin, greenHueMax = 100.0, 180.0
+
+	for _, theme := range []string{"light", "dark"} {
+		t.Run(theme, func(t *testing.T) {
+			ok := tokenColour(t, theme, "ok")
+			info := tokenColour(t, theme, "sev-informational")
+
+			cOk, cInfo := chroma(t, ok), chroma(t, info)
+			if cOk < hotChroma {
+				t.Errorf("--ok (%s) has chroma %.1f, wanted >= %.1f — the strong-coverage colour barely reads as coloured at all", ok, cOk, hotChroma)
+			}
+			if cInfo >= informationalCeiling {
+				t.Errorf("--sev-informational (%s) has chroma %.1f, wanted < %.1f — the neutral fallback reads as coloured, "+
+					"which is exactly what could be mistaken for the green it must not be", info, cInfo, informationalCeiling)
+			}
+
+			hOk := hue(t, ok)
+			if hOk < greenHueMin || hOk > greenHueMax {
+				t.Errorf("--ok (%s) has hue %.1f°, outside the green range [%.0f, %.0f] — "+
+					"it no longer reads as the colour its name promises", ok, hOk, greenHueMin, greenHueMax)
+			}
+		})
+	}
+}
+
+// TestAccentStaysQuieterThanSeverity is a cheap, permanent proxy for a
+// measurement this package cannot make itself.
+//
+// The real claim — does the identity accent out-pull the significant badge
+// to the eye, in a rendered findings view — depends on how much text area
+// each colour actually covers on screen, which depends on the DOM, the
+// fixture, and the browser rendering it; no Go test here can compute that
+// (BACKLOG's "screenshot/visual verification gap" already names this class of
+// limitation, and it applied exactly this session: dark mode's
+// --accent-strong shipped once at C*ab 27, was measured in a real browser
+// against a real findings view, found to out-pull the significant badge
+// 1.48x to 1, and was brought down to C*ab 14 — see the derivation comment in
+// tokens.css for the full account and the re-measured 1.20x-the-other-way
+// result).
+//
+// What this test can hold, cheaply and permanently, is the qualitative
+// version of the same rule: the accent must never be *as saturated as* a
+// severity colour, in either theme. That would not by itself have caught this
+// session's regression (27 is still under hotChroma's 30), but it catches the
+// coarser mistake a future edit is more likely to make — reaching for a
+// vivid, fully-saturated accent the way the identity's own reference palette
+// almost did — and it is the ceiling every accent value this session derived
+// actually respects, light and dark alike.
+func TestAccentStaysQuieterThanSeverity(t *testing.T) {
+	for _, theme := range []string{"light", "dark"} {
+		t.Run(theme, func(t *testing.T) {
+			for _, name := range []string{"accent", "accent-strong"} {
+				hex := tokenColour(t, theme, name)
+				c := chroma(t, hex)
+				if c >= hotChroma {
+					t.Errorf("--%s (%s) has chroma %.1f, wanted < %.1f (severity's own saturation floor) — "+
+						"an accent this saturated risks outpulling the badge it must never compete with",
+						name, hex, c, hotChroma)
+				}
+			}
+		})
 	}
 }

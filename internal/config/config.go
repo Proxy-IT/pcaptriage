@@ -37,6 +37,22 @@ const FileName = "config.json"
 // time. Silently defaulting to UTC turns a five-minute correlation into an hour.
 const TimezoneLocal = "local"
 
+// Theme preference values.
+//
+// ThemeLight is the default. Dark mode is real, tested and shipped this
+// session, but it is also new: the severity palette carries safety-relevant
+// meaning (which finding to look at first), and that palette has had far less
+// real-capture exposure in its dark form than in light. ThemeSystem would
+// silently opt every dark-OS user in on first launch, before any of them have
+// chosen pcaptriage's dark mode specifically — the wrong default for a build
+// where "do it properly or defer it" is the standard the palette was held to.
+// A user who wants dark, in either form, still has it one edit away.
+const (
+	ThemeLight  = "light"
+	ThemeDark   = "dark"
+	ThemeSystem = "system"
+)
+
 // Preferences is the whole of what the app stores.
 //
 // Every field must be safe to hand-edit and safe to be missing: a preferences
@@ -49,6 +65,13 @@ type Preferences struct {
 	// Not yet wired into report rendering — this session establishes the
 	// mechanism, not the feature.
 	Timezone string `json:"timezone"`
+	// Theme is ThemeLight, ThemeDark, or ThemeSystem.
+	//
+	// Not yet wired to a settings control — this session establishes the
+	// mechanism and applies the resolved value at startup, the same state the
+	// timezone preference has been in since it was added (see BACKLOG.md's
+	// App preferences item for the still-open UI work).
+	Theme string `json:"theme"`
 }
 
 // Defaults returns the preferences used when no file exists, or when the file
@@ -57,7 +80,23 @@ func Defaults() Preferences {
 	return Preferences{
 		Schema:   SchemaVersion,
 		Timezone: TimezoneLocal,
+		Theme:    ThemeLight,
 	}
+}
+
+// validTheme reports whether s is one of the recognised theme values.
+func validTheme(s string) bool {
+	return s == ThemeLight || s == ThemeDark || s == ThemeSystem
+}
+
+// ValidateTheme reports an error when Theme is set to something this build
+// does not recognise. An empty Theme is not an error — like an empty
+// Timezone, it means no preference is being asserted, not an invalid one.
+func (p Preferences) ValidateTheme() error {
+	if p.Theme == "" || validTheme(p.Theme) {
+		return nil
+	}
+	return fmt.Errorf("theme %q is not one of %s, %s, %s", p.Theme, ThemeLight, ThemeDark, ThemeSystem)
 }
 
 // Location resolves the timezone preference to a *time.Location.
@@ -144,6 +183,9 @@ func Load() Result {
 	if got.Timezone != "" {
 		prefs.Timezone = got.Timezone
 	}
+	if got.Theme != "" {
+		prefs.Theme = got.Theme
+	}
 	if got.Schema != 0 {
 		prefs.Schema = got.Schema
 	}
@@ -153,6 +195,16 @@ func Load() Result {
 			"The preferences file at %s asks for a timezone this machine does not have, so local time is in use. It has been left unchanged. (%v)",
 			path, err)
 		prefs.Timezone = TimezoneLocal
+	}
+
+	// Same shape as the timezone check: a value the file did set, but that
+	// this build does not recognise, falls back rather than reaching the
+	// frontend as an opaque string CSS has no rule for.
+	if !validTheme(prefs.Theme) {
+		res.Notice = fmt.Sprintf(
+			"The preferences file at %s asks for a theme this build does not recognise (%q), so %s is in use. It has been left unchanged.",
+			path, prefs.Theme, ThemeLight)
+		prefs.Theme = ThemeLight
 	}
 
 	if prefs.Schema > SchemaVersion {

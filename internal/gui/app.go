@@ -148,6 +148,10 @@ type AppInfo struct {
 	// defaults are in force. Shown on the home screen: a setting silently not
 	// applying is the kind of thing a user discovers much later and mistrusts.
 	PreferencesNotice string `json:"preferences_notice,omitempty"`
+	// Theme is the resolved preference: "light", "dark", or "system". Read at
+	// startup, before the first view paints, so the frontend can set
+	// data-theme before the reader sees anything — see start() in app.js.
+	Theme string `json:"theme"`
 }
 
 // CheckInfo describes one implemented rule for the home screen.
@@ -180,6 +184,7 @@ func (a *App) Info() AppInfo {
 		ImplementedChecks: out,
 		TotalV1Rules:      15,
 		PreferencesNotice: a.prefsNotice,
+		Theme:             a.prefs.Theme,
 	}
 }
 
@@ -202,11 +207,14 @@ func (a *App) Preferences() PreferencesInfo {
 
 // SavePreferences validates and writes the preferences.
 //
-// A timezone this machine does not know is rejected here rather than written
-// and quietly ignored later, so the caller finds out while it can still be
-// corrected.
+// A timezone this machine does not know, or a theme this build does not
+// recognise, is rejected here rather than written and quietly ignored later,
+// so the caller finds out while it can still be corrected.
 func (a *App) SavePreferences(p config.Preferences) error {
 	if _, err := p.Location(); err != nil {
+		return err
+	}
+	if err := p.ValidateTheme(); err != nil {
 		return err
 	}
 	if err := config.Save(p); err != nil {

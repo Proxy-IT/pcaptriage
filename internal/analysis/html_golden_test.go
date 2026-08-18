@@ -38,6 +38,17 @@ func renderFixtureHTML(t *testing.T, name, format string) []byte {
 
 // TestHTMLGolden pins the rendered report for every fixture, so a change to
 // layout, wording or a chart shows up as a reviewable diff.
+//
+// Light-only, deliberately, and this is the documented reason the visual-
+// identity brief's "every render test runs in both themes, or a documented
+// reason a specific one is light-only" asks for: the export is not themed at
+// all. template.html stamps data-theme="light" on its root element (see
+// TestExportedHTMLLocksToLightTheme in internal/report), which is what keeps
+// a report looking the same to everyone who opens it regardless of their
+// browser's OS theme — the exact property a report needs and an app screen
+// does not. Rendering these goldens under "dark" would not exercise a real
+// state the tool can produce; it would exercise a state the tool goes out of
+// its way to prevent.
 func TestHTMLGolden(t *testing.T) {
 	if *update {
 		if err := os.MkdirAll(synth.GoldenDir(), 0o755); err != nil {

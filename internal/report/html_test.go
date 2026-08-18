@@ -139,6 +139,34 @@ func TestHTMLIsSelfContained(t *testing.T) {
 	}
 }
 
+// TestExportedHTMLLocksToLightTheme is the interim half of Part 3's "the
+// export is always light" rule, landed now rather than left as a known gap
+// until Part 3.
+//
+// tokens.css gained dark values this session, activated either by an explicit
+// choice or by @media (prefers-color-scheme: dark) — the second of which is
+// driven by whatever browser opens the file, not by anything the report
+// controls. Without this, a report exported from a light-theme session would
+// render dark the moment someone opened it in a dark-mode browser: the same
+// document rendering two different ways depending on who reads it, which is
+// wrong for an artifact that gets attached to a ticket and is meant to look
+// the same for everyone who opens it. data-theme="light" on the root element
+// excludes the report from that media query the same way an explicit light
+// choice does in the app (tokens.css: the dark block is scoped to
+// :root:not([data-theme="light"])), regardless of the reader's OS.
+//
+// This is not the whole of Part 3 — legibility on paper and the print
+// stylesheet are unrelated and still to do — but leaving this specific gap
+// open for another session, once the dark values existed to fall into it,
+// was not.
+func TestExportedHTMLLocksToLightTheme(t *testing.T) {
+	html := render(t, sampleDoc(zeroWindowFinding(1, "a <-> b", 4200, 2900)))
+	if !regexp.MustCompile(`<html[^>]*\bdata-theme="light"`).MatchString(html) {
+		t.Error(`the report's <html> element does not carry data-theme="light"; ` +
+			"opened in a dark-mode browser it would now pick up the app's dark palette")
+	}
+}
+
 // TestHTMLNoWallClock guards the same reproducibility property the JSON has.
 func TestHTMLNoWallClock(t *testing.T) {
 	html := render(t, sampleDoc(zeroWindowFinding(1, "a <-> b", 4200, 2900)))
