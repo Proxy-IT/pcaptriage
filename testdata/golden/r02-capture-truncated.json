@@ -78,7 +78,7 @@
     {
       "id": "R03",
       "name": "syn-rejected",
-      "base_weight": 7,
+      "base_weight": 4,
       "status": "ran",
       "summary": "A connection attempt was answered with a refusal rather than an acceptance — the host is reachable, and nothing is listening on that port."
     },

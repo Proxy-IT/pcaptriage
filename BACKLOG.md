@@ -300,6 +300,34 @@ session (P3/P4) rather than as separate work.
 Realistic viewport is a docked window on a laptop at 125% scaling, not a
 full-screen monitor. Same treatment: standing criterion, raise during card work.
 
+## Significance is invariant to occurrence count
+
+**Noted 2026-08-18, during Batch 2 Part 1's R03 weight review. Not queued —
+recorded so it is not rediscovered.**
+
+`significance = base_weight × impact × scope × deviation` has no term for how
+many times a condition occurred. `impact` is log-scaled *seconds of stall*, so
+for any rule whose condition costs no measurable time, forty-seven occurrences
+score exactly what two do.
+
+R03 is where this surfaced: a refusal arrives instantly by definition — that
+is precisely what distinguishes it from R02's silence — so its impact factor
+is pinned at the 1.0 floor and only `scope` can move it. A host refusing 400
+connection attempts and a host refusing 2 rank identically. The same shape
+applies to any future count-driven, time-free rule.
+
+Deliberately not fixed as part of the weight change, because it is a scoring
+model question and not a weight question: no choice of base weight makes a
+rule's score respond to its own occurrence count. Options if it is ever worth
+addressing — a count term, or letting rules supply their own impact
+derivation rather than always seconds — both change ranking across every rule
+at once, which is exactly the kind of change that wants its own session and
+its own before/after evidence.
+
+Worth revisiting when a count-heavy rule first shares a capture with other
+findings and ordering is genuinely exercised. Today no fixture puts R03
+alongside anything else, so the effect is unobservable.
+
 ## D. Ceiling pressure (decision needed before P12/P13)
 If the fifteen-rule ceiling holds and C-items are adopted, something gives.
 **R03 (`syn-rejected`) is the weakest current rule** — connection refused is

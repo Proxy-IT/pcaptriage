@@ -129,7 +129,8 @@ kept trying rather than giving up.
 
 ### R03 · `syn-rejected`
 
-**Base weight:** 7
+**Base weight:** 4 — revised down from 7; see the addendum entry for the
+evidence.
 
 **Condition**
 SYN answered by RST rather than SYN/ACK.
@@ -603,3 +604,49 @@ R15's condition list now includes capture-host packet drops:
 - Per the standing constraint recorded above: **no display floor exists and
   the severity work did not introduce one** — severity labels map onto existing
   scores without changing what is shown.
+
+### R03 base weight: 7 → 4 (revised in the Batch 2 Part 1 session)
+
+Proposed with evidence and applied at review, the same way any threshold
+change here is meant to move. The suspicion was that R03 is over-weighted
+because a refusal mostly corroborates what the connecting application already
+reported in its own error message. Measuring it changed the reasoning:
+
+R03's scoring inputs are `impact = 1.0` (a refusal costs no measurable time —
+that is exactly what separates it from R02's silence), `deviation = 1.0` (no
+peer group; there is no population to compare a refusal against), and
+`scope = 0.8` for the ordinary case of one refusing endpoint. Significance is
+therefore just `weight × 0.8`:
+
+| Base weight | Significance | Severity |
+|---|---|---|
+| 7 (previous) | 5.60 | informational |
+| 6 | 4.80 | informational |
+| 5 | 4.00 | informational |
+| **4 (applied)** | **3.20** | **informational** |
+| 3 | 2.40 | informational |
+
+**The severity a reader sees is unchanged.** It is informational at every
+weight in that range, and even at multi-host scope the old weight of 7 reached
+only 11.20 — still under the worth-noting floor of 15. The scoring model was
+already suppressing R03 in practice; the weight was never what held it down.
+
+So the change is **ordering-only**, and that is the ground it stands on. Base
+weight feeds significance, significance orders findings, and ordering answers
+"what should the reader look at first". A finding that restates the error
+message the application already showed earns less of the reader's attention
+than one telling them something new — which is what the guide content says of
+this pair: R03 is corroboration, R02 is the more useful of the two.
+
+The obvious objection, stated rather than glossed: 4 puts R03 level with R06,
+and R06 frequently reports TCP working correctly where R03 reports a genuine
+failure to connect. That objection is about severity-of-condition; base weight
+is about marginal information. On the axis that actually governs ordering,
+parity is right — and the severity table above shows nothing about how bad the
+condition looks to a reader changes either way.
+
+**Known limitation, deliberately not fixed here:** R03's significance is
+invariant to attempt count. Forty-seven refusals score exactly the same as
+two, because the model's impact factor measures seconds lost and a refusal
+loses none. That is a scoring-model question rather than a weight question —
+recorded in BACKLOG rather than resolved by picking a different number.

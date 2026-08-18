@@ -35,14 +35,26 @@ type SynRejected struct {
 	// refusal is seen, because a refused connection carries nothing else from
 	// that host by definition: the baseline has to come from its other
 	// conversations, which may not have been read yet when the reset arrives.
-	hostTTL map[netip.Addr]uint8
+	//
+	// Keyed observations rather than bare values so the winner is the earliest
+	// frame, not the first flow to close. Close order is an eviction-policy
+	// detail, and a baseline that depended on it would make this rule's output
+	// vary with the flow cap — the one thing constraint 5 forbids. Frame
+	// numbers are globally ordered, so this resolves identically on every run.
+	hostTTL map[netip.Addr]ttlObservation
+}
+
+// ttlObservation is one host's TTL and the frame it was read from.
+type ttlObservation struct {
+	ttl   uint8
+	frame uint64
 }
 
 // NewSynRejected returns a fresh R03 detector.
 func NewSynRejected() *SynRejected {
 	return &SynRejected{
 		endpoints: make(map[flow.Endpoint]*rejAgg),
-		hostTTL:   make(map[netip.Addr]uint8),
+		hostTTL:   make(map[netip.Addr]ttlObservation),
 	}
 }
 
@@ -50,10 +62,14 @@ func NewSynRejected() *SynRejected {
 func (r *SynRejected) Meta() Meta {
 	return Meta{
 		ID: "R03",
-		// [RULES.md] 7. Under review — see the Batch 2 checkpoint proposal:
-		// a refusal mostly corroborates what the connecting application
-		// already reported, which is worth less than the weight suggests.
-		BaseWeight: 7,
+		// [RULES.md] 4, revised down from 7 with evidence — see the addendum.
+		// Ordering-only: the severity a reader sees was informational at every
+		// weight from 3 to 7, because a refusal costs no measurable time and
+		// has no peer group, so the scoring model was already holding this
+		// rule down. What the lower weight buys is rank: a finding that
+		// restates the error the application already showed should sit below
+		// one telling the reader something new.
+		BaseWeight: 4,
 		Name:       "syn-rejected",
 		Summary:    "A connection attempt was answered with a refusal rather than an acceptance — the host is reachable, and nothing is listening on that port.",
 	}
@@ -74,8 +90,10 @@ type rejFlowState struct {
 	synRef     *findings.PacketRef
 
 	// ttlByDir is the first TTL seen from each side on a segment that is not
-	// a reset. Reported at flow end as that host's ordinary traffic.
+	// a reset, with the frame it came from. Reported at flow end as that
+	// host's ordinary traffic.
 	ttlByDir  [2]uint8
+	ttlFrame  [2]uint64
 	ttlSeen   [2]bool
 	hasAnyTTL bool
 }
@@ -140,7 +158,7 @@ func (r *SynRejected) OnPacket(fs any, fl *flow.State, p *capture.Packet, dir fl
 	// on all flows, not only refused ones, because the baseline a refusal is
 	// judged against comes from that host's other conversations.
 	if !rst && p.TTL != 0 && !s.ttlSeen[dir] {
-		s.ttlByDir[dir], s.ttlSeen[dir] = p.TTL, true
+		s.ttlByDir[dir], s.ttlFrame[dir], s.ttlSeen[dir] = p.TTL, p.Frame, true
 		s.hasAnyTTL = true
 	}
 }
@@ -160,11 +178,10 @@ func (r *SynRejected) OnFlowEnd(fs any, fl *flow.State) {
 				continue
 			}
 			addr := fl.Key.Endpoint(d).Addr
-			// First observation wins, so the baseline is stable regardless of
-			// the order flows happen to close in — the same determinism
-			// requirement every emit path here is held to.
-			if _, seen := r.hostTTL[addr]; !seen {
-				r.hostTTL[addr] = s.ttlByDir[d]
+			obs := ttlObservation{ttl: s.ttlByDir[d], frame: s.ttlFrame[d]}
+			// Earliest frame wins, not earliest close: see the field comment.
+			if prior, seen := r.hostTTL[addr]; !seen || obs.frame < prior.frame {
+				r.hostTTL[addr] = obs
 			}
 		}
 	}
@@ -242,7 +259,8 @@ func (r *SynRejected) Emit(pop *Population, out *findings.Store) {
 		// behalf by a device nearer the capture point has crossed fewer
 		// routers than the host's own traffic, so it arrives with a visibly
 		// different TTL.
-		baseline, haveBaseline := r.hostTTL[e.Addr]
+		hostObs, haveBaseline := r.hostTTL[e.Addr]
+		baseline := hostObs.ttl
 		mismatch := false
 		if agg.rstTTLSeen && haveBaseline {
 			if diff := int(agg.rstTTL) - int(baseline); diff > int(Thresholds.R03TTLTolerance) ||
@@ -298,9 +316,15 @@ func (r *SynRejected) Emit(pop *Population, out *findings.Store) {
 			Metrics:      metrics,
 			// No time is lost to a refusal — it arrives at once, which is
 			// precisely what distinguishes it from R02's silence. Impact is
-			// left at its floor and the count carries the weight instead.
+			// left at its floor.
+			//
+			// A consequence worth knowing: significance is therefore invariant
+			// to attempt count, so forty-seven refusals rank exactly where two
+			// do. That is a property of the scoring model rather than of this
+			// weight, and is recorded in BACKLOG rather than worked around
+			// here.
 			Significance: scoring.Significance(scoring.Inputs{
-				BaseWeight: 7,
+				BaseWeight: 4,
 				Scope:      scope,
 				PeerGroup:  false,
 			}),
