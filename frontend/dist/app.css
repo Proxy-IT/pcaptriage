@@ -55,8 +55,8 @@ body {
   gap: 1rem;
   flex-wrap: wrap;
   padding: .5rem 1.25rem;
-  background: var(--surface);
-  border-bottom: 1px solid var(--rule);
+  background: var(--bar-surface);
+  border-bottom: 1px solid var(--bar-rule);
   user-select: none;
 }
 
@@ -68,27 +68,34 @@ body {
 .topbar-back {
   font: inherit;
   font-size: .82rem;
-  color: var(--ink-2);
-  background: var(--surface);
-  border: 1px solid var(--rule);
+  color: var(--bar-ink);
+  background: transparent;
+  border: 1px solid var(--bar-rule);
   border-radius: var(--radius-tag);
   padding: .18rem .55rem;
   cursor: pointer;
   white-space: nowrap;
   flex: none;
 }
-.topbar-back:hover { background: var(--wash); color: var(--step-550); }
-.topbar-back:focus-visible { outline: 2px solid var(--step-450); outline-offset: 1px; }
+.topbar-back:hover { background: var(--bar-surface-raised); color: var(--bar-ink-strong); }
+/* A ring tuned for light backgrounds vanishes on ink. This one is picked
+   against the bar, not against the page. */
+.topbar-back:focus-visible { outline: 2px solid var(--bar-focus); outline-offset: 1px; }
 /* The name is what gives way when the back control and the links compete for
    a narrow window — the reader can see which app they are in from everything
    else on screen, but not where the way back went. */
 @media (max-width: 30rem) {
   .topbar-name { display: none; }
 }
-.topbar-name { font-weight: 600; font-size: .95rem; letter-spacing: -0.01em; }
+.topbar-name {
+  font-weight: 600;
+  font-size: .95rem;
+  letter-spacing: -0.01em;
+  color: var(--bar-ink-strong);
+}
 .topbar-tagline {
   font-size: .78rem;
-  color: var(--ink-muted);
+  color: var(--bar-ink-muted);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -103,21 +110,22 @@ body {
 .topbar-link {
   font: inherit;
   font-size: .85rem;
-  color: var(--ink-2);
+  color: var(--bar-ink);
   background: none;
   border: 1px solid transparent;
   border-radius: var(--radius-tag);
   padding: .2rem .6rem;
   cursor: pointer;
 }
-.topbar-link:hover { background: var(--wash); color: var(--step-550); }
-.topbar-link:focus-visible { outline: 2px solid var(--step-450); outline-offset: 1px; }
-/* Where am I. Weight and colour rather than a filled block, so the bar still
-   reads as orientation rather than as a set of tabs. */
+.topbar-link:hover { background: var(--bar-surface-raised); color: var(--bar-ink-strong); }
+.topbar-link:focus-visible { outline: 2px solid var(--bar-focus); outline-offset: 1px; }
+/* Where am I. Cyan plus weight, on a low-contrast pill. The pill alone is a
+   1.26:1 lift and could not carry the state by itself; it does not have to,
+   because the colour, the weight and aria-current all say the same thing. */
 .topbar-link.active {
-  color: var(--step-550);
+  color: var(--bar-accent);
   font-weight: 600;
-  background: var(--wash);
+  background: var(--bar-surface-raised);
 }
 
 /* A sticky bar overlaps whatever scrollIntoView brings to the top of the
@@ -157,13 +165,13 @@ h1, h2, h3 { letter-spacing: -0.01em; }
   transition: border-color .12s, background .12s;
 }
 .dropzone:hover, .dropzone:focus-visible {
-  border-color: var(--step-450);
-  background: var(--wash);
+  border-color: var(--accent);
+  background: var(--accent-wash);
   outline: none;
 }
-.dropzone:focus-visible { box-shadow: 0 0 0 3px rgba(42, 120, 214, .28); }
+.dropzone:focus-visible { box-shadow: 0 0 0 3px var(--focus-glow); }
 
-.dz-icon { width: 44px; height: 44px; color: var(--step-450); }
+.dz-icon { width: 44px; height: 44px; color: var(--accent); }
 .dz-primary { font-size: 1.08rem; font-weight: 600; }
 .dz-instruction {
   font-size: .9rem;
@@ -177,7 +185,7 @@ h1, h2, h3 { letter-spacing: -0.01em; }
   padding: .65rem .9rem;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-left: 3px solid var(--step-450);
+  border-left: 3px solid var(--accent);
   border-radius: var(--radius-note);
   font-size: .9rem;
   color: var(--ink-2);
@@ -209,7 +217,7 @@ h1, h2, h3 { letter-spacing: -0.01em; }
   padding: .6rem .8rem;
   font-size: .88rem;
 }
-.check-name { font-family: var(--mono); font-size: .8rem; color: var(--step-550); }
+.check-name { font-family: var(--mono); font-size: .8rem; color: var(--accent-strong); }
 .check-summary { display: block; color: var(--ink-2); margin-top: .1rem; }
 .caveat { margin: .75rem 0 0; font-size: .82rem; color: var(--ink-muted); }
 
@@ -239,7 +247,7 @@ h1, h2, h3 { letter-spacing: -0.01em; }
 .bar-fill {
   height: 100%;
   width: 0;
-  background: var(--step-450);
+  background: var(--accent);
   border-radius: 999px;
   transition: width .15s linear;
 }
@@ -299,17 +307,17 @@ h1, h2, h3 { letter-spacing: -0.01em; }
   cursor: pointer;
   white-space: nowrap;
 }
-.btn:hover { background: var(--wash); border-color: var(--step-450); }
-.btn:focus-visible { outline: 2px solid var(--step-450); outline-offset: 2px; }
-.btn-primary { background: var(--step-450); color: #fff; border-color: var(--step-450); }
-.btn-primary:hover { background: var(--step-550); border-color: var(--step-550); }
+.btn:hover { background: var(--accent-wash); border-color: var(--accent); }
+.btn:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.btn-primary { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+.btn-primary:hover { background: var(--accent-strong); border-color: var(--accent-strong); }
 
 .findings { display: grid; gap: .75rem; }
 
 .finding {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-left: 3px solid var(--step-450);
+  border-left: 3px solid var(--accent);
   border-radius: var(--radius-card);
   padding: 1rem 1.15rem;
   user-select: text;
@@ -389,7 +397,7 @@ h1, h2, h3 { letter-spacing: -0.01em; }
 .packets > summary {
   cursor: pointer;
   font-size: .85rem;
-  color: var(--step-550);
+  color: var(--accent-strong);
   list-style: none;
   display: flex;
   align-items: center;
@@ -404,7 +412,7 @@ h1, h2, h3 { letter-spacing: -0.01em; }
 }
 .packets[open] > summary::before { transform: rotate(90deg); }
 .packets > summary:hover { text-decoration: underline; }
-.packets > summary:focus-visible { outline: 2px solid var(--step-450); outline-offset: 2px; }
+.packets > summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 
 .packets-scroll { overflow-x: auto; margin-top: .7rem; }
 
@@ -438,7 +446,7 @@ h1, h2, h3 { letter-spacing: -0.01em; }
    by colour alone. */
 .pk-flagged { background: var(--wash); }
 .pk-flagged .pk-info { font-weight: 600; }
-.pk-flagged td:first-child { box-shadow: inset 2px 0 0 var(--step-450); }
+.pk-flagged td:first-child { box-shadow: inset 2px 0 0 var(--accent); }
 .pk-context { color: var(--ink-2); }
 
 .pk-note-row td { padding-top: 0; padding-bottom: .4rem; }
@@ -448,7 +456,7 @@ h1, h2, h3 { letter-spacing: -0.01em; }
   color: var(--ink-2);
   white-space: normal;
 }
-.pk-note-row.pk-flagged .pk-note { color: var(--step-550); }
+.pk-note-row.pk-flagged .pk-note { color: var(--accent-strong); }
 
 .packets-hint {
   margin: .7rem 0 0;
@@ -485,7 +493,7 @@ h1, h2, h3 { letter-spacing: -0.01em; }
 .clean-headline {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-left: 3px solid var(--step-450);
+  border-left: 3px solid var(--accent);
   border-radius: var(--radius-card);
   padding: 1rem 1.15rem;
 }
@@ -562,7 +570,7 @@ h1, h2, h3 { letter-spacing: -0.01em; }
   font-size: .9rem;
   user-select: text;
 }
-.note.unavailable { border-left-color: var(--step-450); }
+.note.unavailable { border-left-color: var(--accent); }
 .note .who {
   display: block;
   font-family: var(--mono);
@@ -587,7 +595,7 @@ h1, h2, h3 { letter-spacing: -0.01em; }
 .guide-context {
   background: var(--wash);
   border: 1px solid var(--border);
-  border-left: 3px solid var(--step-450);
+  border-left: 3px solid var(--accent);
   border-radius: var(--radius-card);
   padding: .85rem 1.1rem;
   margin-bottom: 1.75rem;
@@ -624,7 +632,7 @@ h1, h2, h3 { letter-spacing: -0.01em; }
 .linkish {
   font: inherit;
   font-size: .87rem;
-  color: var(--step-550);
+  color: var(--accent-strong);
   background: none;
   border: none;
   padding: 0;
@@ -633,7 +641,7 @@ h1, h2, h3 { letter-spacing: -0.01em; }
   text-underline-offset: 2px;
 }
 .linkish:hover { color: var(--sev-significant); }
-.linkish:focus-visible { outline: 2px solid var(--step-450); outline-offset: 2px; }
+.linkish:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 
 /* R15's one link out of the banner (3c): sits beside the heading it
    qualifies, so it reads as "more about this section" rather than inheriting
@@ -657,13 +665,13 @@ h1, h2, h3 { letter-spacing: -0.01em; }
   font: inherit;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-left: 3px solid var(--step-450);
+  border-left: 3px solid var(--accent);
   border-radius: var(--radius-card);
   padding: .7rem .9rem;
   cursor: pointer;
 }
-.index-link:hover:not(:disabled) { background: var(--wash); }
-.index-link:focus-visible { outline: 2px solid var(--step-450); outline-offset: 2px; }
+.index-link:hover:not(:disabled) { background: var(--accent-wash); }
+.index-link:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 /* The dimming and cursor change are real, but neither is the primary signal —
    see the "No guide yet" tag appended in app.js for why. Kept as reinforcement
    for a reader who has already learned to read them, not as the only cue. */
@@ -739,7 +747,7 @@ h1, h2, h3 { letter-spacing: -0.01em; }
   display: none;
   align-items: center;
   justify-content: center;
-  background: rgba(42, 120, 214, .10);
+  background: var(--accent-veil);
   backdrop-filter: blur(1px);
   z-index: 50;
   pointer-events: none;
@@ -748,10 +756,10 @@ body.dragging .drop-veil { display: flex; }
 .drop-veil-inner {
   padding: 1rem 1.5rem;
   background: var(--surface);
-  border: 2px dashed var(--step-450);
+  border: 2px dashed var(--accent);
   border-radius: 10px;
   font-weight: 600;
-  color: var(--step-550);
+  color: var(--accent-strong);
 }
 
 @media (prefers-reduced-motion: reduce) {

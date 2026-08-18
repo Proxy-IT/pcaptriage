@@ -68,6 +68,25 @@ func TestTokensAreTheSingleSourceOfThePalette(t *testing.T) {
 	// Every hex colour the tokens define must be referenced through its token,
 	// never restated. (Colours the tokens do not define — print-block
 	// black-on-white, focus-ring rgba washes — are out of scope here.)
+	// No raw colour anywhere in a consumer sheet, not merely no *restated*
+	// token colour. The narrower rule let two rgba() literals live in app.css
+	// unnoticed — a blue focus glow and a blue drop veil — which then had to be
+	// found by eye when the accent changed hue, because nothing failed when the
+	// palette moved out from under them. A colour worth writing is worth naming.
+	//
+	// The @media print block is the one exemption, and a real one: its
+	// black-on-white is not a palette choice but the absence of one, picked so
+	// a greyscale printer has something to work with.
+	literal := regexp.MustCompile(`(?i)#[0-9a-f]{3,8}\b|\brgba?\(|\bhsla?\(`)
+	for name, css := range consumers {
+		for _, block := range outsidePrintBlocks(css) {
+			if found := literal.FindAllString(block, -1); len(found) > 0 {
+				t.Errorf("%s uses raw colour literals %v outside @media print; give them tokens and reference those",
+					name, found)
+			}
+		}
+	}
+
 	hexes := regexp.MustCompile(`#[0-9a-fA-F]{3,8}\b`).FindAllString(tokensSource, -1)
 	if len(hexes) < 15 {
 		t.Fatalf("tokens.css defines only %d hex colours; the palette appears to have been emptied", len(hexes))
@@ -83,13 +102,67 @@ func TestTokensAreTheSingleSourceOfThePalette(t *testing.T) {
 
 	// The signals this session exists for must actually be in the tokens, or
 	// the two checks above pass vacuously.
+	// These are semantic names — what a colour is *for* — not palette names.
+	// That distinction is what lets a theme swap the values underneath without
+	// touching a consumer sheet, and it is why there is no --cyan or --teal
+	// below: a sheet asking for --cyan has already assumed it is on a dark
+	// background, and would be wrong the moment it was not.
 	for _, want := range []string{
 		"--sev-significant:", "--sev-worth-noting:", "--sev-informational:",
-		"--ok:", "--page:", "--font:",
+		"--ok:", "--page:", "--surface:", "--font:",
+		"--accent:", "--accent-strong:", "--accent-wash:", "--focus:", "--on-accent:",
+		"--bar-surface:", "--bar-ink:", "--bar-accent:", "--bar-focus:",
 	} {
 		if !strings.Contains(tokensSource, want) {
 			t.Errorf("tokens.css does not declare %s", want)
 		}
+	}
+
+	// And no palette-flavoured names, which is the shape the semantic layer is
+	// defined against. A token called --cyan states a hue; a sheet consuming it
+	// cannot be re-themed without either lying or being edited.
+	for _, banned := range []string{
+		"--cyan:", "--teal:", "--teal-deep:", "--blue:", "--red:",
+		"--amber:", "--green:", "--white:", "--black:",
+	} {
+		if strings.Contains(tokensSource, banned) {
+			t.Errorf("tokens.css declares %s, a palette name rather than a semantic one; "+
+				"name what the colour is for, not what hue it happens to be", banned)
+		}
+	}
+}
+
+// outsidePrintBlocks returns the stylesheet split into the regions that are not
+// inside an @media print block, brace-counted from each one. Enough for these
+// two hand-written sheets; not a general CSS parser.
+func outsidePrintBlocks(css string) []string {
+	var out []string
+	rest := css
+	for {
+		i := strings.Index(rest, "@media print")
+		if i < 0 {
+			return append(out, rest)
+		}
+		out = append(out, rest[:i])
+		open := strings.IndexByte(rest[i:], '{')
+		if open < 0 {
+			return out
+		}
+		depth, j := 0, i+open
+		for ; j < len(rest); j++ {
+			if rest[j] == '{' {
+				depth++
+			} else if rest[j] == '}' {
+				depth--
+				if depth == 0 {
+					break
+				}
+			}
+		}
+		if j >= len(rest) {
+			return out
+		}
+		rest = rest[j+1:]
 	}
 }
 

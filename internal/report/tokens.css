@@ -10,32 +10,80 @@
    reach across package directories; a test compares the two byte for byte, so
    editing one without the other fails the build rather than drifting silently.
    Neither consumer stylesheet may declare a custom property of its own — that
-   is also enforced by test. */
+   is also enforced by test.
+
+   Every text-on-background pair below is measured against WCAG AA by
+   TestPaletteMeetsContrastThresholds, which reads these declarations rather
+   than a copy of them. A value edited here to look better and left failing
+   breaks the build. */
 
 :root {
-  --page:      #f9f9f7;
-  --surface:   #fcfcfb;
-  --ink:       #0b0b0b;
-  --ink-2:     #52514e;
-  --ink-muted: #898781;
-  --rule:      #e1e0d9;
-  --axis:      #c3c2b7;
-  --border:    rgba(11, 11, 11, 0.10);
+  /* ---- neutrals ----------------------------------------------------------
+     Cool rather than the warm off-whites this file started with. The identity
+     is a blue-green one and a warm page under it read as two unrelated
+     decisions sharing a screen. */
+  --page:      #f4f7f9;
+  --surface:   #fbfcfd;
+  --ink:       #15212e;
+  --ink-2:     #414e5a;
+  --ink-muted: #5f7183;
+  --rule:      #dce4e9;
+  --axis:      #b9c4cc;
+  --border:    rgba(21, 33, 46, 0.10);
+  --wash:      #f3f9fb;
 
-  /* One blue hue, stepped, for charts and chrome. Ordinal, not categorical:
-     the steps carry "more observed state" rather than identity. Charts never
-     borrow the severity scale below — a red bar would assert a verdict the
-     figure has no basis for. */
+  /* ---- identity accent ---------------------------------------------------
+     What the reader sees in content: links, rule IDs, the drop zone, the
+     posture note's border. Deliberately a low-chroma teal (C*ab 26) rather
+     than the saturated blue it replaces (C*ab 56) — inside a findings view
+     the accent must not pull the eye before the significant badge does
+     (C*ab 71), and the honest way to guarantee that is to spend less colour
+     on it, not to argue about it. */
+  --accent:        #0e6d84;
+  --accent-strong: #0a5364;
+  --accent-wash:   #e4f1f5;
+  --accent-veil:   rgba(14, 109, 132, 0.10);
+  --focus:         #0a5364;
+  --focus-glow:    rgba(10, 83, 100, 0.26);
+  /* Text that sits on a filled accent, not on a page. */
+  --on-accent:     #ffffff;
+
+  /* ---- top bar -----------------------------------------------------------
+     The one dark surface in the interface, and the only place cyan appears:
+     it has no contrast to spend on a light background. Everything below the
+     bar stays quiet, because guide pages are long-form prose and findings
+     views are dense.
+
+     --bar-surface-raised carries the active state's pill. It is deliberately
+     a low-contrast lift (1.26:1) and is decorative — the active state is
+     carried by the cyan, the weight, and aria-current, so the pill is never
+     the only signal and does not owe 3:1. */
+  --bar-surface:        #15212e;
+  --bar-surface-raised: #24333f;
+  --bar-ink:            #c8d4df;
+  --bar-ink-strong:     #f2f6f9;
+  --bar-ink-muted:      #93a5b6;
+  --bar-accent:         #4fd1d9;
+  --bar-rule:           #2c3b4b;
+  --bar-focus:          #7be2e8;
+
+  /* One blue hue, stepped, for charts. Ordinal, not categorical: the steps
+     carry "more observed state" rather than identity. Charts never borrow
+     the severity scale below — a red bar would assert a verdict the figure
+     has no basis for. Kept blue and kept apart from --accent: a chart is
+     data, an accent is chrome, and a reader should not have to wonder
+     whether a teal bar means something. */
   --step-550:  #1c5cab;
   --step-450:  #2a78d6;
   --step-400:  #3987e5;
   --step-250:  #86b6ef;
-  --wash:      #eef4fd;
 
   /* Severity accents. Reserved for severity and nothing else: they are a
-     status scale, never a palette to draw other things from.
+     status scale, never a palette to draw other things from. Unchanged by the
+     identity work — they are semantically committed, and the accent moved out
+     of their way rather than the other way round.
 
-     Contrast against --surface, measured: red 6.40:1, amber 5.29:1,
+     Contrast against --surface, measured: red 6.40:1, amber 5.28:1,
      neutral 7.73:1 — all clear of 4.5:1 for text. Colour is never the only
      carrier; the word rides beside it in every case. */
   --sev-significant:      #b42318;
