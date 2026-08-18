@@ -328,6 +328,25 @@ Worth revisiting when a count-heavy rule first shares a capture with other
 findings and ordering is genuinely exercised. Today no fixture puts R03
 alongside anything else, so the effect is unobservable.
 
+**Now a two-time occurrence, within a single batch.** R09 hit the same wall
+later in Batch 2: it set no impact at all, so a genuine mid-transfer abort
+could never rise above informational however many connections it interrupted,
+and the rule's own uniformity downgrade was invisible because both fixtures
+bottomed out at the floor together. It was fixed locally by charging the
+transfer time thrown away — a real seconds-denominated cost that a reset does
+have, once you look for it.
+
+Twice in one batch is enough to stop treating this as incidental. **Checklist
+item for R11, R12 and R13, which are still ahead:** before writing a rule's
+fixtures, ask what its seconds-denominated impact actually is. If the honest
+answer is "none", that is a design signal, not a detail to leave at the
+default — the rule will be pinned to informational regardless of how many
+occurrences it finds or how bad they are, and any severity distinction the
+rule tries to draw internally will be invisible. Decide deliberately whether
+that is correct (it was for R03) or whether there is a real cost being
+overlooked (there was for R09). Check it during implementation, not after the
+severity table comes out flat.
+
 ## D. Ceiling pressure (decision needed before P12/P13)
 If the fifteen-rule ceiling holds and C-items are adopted, something gives.
 **R03 (`syn-rejected`) is the weakest current rule** — connection refused is

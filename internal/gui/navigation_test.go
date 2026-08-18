@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Proxy-IT/pcaptriage/internal/rules"
 	"github.com/Proxy-IT/pcaptriage/internal/synth"
 )
 
@@ -214,6 +215,80 @@ func TestCardLinkAvailabilityCoversGroupedMembers(t *testing.T) {
 	}
 	if !regexp.MustCompile(`m\.rule_id`).MatchString(m) {
 		t.Error("members are read but their own rule_id is never used to populate guideAvailable")
+	}
+}
+
+// TestEveryBuiltRuleLinkActuallyNavigates walks the whole card-link path the
+// way the frontend does, for every rule in the registry rather than for the
+// ones a fixture happens to produce.
+//
+// The Batch 1 dead-link bug survived a test that only checked a page existed
+// for each rule: the page existed, the index knew it, and the card still
+// rendered no link, because the step in between — the frontend's own
+// availability map, built from the index — considered only each entry's first
+// rule. So this reproduces that step rather than trusting it, and then
+// follows through to the page and its landing anchor. Everything short of
+// executing the JavaScript, which this repo has no harness for.
+func TestEveryBuiltRuleLinkActuallyNavigates(t *testing.T) {
+	app := New("test")
+
+	idx, err := app.Guide()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Step one, exactly as app.js's start() does it: an entry contributes its
+	// own rule and every member. Getting this wrong is the original bug.
+	available := map[string]bool{}
+	for _, e := range idx.Entries {
+		if !e.HasPage {
+			continue
+		}
+		available[e.RuleID] = true
+		for _, m := range e.Members {
+			available[m.RuleID] = true
+		}
+	}
+
+	metas := rules.AllMeta()
+	if len(metas) == 0 {
+		t.Fatal("no rules registered")
+	}
+
+	for _, m := range metas {
+		// Step two: the card only renders a link when the map says so.
+		if !available[m.ID] {
+			t.Errorf("%s renders no card link: the index never marked it available, so a finding "+
+				"from this rule offers the reader nothing to click", m.ID)
+			continue
+		}
+
+		// Step three: the click resolves to a page.
+		page, err := app.GuidePage(m.ID)
+		if err != nil {
+			t.Errorf("%s has an available link that does not resolve: %v", m.ID, err)
+			continue
+		}
+		if !page.ServesRule(m.ID) {
+			t.Errorf("%s resolved to page %q, which does not serve it", m.ID, page.Title)
+			continue
+		}
+
+		// Step four: on a shared page, the click has somewhere to land. A
+		// link that opens the right document at the wrong rule's section is
+		// still a broken link to the reader who clicked it.
+		if len(page.RuleIDs) > 1 {
+			var anchored int
+			for _, s := range page.Sections {
+				if strings.EqualFold(s.Anchor, m.ID) {
+					anchored++
+				}
+			}
+			if anchored != 1 {
+				t.Errorf("%s shares page %q with %d other rule(s) but has %d landing sections there, want 1",
+					m.ID, page.Title, len(page.RuleIDs)-1, anchored)
+			}
+		}
 	}
 }
 

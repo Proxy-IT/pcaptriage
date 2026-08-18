@@ -45,6 +45,9 @@ var contentSource string
 //go:embed content_batch1.md
 var batch1Source string
 
+//go:embed content_batch2.md
+var batch2Source string
+
 // Source returns the original embedded guide content, for the test that checks
 // it against GUIDE-CONTENT.md.
 func Source() string { return contentSource }
@@ -52,6 +55,17 @@ func Source() string { return contentSource }
 // Batch1Source returns the Batch 1 embedded guide content, for the test that
 // checks it against GUIDE-CONTENT-BATCH1.md.
 func Batch1Source() string { return batch1Source }
+
+// Batch2Source returns the Batch 2 embedded guide content, for the test that
+// checks it against GUIDE-CONTENT-BATCH2.md.
+func Batch2Source() string { return batch2Source }
+
+// allSources returns every embedded document in parse order, so a test that
+// has to cover all of them cannot miss one by being written against a list of
+// filenames that a later batch forgets to extend.
+func allSources() []string {
+	return []string{contentSource, batch1Source, batch2Source}
+}
 
 // Skeleton is the section order a single-rule guide page follows — R01, R04
 // and R15 all have exactly this shape.
@@ -148,17 +162,24 @@ var parsed []Page
 var parseErr error
 
 func init() {
-	a, err := parse(contentSource)
-	if err != nil {
-		parseErr = fmt.Errorf("GUIDE-CONTENT.md: %w", err)
-		return
+	// One entry per authored document. Parsed separately so a failure names
+	// the file it came from — the documents are specification, and "the guide
+	// did not parse" is not enough to act on.
+	for _, doc := range []struct {
+		name string
+		src  string
+	}{
+		{"GUIDE-CONTENT.md", contentSource},
+		{"GUIDE-CONTENT-BATCH1.md", batch1Source},
+		{"GUIDE-CONTENT-BATCH2.md", batch2Source},
+	} {
+		pages, err := parse(doc.src)
+		if err != nil {
+			parsed, parseErr = nil, fmt.Errorf("%s: %w", doc.name, err)
+			return
+		}
+		parsed = append(parsed, pages...)
 	}
-	b, err := parse(batch1Source)
-	if err != nil {
-		parseErr = fmt.Errorf("GUIDE-CONTENT-BATCH1.md: %w", err)
-		return
-	}
-	parsed = append(a, b...)
 }
 
 // Pages returns every guide page, ordered by the page's first served rule ID.

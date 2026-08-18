@@ -12,28 +12,6 @@ import (
 	"github.com/Proxy-IT/pcaptriage/internal/synth"
 )
 
-// batch2Pending are rules that are built but whose guide content is not yet
-// embedded, and it is an INTERIM exception with a deliberately short life.
-//
-// Batch 2's four rules land across Parts 1 and 2 while their guide content —
-// one file covering all four — is embedded in Part 3. Neither ordering avoids
-// a window: embedding the file early would give R09 and R14 pages before those
-// rules exist, failing the bijection's backward direction, which is the worse
-// of the two failures (a guide teaching a check the tool does not run). So the
-// forward direction yields instead, for exactly the rules of the batch in
-// flight, and only while their page is genuinely absent.
-//
-// What is NOT relaxed: the backward direction, the anchor requirement, and the
-// guarantee that nothing renders a dead link — the index reports HasPage false
-// for these and the card link is gated on it, both asserted below and in
-// TestGuideIndexGatesBothTheHandlerAndTheAppearance. Both tests that would
-// otherwise fail read this one list, so there is a single place to empty.
-//
-// TODO(batch2 part 3): embed GUIDE-CONTENT-BATCH2.md and delete this set. The
-// bijection test errors if a rule listed here turns out to have a page, so it
-// cannot be left behind silently.
-var batch2Pending = map[string]bool{"R02": true, "R03": true, "R09": true, "R14": true}
-
 // TestGuideRegistryBijection is the no-orphans check in both directions,
 // restored to strict many-to-one by Part 3: every built rule maps to exactly
 // one guide entry — a page, plus an anchor within it when that page serves
@@ -69,20 +47,14 @@ func TestGuideRegistryBijection(t *testing.T) {
 		}
 	}
 
-	// Forward: every built rule has exactly one guide entry, except the
-	// batch2Pending interim documented above.
+	// Forward, strict: every built rule has exactly one guide entry. Batch 2's
+	// interim tolerance is gone — every rule in the registry is documented,
+	// with no exception list left behind.
 	for id := range registered {
 		p, ok := documented[id]
 		if !ok {
-			if batch2Pending[id] {
-				continue
-			}
 			t.Errorf("%s is built but has no guide page: its finding cards would link nowhere", id)
 			continue
-		}
-		if batch2Pending[id] {
-			t.Errorf("%s now has a guide page — remove it from batch2Pending so the strict "+
-				"forward check covers it again", id)
 		}
 		// A rule on a page it shares with others needs its own landing spot;
 		// a rule alone on its page needs none — landing "at that rule's
@@ -257,21 +229,10 @@ func TestEveryFindingCanReachItsGuide(t *testing.T) {
 	if len(res.Report.Findings) == 0 {
 		t.Fatal("no findings")
 	}
-	var covered int
 	for _, f := range res.Report.Findings {
-		if batch2Pending[f.RuleID] {
-			// Awaiting its page — see batch2Pending. The card renders no link
-			// at all in this state rather than a broken one, which is what
-			// TestGuideIndexGatesBothTheHandlerAndTheAppearance holds.
-			continue
-		}
-		covered++
 		if _, err := app.GuidePage(f.RuleID); err != nil {
 			t.Errorf("finding from %s links to a guide page that does not exist: %v", f.RuleID, err)
 		}
-	}
-	if covered == 0 {
-		t.Fatal("every finding in this fixture is awaiting its guide page, so this test proved nothing")
 	}
 }
 

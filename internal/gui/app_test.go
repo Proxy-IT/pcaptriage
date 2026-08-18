@@ -68,6 +68,18 @@ func landingScript(land string) string {
 		steps = `window.__emit("nav:guide");
       await pause(500);
       document.querySelectorAll("#guide-index-list .index-link")[0].click();`
+	case "guide-index-entry-2":
+		// The second index row, which is the R02/R03 page — index arrival, so
+		// it must land at the top with no context block whichever rule the
+		// row's own lookup key happens to be.
+		steps = `window.__emit("nav:guide");
+      await pause(500);
+      document.querySelectorAll("#guide-index-list .index-link")[1].click();`
+	case "guide-index-entry-5":
+		// The fifth index row: the R09/R14 page, same expectation.
+		steps = `window.__emit("nav:guide");
+      await pause(500);
+      document.querySelectorAll("#guide-index-list .index-link")[4].click();`
 	case "guide-index":
 		steps = `window.__emit("nav:guide");`
 	case "r15-from-banner":

@@ -33,6 +33,7 @@ func TestEmbeddedContentMatchesTheSpec(t *testing.T) {
 	}{
 		{"GUIDE-CONTENT.md", "GUIDE-CONTENT.md", Source()},
 		{"GUIDE-CONTENT-BATCH1.md", "GUIDE-CONTENT-BATCH1.md", Batch1Source()},
+		{"GUIDE-CONTENT-BATCH2.md", "GUIDE-CONTENT-BATCH2.md", Batch2Source()},
 	}
 	for _, c := range cases {
 		want, err := os.ReadFile(repoFile(t, c.specFile))
@@ -59,10 +60,11 @@ func TestPagesFollowAnswerFirst(t *testing.T) {
 	if err != nil {
 		t.Fatalf("the authored content did not parse: %v", err)
 	}
-	// R01, R04 (GUIDE-CONTENT.md) and the loss cluster + R15 (BATCH1): four
-	// Page values, six rules served between them.
-	if len(pages) != 4 {
-		t.Fatalf("got %d pages, want 4 (R01, R04, the loss cluster, R15)", len(pages))
+	// R01 and R04 (GUIDE-CONTENT.md), the loss cluster and R15 (BATCH1), the
+	// connecting and ending pairs (BATCH2): six Page values, eleven rules
+	// served between them.
+	if len(pages) != 6 {
+		t.Fatalf("got %d pages, want 6 (R01, R04, loss cluster, R15, R02/R03, R09/R14)", len(pages))
 	}
 
 	var servedTotal int
@@ -95,8 +97,8 @@ func TestPagesFollowAnswerFirst(t *testing.T) {
 			t.Errorf("%s has an empty one-line summary", label)
 		}
 	}
-	if servedTotal != 7 {
-		t.Errorf("pages serve %d rules between them, want 7 (R01, R04, R05, R06, R07, R08, R15)", servedTotal)
+	if servedTotal != 11 {
+		t.Errorf("pages serve %d rules between them, want 11 — every built rule", servedTotal)
 	}
 }
 
@@ -158,39 +160,60 @@ func TestMultiRulePageHasOneAnchorPerServedRule(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var loss *Page
+
+	// The three pages that serve more than one rule, and exactly which rules
+	// each is expected to carry — so a page quietly losing or gaining one is
+	// a failure rather than something this test adapts to.
+	want := map[string][]string{
+		"Packet loss, retransmission, and reordering": {"R05", "R06", "R07", "R08"},
+		"Connecting — and failing to connect":         {"R02", "R03"},
+		"Connections that end early, or too often":    {"R09", "R14"},
+	}
+
+	seen := map[string]bool{}
 	for i := range pages {
-		if len(pages[i].RuleIDs) > 1 {
-			loss = &pages[i]
+		p := &pages[i]
+		if len(p.RuleIDs) == 1 {
+			continue
 		}
-	}
-	if loss == nil {
-		t.Fatal("no multi-rule page found — the loss cluster page is missing")
-	}
-	if got := loss.RuleIDs; len(got) != 4 {
-		t.Fatalf("the multi-rule page serves %v, want exactly R05, R06, R07, R08", got)
-	}
-	for _, want := range []string{"R05", "R06", "R07", "R08"} {
-		if !loss.ServesRule(want) {
-			t.Errorf("the loss page does not list %s as served", want)
+		expect, known := want[p.Title]
+		if !known {
+			t.Errorf("unexpected multi-rule page %q serving %v", p.Title, p.RuleIDs)
+			continue
+		}
+		seen[p.Title] = true
+
+		if len(p.RuleIDs) != len(expect) {
+			t.Errorf("%q serves %v, want %v", p.Title, p.RuleIDs, expect)
+		}
+		for _, id := range expect {
+			if !p.ServesRule(id) {
+				t.Errorf("%q does not list %s as served", p.Title, id)
+			}
+		}
+
+		anchored := map[string]int{}
+		for _, s := range p.Sections {
+			if s.Anchor == "" {
+				continue
+			}
+			anchored[strings.ToUpper(s.Anchor)]++
+		}
+		for _, id := range p.RuleIDs {
+			if anchored[id] != 1 {
+				t.Errorf("%s has %d anchored sections in %q, want exactly 1", id, anchored[id], p.Title)
+			}
+		}
+		for anchor := range anchored {
+			if !p.ServesRule(anchor) {
+				t.Errorf("%q has an anchor pointing at %s, which it does not list as served", p.Title, anchor)
+			}
 		}
 	}
 
-	anchored := map[string]int{}
-	for _, s := range loss.Sections {
-		if s.Anchor == "" {
-			continue
-		}
-		anchored[strings.ToUpper(s.Anchor)]++
-	}
-	for _, id := range loss.RuleIDs {
-		if anchored[id] != 1 {
-			t.Errorf("%s has %d anchored sections in the loss page, want exactly 1", id, anchored[id])
-		}
-	}
-	for anchor := range anchored {
-		if !loss.ServesRule(anchor) {
-			t.Errorf("an anchor points at %s, which the page does not list as served", anchor)
+	for title := range want {
+		if !seen[title] {
+			t.Errorf("the multi-rule page %q is missing entirely", title)
 		}
 	}
 }
@@ -198,15 +221,15 @@ func TestMultiRulePageHasOneAnchorPerServedRule(t *testing.T) {
 // TestProseIsVerbatim spot-checks that parsing reproduces the authored
 // sentences rather than paraphrasing or dropping them, across both documents.
 func TestProseIsVerbatim(t *testing.T) {
-	original, err := os.ReadFile(repoFile(t, "GUIDE-CONTENT.md"))
-	if err != nil {
-		t.Fatal(err)
+	// Compared against every embedded source, whose byte-identity to the
+	// authored files at the repository root is proven by
+	// TestEmbeddedContentMatchesTheSpec. Taking them from allSources rather
+	// than naming files here means a document added to the parser cannot be
+	// left out of this check by omission.
+	var flat string
+	for _, src := range allSources() {
+		flat += flattenWhitespace(src) + " "
 	}
-	batch1, err := os.ReadFile(repoFile(t, "GUIDE-CONTENT-BATCH1.md"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	flat := flattenWhitespace(string(original)) + " " + flattenWhitespace(string(batch1))
 
 	pages, err := Pages()
 	if err != nil {
