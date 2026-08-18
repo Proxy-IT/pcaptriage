@@ -612,6 +612,12 @@ func TestWritePreview(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	prefs := app.Preferences()
+	prefs.Theme = info.Theme // keep the two in step: same override, same reason as Info's
+	prefsJSON, err := json.Marshal(prefs)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	root := filepath.Dir(filepath.Dir(synth.FixtureDir()))
 	dist := filepath.Join(root, "frontend", "dist")
@@ -649,8 +655,9 @@ func TestWritePreview(t *testing.T) {
 // for testdata/fixtures/mixed-findings.pcap, captured at preview build time.
 window.__preview = { info: ` + string(infoJSON) + `, result: ` + string(resultJSON) + `,
                      guideIndex: ` + string(indexJSON) + `, guidePages: ` + string(pagesJSON) + `,
-                     about: ` + string(aboutJSON) + ` };
+                     about: ` + string(aboutJSON) + `, prefs: ` + string(prefsJSON) + ` };
 window.__opened = [];
+window.__saved = [];
 window.go = { gui: { App: {
   Info:       function () { return Promise.resolve(window.__preview.info); },
   Guide:      function () { return Promise.resolve(window.__preview.guideIndex); },
@@ -659,6 +666,15 @@ window.go = { gui: { App: {
     return p ? Promise.resolve(p) : Promise.reject(new Error("no guide page for " + id));
   },
   About:      function () { return Promise.resolve(window.__preview.about); },
+  Preferences: function () { return Promise.resolve(window.__preview.prefs); },
+  // Records the save and updates the stub's own copy, so a preview reflects
+  // a changed theme back to the control the same way the real binding would
+  // — but performs no disk write, which is not this harness's job.
+  SavePreferences: function (p) {
+    window.__saved.push(p);
+    window.__preview.prefs = Object.assign({}, window.__preview.prefs, p);
+    return Promise.resolve();
+  },
   // Records the handoff instead of performing it, so a preview cannot open a
   // browser and the assertion is still observable.
   OpenExternal: function (u) { window.__opened.push(u); return Promise.resolve(); },

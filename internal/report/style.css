@@ -5,7 +5,17 @@
 
    Deliberately light-only. This is a document that gets printed and attached to
    a ticket, and a dark variant is not something BRIEF.md section 3 or 4 asks
-   for. */
+   for — see template.html's data-theme="light", which is what makes that true
+   regardless of the reader's own theme, not just this sheet's own restraint.
+
+   The four non-chart accents (the posture note, the top-finding marker, an
+   unavailable note, the clean-result banner) use --accent, the same identity
+   teal the app uses for the same roles — not --step-450, the chart-only blue
+   ramp, which the export used to borrow for these before Part 1 gave the app
+   its own accent to reach for instead. --step-* stays exactly where it was
+   for actual chart fills (.fill-strong/-mid/-soft): a chart is data, an
+   accent is chrome, and the export should not have to guess which a reader
+   is looking at any more than the app does. */
 
 * { box-sizing: border-box; }
 
@@ -34,7 +44,7 @@ body {
   padding: .7rem .9rem;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-left: 3px solid var(--step-450);
+  border-left: 3px solid var(--accent);
   border-radius: var(--radius-note);
   font-size: .875rem;
   color: var(--ink-secondary);
@@ -115,7 +125,7 @@ h2 .count { color: var(--ink-muted); font-weight: 400; text-transform: none; let
   padding: .95rem 1.1rem;
   margin: 0 0 .75rem;
 }
-.finding.top { border-left: 3px solid var(--step-450); }
+.finding.top { border-left: 3px solid var(--accent); }
 .finding-head { display: flex; align-items: baseline; gap: .6rem; flex-wrap: wrap; }
 .rank {
   font-size: .75rem;
@@ -191,7 +201,7 @@ td.mono, .subject { font-family: var(--mono); font-size: .82rem; }
   margin: 0 0 .6rem;
   font-size: .9rem;
 }
-.note.unavailable { border-left-color: var(--step-450); }
+.note.unavailable { border-left-color: var(--accent); }
 .note .who { font-family: var(--mono); font-size: .78rem; color: var(--ink-muted); display: block; margin-bottom: .15rem; }
 
 .empty { color: var(--ink-muted); font-style: italic; }
@@ -204,7 +214,7 @@ td.mono, .subject { font-family: var(--mono); font-size: .82rem; }
 .clean-banner {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-left: 3px solid var(--step-450);
+  border-left: 3px solid var(--accent);
   border-radius: var(--radius-card);
   padding: 1rem 1.15rem;
 }

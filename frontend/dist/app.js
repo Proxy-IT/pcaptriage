@@ -126,11 +126,12 @@
   // set the attribute their own selector in tokens.css keys on.
   //
   // Called once Info() resolves, which is after first paint — a reader whose
-  // explicit choice disagrees with their OS can see one brief flash of the
-  // wrong theme before this runs. Accepted rather than engineered around: it
-  // requires an explicit dark or light choice, which nothing in this build
-  // can make yet (BACKLOG's settings-UI item), so nobody can hit it by using
-  // the app normally today.
+  // explicit choice disagrees with their OS sees one brief flash of the
+  // wrong theme before this runs. Real now that the About page's control can
+  // set an explicit choice, but still small: Info() is a same-process Wails
+  // IPC call, not a network round trip, so the window is on the order of the
+  // time it takes the Go side to read a JSON file plus one message hop.
+  // Worth revisiting only if it turns out to be noticeable in practice.
   function applyTheme(theme) {
     if (theme === "light" || theme === "dark") {
       document.documentElement.setAttribute("data-theme", theme);
@@ -475,8 +476,13 @@
   }
 
   function openAbout() {
-    window.go.gui.App.About()
-      .then(function (a) {
+    // Both, before the page shows: the theme row needs the saved preference
+    // at the same moment everything else on the page needs the build facts,
+    // and there is no reason to paint the row twice.
+    Promise.all([window.go.gui.App.About(), window.go.gui.App.Preferences()])
+      .then(function (results) {
+        var a = results[0], prefs = results[1];
+
         $("about-name").textContent = "About " + a.name;
         $("about-tagline").textContent = a.tagline;
 
@@ -504,9 +510,48 @@
           window.go.gui.App.OpenExternal(a.attribution_url);
         };
 
+        wireThemeControl(prefs);
+
         show("about");
       })
       .catch(function (err) { fail(String(err && err.message ? err.message : err)); });
+  }
+
+  // wireThemeControl connects the appearance select to SavePreferences.
+  //
+  // Reads and writes the whole Preferences object rather than just the theme
+  // field — SavePreferences takes the full set, and a save that only knew
+  // about theme would silently clear whatever timezone preference existed.
+  // current is kept up to date after each successful save, both so a second
+  // change in the same visit starts from what is actually on disk and so a
+  // failed save has the right value to revert the visible control to.
+  function wireThemeControl(prefs) {
+    var current = prefs;
+    var select = $("about-theme");
+    var notice = $("about-theme-notice");
+
+    select.value = current.theme || "light";
+    notice.hidden = true;
+
+    select.onchange = function () {
+      var chosen = select.value;
+      var next = { schema: current.schema, timezone: current.timezone, theme: chosen };
+
+      window.go.gui.App.SavePreferences(next)
+        .then(function () {
+          current = next;
+          notice.hidden = true;
+          // Applied immediately — a preference that only takes effect after a
+          // restart is a preference that looks broken for however long the
+          // reader keeps using the screen they just changed it on.
+          applyTheme(chosen);
+        })
+        .catch(function (err) {
+          notice.textContent = "Could not save the theme: " + String(err && err.message ? err.message : err);
+          notice.hidden = false;
+          select.value = current.theme || "light";
+        });
+    };
   }
 
   // ------------------------------------------------------------ clean state

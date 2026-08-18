@@ -704,6 +704,30 @@ h1, h2, h3 { letter-spacing: -0.01em; }
   margin: 0 0 .6rem;
   font-weight: 600;
 }
+/* One row, not a settings card: a utility control living beside the other
+   build-facing facts on this page, not a feature announcing itself. */
+.about-theme-row {
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+}
+.about-theme-row label {
+  font-size: .9rem;
+  color: var(--ink-secondary);
+}
+#about-theme {
+  font: inherit;
+  font-size: .88rem;
+  padding: .35rem .55rem;
+  background: var(--surface);
+  color: var(--ink-primary);
+  border: 1px solid var(--outline);
+  border-radius: var(--radius-card);
+  cursor: pointer;
+}
+#about-theme:hover { border-color: var(--accent); }
+#about-theme:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
 .about-attrib {
   margin-top: 2.5rem;
   padding-top: 1rem;

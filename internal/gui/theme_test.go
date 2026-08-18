@@ -116,3 +116,70 @@ func TestThemePreferenceAppliesBeforeFirstRender(t *testing.T) {
 		t.Error("applyTheme is not called before renderHome; the theme would apply after the first screen already painted")
 	}
 }
+
+// TestThemeControlExistsAndIsWiredCorrectly checks the About-page control
+// added this session: a preference with no way to set it from the UI is only
+// usable by someone who edits the config file, which is not acceptable for a
+// preference this directly user-facing (the reasoning that closed the
+// mechanism-only gap timezone is still sitting in, per BACKLOG).
+func TestThemeControlExistsAndIsWiredCorrectly(t *testing.T) {
+	html := readFrontend(t, "index.html")
+	js := readFrontend(t, "app.js")
+
+	if !strings.Contains(html, `id="about-theme"`) {
+		t.Fatal("index.html has no #about-theme control")
+	}
+	for _, want := range []string{`value="light"`, `value="dark"`, `value="system"`} {
+		if !strings.Contains(html, want) {
+			t.Errorf("#about-theme is missing the %s option", want)
+		}
+	}
+	if !strings.Contains(html, `id="about-theme-notice"`) {
+		t.Error("no #about-theme-notice element; a failed save would have nowhere to say so")
+	}
+
+	// The control needs the saved preference at open time, fetched alongside
+	// the rest of the page's content rather than as a second round trip.
+	openAbout := extractFunction(t, js, "openAbout")
+	if !strings.Contains(openAbout, "window.go.gui.App.Preferences()") {
+		t.Error("openAbout does not fetch Preferences(); the control would have no saved value to show")
+	}
+	if !strings.Contains(openAbout, "wireThemeControl(") {
+		t.Error("openAbout does not call wireThemeControl")
+	}
+
+	wire := extractFunction(t, js, "wireThemeControl")
+	if !strings.Contains(wire, "select.onchange") {
+		t.Fatal("wireThemeControl does not attach a change handler")
+	}
+	if !strings.Contains(wire, "window.go.gui.App.SavePreferences(") {
+		t.Error("the change handler does not call SavePreferences; a choice would never reach disk")
+	}
+	// The saved object must carry the preference's other fields (schema,
+	// timezone), not just theme — SavePreferences takes the whole struct, and
+	// a save that forgot the others would silently clear them.
+	if !strings.Contains(wire, "current.schema") || !strings.Contains(wire, "current.timezone") {
+		t.Error("the saved object does not carry the existing schema/timezone; saving a theme change would wipe them")
+	}
+
+	// Split at .then( so the success and failure paths can be checked apart —
+	// applying the theme belongs only in the success path, and reverting the
+	// visible control only in the failure path.
+	thenIdx := strings.Index(wire, ".then(")
+	catchIdx := strings.Index(wire, ".catch(")
+	if thenIdx < 0 || catchIdx < 0 || catchIdx < thenIdx {
+		t.Fatal("SavePreferences call has no .then().catch(); success and failure cannot be told apart")
+	}
+	success, failure := wire[thenIdx:catchIdx], wire[catchIdx:]
+
+	if !strings.Contains(success, "applyTheme(") {
+		t.Error("a successful save does not call applyTheme; the change would need a restart to take visible effect")
+	}
+	if !strings.Contains(failure, "notice.hidden = false") {
+		t.Error("a failed save does not surface the #about-theme-notice element")
+	}
+	if !strings.Contains(failure, "select.value") {
+		t.Error("a failed save does not revert the visible control to the last saved value — " +
+			"the dropdown would show a choice that was never actually saved")
+	}
+}

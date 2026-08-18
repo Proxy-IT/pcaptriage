@@ -455,3 +455,41 @@ func TestAccentStaysQuieterThanSeverity(t *testing.T) {
 		})
 	}
 }
+
+// TestSeverityBadgesSurviveGreyscalePrint is Part 3's print requirement made
+// checkable: the report's @media print block sets body to pure white and
+// doubles .tag-sev's border width, on the theory that colour may not survive
+// the printer but the word and the box around it still will. That theory
+// depends on every severity foreground actually being dark enough to read as
+// a visible line once hue is discarded — WCAG relative luminance is exactly a
+// weighted greyscale conversion, so contrast-against-white is the same
+// measurement a black-and-white printer or photocopier effectively performs.
+//
+// The export never themes (TestExportedHTMLLocksToLightTheme), so only the
+// light values are checked here — there is no dark print state for this to
+// hold for.
+//
+// significant, worth-noting and ok are checked directly; informational is
+// checked as it actually prints, not as a hypothetical fourth hue: its badge
+// text is --ink-secondary and its border is --outline, the same "no colour"
+// treatment the screen render uses, because informational is deliberately the
+// one tier that does not compete for the eye even in colour.
+func TestSeverityBadgesSurviveGreyscalePrint(t *testing.T) {
+	white := [3]float64{1, 1, 1}
+
+	check := func(label, hex string) {
+		t.Helper()
+		fg := parseColour(t, hex, white)
+		got := ratio(fg, white)
+		if got < aaBody {
+			t.Errorf("%s (%s) is %.2f:1 against white, want >= %.1f:1 — "+
+				"on a greyscale printer this would print too pale to read as a bordered badge",
+				label, hex, got, aaBody)
+		}
+	}
+
+	check("--sev-significant", tokenColour(t, "light", "sev-significant"))
+	check("--sev-worth-noting", tokenColour(t, "light", "sev-worth-noting"))
+	check("--ok", tokenColour(t, "light", "ok"))
+	check("--ink-secondary (informational's badge text)", tokenColour(t, "light", "ink-secondary"))
+}
