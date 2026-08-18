@@ -15,6 +15,24 @@
   <div class="drop-veil-inner">Drop the capture to open it</div>
 </div>
 
+<!-- Persistent across every view, which is why it sits outside all of them.
+     Each screen used to grow its own way back, one at a time and only after
+     someone noticed it was missing; this is the one control that is always
+     there. The contextual "← where you came from" buttons inside the guide
+     and About views are deliberately kept: they restore an exact scroll
+     position, which a generic Home link cannot do. -->
+<nav id="topbar" class="topbar" aria-label="Main">
+  <span class="topbar-identity">
+    <span class="topbar-name">pcaptriage</span>
+    <span class="topbar-tagline">a second set of eyes for packet captures</span>
+  </span>
+  <span class="topbar-links">
+    <button type="button" id="nav-home" class="topbar-link">Home</button>
+    <button type="button" id="nav-guide" class="topbar-link">Guide</button>
+    <button type="button" id="nav-about" class="topbar-link">About</button>
+  </span>
+</nav>
+
 <!-- ==================== HOME ==================== -->
 <main id="view-home" class="view">
   <div class="home">
@@ -40,7 +58,11 @@
 
     <section class="checks-preview">
       <h2>What this build looks for</h2>
-      <ul id="checks-list" class="checks-list"></ul>
+      <!-- Rendered by the same function that fills the guide index, from the
+           same data, so the two answers to "what does this tool check" cannot
+           drift apart — and so every row here is a working link for the same
+           reason the index's are. -->
+      <ul id="checks-list" class="index-list"></ul>
       <p id="checks-caveat" class="caveat"></p>
     </section>
   </div>
@@ -132,10 +154,12 @@
         <p class="guide-crumb"><span id="guide-rule-id"></span> · guide</p>
         <h2 id="guide-title"></h2>
       </div>
+      <!-- Contextual return only. "All checks" and "Home" moved to the top
+           bar, which offers both from every screen; this one restores the
+           exact card and scroll position the reader left, which the bar
+           cannot. -->
       <div class="guide-nav">
         <button type="button" id="btn-guide-back" class="btn"></button>
-        <button type="button" id="btn-guide-index" class="btn">All checks</button>
-        <button type="button" id="btn-guide-home" class="btn">Home</button>
       </div>
     </header>
 
@@ -161,7 +185,6 @@
       </div>
       <div class="guide-nav">
         <button type="button" id="btn-index-back" class="btn"></button>
-        <button type="button" id="btn-index-home" class="btn">Home</button>
       </div>
     </header>
 
@@ -180,8 +203,6 @@
       </div>
       <div class="guide-nav">
         <button type="button" id="btn-about-back" class="btn"></button>
-        <button type="button" id="btn-about-index" class="btn">What it checks</button>
-        <button type="button" id="btn-about-home" class="btn">Home</button>
       </div>
     </header>
 

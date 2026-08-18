@@ -26,11 +26,36 @@
 
   function $(id) { return document.getElementById(id); }
 
+  // NAV_FOR maps a view to the top-bar link that represents it. Loading,
+  // findings and error are absent on purpose: no bar link leads to them, so
+  // none should light up while they are showing — an active state that did
+  // not correspond to a destination would be decoration rather than an answer
+  // to "where am I".
+  var NAV_FOR = {
+    home: "nav-home",
+    guide: "nav-guide",
+    "guide-index": "nav-guide",
+    about: "nav-about"
+  };
+  var NAV_LINKS = ["nav-home", "nav-guide", "nav-about"];
+
   // show reveals one view. Pass keepScroll to leave the scroll position alone,
   // which is how a lossless return works.
   function show(name, keepScroll) {
     VIEWS.forEach(function (v) {
       $("view-" + v).hidden = v !== name;
+    });
+    // Driven from show() rather than from each call site, so a view can never
+    // be revealed without the bar agreeing about where the reader is.
+    NAV_LINKS.forEach(function (id) {
+      var link = $(id);
+      if (NAV_FOR[name] === id) {
+        link.classList.add("active");
+        link.setAttribute("aria-current", "page");
+      } else {
+        link.classList.remove("active");
+        link.removeAttribute("aria-current");
+      }
     });
     if (!keepScroll) window.scrollTo(0, 0);
   }
@@ -81,7 +106,7 @@
 
   // ---------------------------------------------------------------- home
 
-  function renderHome(i) {
+  function renderHome(i, idx) {
     $("app-name").textContent = i.name;
     $("app-tagline").textContent = i.tagline;
     $("app-instruction").textContent = i.instruction;
@@ -99,14 +124,10 @@
       notice.hidden = true;
     }
 
-    var list = $("checks-list");
-    list.textContent = "";
-    (i.implemented_checks || []).forEach(function (c) {
-      var li = el("li");
-      li.appendChild(el("span", "check-name", c.id + " · " + c.name));
-      li.appendChild(el("span", "check-summary", c.summary));
-      list.appendChild(li);
-    });
+    // The same rows the guide index shows, rendered by the same function, so
+    // a reader can open any check from here and the two screens cannot come
+    // to disagree about what this build looks for.
+    renderCheckList($("checks-list"), idx.entries, "home", "Home");
 
     var made = (i.implemented_checks || []).length;
     // Stated before the run rather than after it. A user who is told up front
@@ -309,14 +330,21 @@
       .catch(function (err) { fail(String(err && err.message ? err.message : err)); });
   }
 
-  function openGuideIndex() {
-    window.go.gui.App.Guide()
-      .then(function (idx) {
-        $("btn-index-back").textContent = "← " + returnTo.label;
-
-        var list = $("guide-index-list");
-        list.textContent = "";
-        (idx.entries || []).forEach(function (e) {
+  // renderCheckList fills a list element with one row per guide page.
+  //
+  // The home screen's "what this build looks for" and the guide index are the
+  // same question asked in two places, so they are one function reading one
+  // source rather than two renderings that would eventually disagree — the
+  // same reason neither of them keeps its own list of what the tool checks.
+  // It also means every row on the home screen is a working link for exactly
+  // the reason the index's rows are, rather than by a parallel mechanism that
+  // would need its own proof.
+  //
+  // fromView and fromLabel are where a click should return to, which is the
+  // only thing that differs between the two call sites.
+  function renderCheckList(list, entries, fromView, fromLabel) {
+    list.textContent = "";
+    (entries || []).forEach(function (e) {
           var li = el("li", "index-entry");
           var btn = el("button", "index-link");
           btn.type = "button";
@@ -324,10 +352,12 @@
           btn.appendChild(el("span", "check-name", ids + " · " + e.name));
           if (e.has_page) {
             btn.addEventListener("click", function () {
-              rememberReturn("guide-index", "All checks");
-              // Index arrival always lands at the page top, even for a page
-              // that serves several rules — the reader asked "what does this
-              // tool check" generally, not about any one of them.
+              rememberReturn(fromView, fromLabel);
+              // Arrival from a list always lands at the page top, even for a
+              // page that serves several rules — the reader asked "what does
+              // this tool check" generally, not about any one of them. The
+              // null is what withholds the finding-context block, since no
+              // finding sent them here.
               openGuide(e.rule_id, null);
             });
           } else {
@@ -359,12 +389,34 @@
 
           li.appendChild(btn);
           list.appendChild(li);
-        });
+    });
+  }
 
+  function openGuideIndex() {
+    window.go.gui.App.Guide()
+      .then(function (idx) {
+        $("btn-index-back").textContent = "← " + returnTo.label;
+        renderCheckList($("guide-index-list"), idx.entries, "guide-index", "All checks");
         $("guide-index-planned").textContent = idx.planned_note || "";
         show("guide-index");
       })
       .catch(function (err) { fail(String(err && err.message ? err.message : err)); });
+  }
+
+  // goToGuideIndex and goToAbout are the two destinations reachable from both
+  // the top bar and the native Help menu. They record where the reader was
+  // first, unless they are already there — asking for the screen you are on
+  // must not overwrite the way back with itself.
+  function goToGuideIndex() {
+    var here = currentView();
+    if (here !== "guide-index") rememberReturn(here, labelFor(here));
+    openGuideIndex();
+  }
+
+  function goToAbout() {
+    var here = currentView();
+    if (here !== "about") rememberReturn(here, labelFor(here));
+    openAbout();
   }
 
   function openAbout() {
@@ -674,27 +726,19 @@
     $("btn-another").addEventListener("click", function () { show("home"); pickFile(); });
     $("btn-error-back").addEventListener("click", function () { show("home"); });
 
+    // The contextual returns stay. "← {label}" undoes exactly one hop and
+    // restores the scroll position the reader left, which is a different and
+    // more precise job than the bar's Home — a reader six cards down who
+    // clicked a guide link wants their card back, not the drop zone.
     $("btn-guide-back").addEventListener("click", goBack);
     $("btn-index-back").addEventListener("click", goBack);
     $("btn-about-back").addEventListener("click", goBack);
-    $("btn-guide-index").addEventListener("click", function () {
-      rememberReturn("guide", "Guide");
-      openGuideIndex();
-    });
-    $("btn-about-index").addEventListener("click", function () {
-      rememberReturn("about", "About");
-      openGuideIndex();
-    });
 
-    // Home is a direct jump, not a step back: "← {label}" only ever undoes the
-    // last hop, so a reader several screens deep in the guide area (a finding's
-    // link, then All checks, then a menu-triggered index) has no way back to
-    // the drop zone except walking back through however many hops that was.
-    // Every guide-area screen gets this in addition to, not instead of, the
-    // context-sensitive back button.
-    $("btn-guide-home").addEventListener("click", function () { show("home"); });
-    $("btn-index-home").addEventListener("click", function () { show("home"); });
-    $("btn-about-home").addEventListener("click", function () { show("home"); });
+    // The persistent bar. Every screen has these three, which is what stops
+    // the next screen needing its own one-off way out.
+    $("nav-home").addEventListener("click", function () { show("home"); });
+    $("nav-guide").addEventListener("click", goToGuideIndex);
+    $("nav-about").addEventListener("click", goToAbout);
 
     // R15 renders in the banner, never as a card, so its guide entry has no
     // per-finding link to hang off of. One link covers it, from wherever its
@@ -732,16 +776,11 @@
 
     window.runtime.EventsOn("analysis:progress", onProgress);
     window.runtime.EventsOn("file:dropped", function (path) { analyze(path); });
-    window.runtime.EventsOn("nav:about", function () {
-      var here = currentView();
-      if (here !== "about") rememberReturn(here, labelFor(here));
-      openAbout();
-    });
-    window.runtime.EventsOn("nav:guide", function () {
-      var here = currentView();
-      if (here !== "guide-index") rememberReturn(here, labelFor(here));
-      openGuideIndex();
-    });
+    // The native Help menu and the top bar are two ways to ask for the same
+    // screen, so they call the same function rather than each remembering
+    // separately where the reader should return to.
+    window.runtime.EventsOn("nav:about", goToAbout);
+    window.runtime.EventsOn("nav:guide", goToGuideIndex);
     window.runtime.EventsOn("nav:open", function () { pickFile(); });
   }
 
@@ -753,8 +792,19 @@
   var guideAvailable = {};
 
   function start() {
-    window.go.gui.App.Guide()
-      .then(function (idx) {
+    // Both, before anything renders. The home screen's checks list is built
+    // from the guide index now, so a race between these two would decide
+    // whether the first screen the user sees lists what the tool checks.
+    //
+    // A failure of either is fatal rather than degraded, deliberately: the
+    // guide content is embedded and parsed at startup, so a failure here is a
+    // build defect, and a home screen quietly missing its list of checks
+    // would be a worse outcome than an error that says so.
+    Promise.all([window.go.gui.App.Info(), window.go.gui.App.Guide()])
+      .then(function (results) {
+        info = results[0];
+        var idx = results[1];
+
         (idx.entries || []).forEach(function (e) {
           if (!e.has_page) return;
           // A page serving several rules groups them into one index entry
@@ -765,17 +815,13 @@
           guideAvailable[e.rule_id] = true;
           (e.members || []).forEach(function (m) { guideAvailable[m.rule_id] = true; });
         });
-      })
-      .catch(function () { /* no guide index: links simply do not render */ });
-    window.go.gui.App.Info()
-      .then(function (i) {
-        info = i;
-        renderHome(i);
+
+        renderHome(info, idx);
         wire();
         show("home");
       })
       .catch(function (err) {
-        fail("The application could not start: " + String(err));
+        fail("The application could not start: " + String(err && err.message ? err.message : err));
       });
   }
 

@@ -26,6 +26,74 @@ body {
 .view { display: block; }
 [hidden] { display: none !important; }
 
+/* ---------------- persistent top bar ---------------- */
+
+/* Sticky rather than fixed: it stays reachable while reading a long guide
+   page without being taken out of flow, so nothing below needs a compensating
+   offset and the scroll positions the contextual back buttons restore stay
+   exactly what they were.
+
+   Deliberately slim. This is orientation, not a toolbar — on a laptop window
+   it costs about forty pixels, which is what keeps a guide page's summary and
+   a finding's context block above the fold where the answer-first structure
+   needs them. */
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  padding: .5rem 1.25rem;
+  background: var(--surface);
+  border-bottom: 1px solid var(--rule);
+  user-select: none;
+}
+
+.topbar-identity { display: flex; align-items: baseline; gap: .55rem; min-width: 0; }
+.topbar-name { font-weight: 600; font-size: .95rem; letter-spacing: -0.01em; }
+.topbar-tagline {
+  font-size: .78rem;
+  color: var(--ink-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* The tagline is the first thing to go when the window narrows: the links
+   are the bar's job, the tagline is decoration. */
+@media (max-width: 34rem) {
+  .topbar-tagline { display: none; }
+}
+
+.topbar-links { display: flex; gap: .25rem; flex: none; }
+.topbar-link {
+  font: inherit;
+  font-size: .85rem;
+  color: var(--ink-2);
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--radius-tag);
+  padding: .2rem .6rem;
+  cursor: pointer;
+}
+.topbar-link:hover { background: var(--wash); color: var(--step-550); }
+.topbar-link:focus-visible { outline: 2px solid var(--step-450); outline-offset: 1px; }
+/* Where am I. Weight and colour rather than a filled block, so the bar still
+   reads as orientation rather than as a set of tabs. */
+.topbar-link.active {
+  color: var(--step-550);
+  font-weight: 600;
+  background: var(--wash);
+}
+
+/* A sticky bar overlaps whatever scrollIntoView brings to the top of the
+   viewport, so anchored guide sections reserve room for it. Without this,
+   arriving at a rule's section from a finding lands with its heading tucked
+   under the bar. */
+.guide-section { scroll-margin-top: 3.5rem; }
+
 h1, h2, h3 { letter-spacing: -0.01em; }
 
 /* ---------------- home ---------------- */

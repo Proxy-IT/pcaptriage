@@ -29,43 +29,103 @@ func readFrontend(t *testing.T, name string) string {
 	return string(b)
 }
 
-// TestEveryGuideAreaScreenHasAHomePath is the first bug: "← {label}" only
-// ever undoes the last hop, so a reader several screens into the guide area
-// had no way back to the drop zone except walking back through however many
-// hops that was. Every guide/guide-index/about screen needs a direct,
-// unconditional path to home, not just a context-sensitive one back.
-func TestEveryGuideAreaScreenHasAHomePath(t *testing.T) {
+// TestTopBarIsOutsideEveryViewAndUniversallyWired is the structural half of
+// the persistent bar.
+//
+// This replaces a test that checked for a per-screen Home button on each of
+// the three guide-area views. That approach was the problem it was testing
+// for: every screen grew its own way out, one at a time, and the test could
+// only ever assert the instances someone had already remembered to add. A
+// bar declared once outside all the views is universal by construction, and
+// what needs asserting is precisely that — that it is not inside any view,
+// so no view can be shown without it.
+func TestTopBarIsOutsideEveryViewAndUniversallyWired(t *testing.T) {
 	html := readFrontend(t, "index.html")
 	js := readFrontend(t, "app.js")
 
-	screens := []struct {
-		view   string // the id suffix of the view container
-		homeID string
-	}{
-		{"guide", "btn-guide-home"},
-		{"guide-index", "btn-index-home"},
-		{"about", "btn-about-home"},
+	if !strings.Contains(html, `id="topbar"`) {
+		t.Fatal("index.html has no #topbar")
 	}
 
-	for _, s := range screens {
-		// The button must exist inside that view's container in the markup,
-		// not merely exist somewhere in the document.
+	// Not nested in any view container: a bar inside one would vanish with it.
+	views := regexp.MustCompile(`(?s)<main id="view-([a-z-]+)"[^>]*>(.*?)</main>`)
+	for _, m := range views.FindAllStringSubmatch(html, -1) {
+		if strings.Contains(m[2], `id="topbar"`) {
+			t.Errorf("#topbar is inside view-%s, so it would disappear whenever that view is hidden", m[1])
+		}
+	}
+
+	// The three destinations, each wired.
+	for _, id := range []string{"nav-home", "nav-guide", "nav-about"} {
+		if !strings.Contains(html, `id="`+id+`"`) {
+			t.Errorf("index.html has no #%s", id)
+		}
+		wire := regexp.MustCompile(`\$\("` + regexp.QuoteMeta(id) + `"\)\.addEventListener\(\s*"click"`)
+		if !wire.MatchString(js) {
+			t.Errorf("#%s has no click handler", id)
+		}
+	}
+
+	// Home is the universal escape hatch, so it is an unconditional jump
+	// rather than anything that depends on where the reader has been.
+	home := regexp.MustCompile(`\$\("nav-home"\)\.addEventListener\(\s*"click"\s*,\s*function\s*\(\)\s*\{\s*show\("home"\)`)
+	if !home.MatchString(js) {
+		t.Error(`#nav-home is not wired to an unconditional show("home")`)
+	}
+
+	// The active state is driven from show(), so revealing a view cannot
+	// leave the bar disagreeing about where the reader is.
+	showFn := extractFunction(t, js, "show")
+	if !strings.Contains(showFn, "NAV_FOR") {
+		t.Error("show() does not update the bar's active state; it would go stale on navigation")
+	}
+}
+
+// TestContextualBackControlsSurviveTheTopBar guards the coexistence the brief
+// requires. The bar's Home and a screen's "← {label}" do different jobs — one
+// is a universal escape hatch, the other restores the exact card and scroll
+// position the reader left — and consolidating the one-off Home buttons must
+// not have taken the contextual controls with them.
+func TestContextualBackControlsSurviveTheTopBar(t *testing.T) {
+	html := readFrontend(t, "index.html")
+	js := readFrontend(t, "app.js")
+
+	for _, s := range []struct{ view, backID string }{
+		{"guide", "btn-guide-back"},
+		{"guide-index", "btn-index-back"},
+		{"about", "btn-about-back"},
+	} {
 		container := regexp.MustCompile(`(?s)id="view-` + regexp.QuoteMeta(s.view) + `"[^>]*>(.*?)\n</main>`)
 		m := container.FindStringSubmatch(html)
 		if m == nil {
-			t.Fatalf("view-%s container not found in index.html", s.view)
+			t.Fatalf("view-%s container not found", s.view)
 		}
-		if !strings.Contains(m[1], `id="`+s.homeID+`"`) {
-			t.Errorf("view-%s has no #%s — no direct path home from this screen", s.view, s.homeID)
+		if !strings.Contains(m[1], `id="`+s.backID+`"`) {
+			t.Errorf("view-%s lost its contextual back control #%s", s.view, s.backID)
 		}
-
-		// And it has to be wired to an unconditional jump to home, not to
-		// goBack (which is the context-sensitive one-level-back button these
-		// screens already have, and is not a substitute for this).
-		wire := regexp.MustCompile(`\$\("` + regexp.QuoteMeta(s.homeID) + `"\)\.addEventListener\(\s*"click"\s*,\s*function\s*\(\)\s*\{\s*show\("home"\)`)
+		wire := regexp.MustCompile(`\$\("` + regexp.QuoteMeta(s.backID) + `"\)\.addEventListener\(\s*"click"\s*,\s*goBack\s*\)`)
 		if !wire.MatchString(js) {
-			t.Errorf("#%s is not wired to an unconditional show(\"home\")", s.homeID)
+			t.Errorf("#%s is no longer wired to goBack, so it would stop restoring scroll position", s.backID)
 		}
+	}
+
+	// goBack itself must still restore the remembered position rather than
+	// having quietly become a jump to the top.
+	goBack := extractFunction(t, js, "goBack")
+	if !strings.Contains(goBack, "returnTo.scrollY") {
+		t.Error("goBack no longer restores the remembered scroll position")
+	}
+}
+
+// TestStickyBarDoesNotSwallowAnchorLandings is the interaction the bar
+// introduces: scrollIntoView brings a section to the top of the viewport,
+// which is exactly where a sticky bar sits. Without room reserved, arriving
+// at a rule's section from a finding lands with its heading hidden behind
+// the bar.
+func TestStickyBarDoesNotSwallowAnchorLandings(t *testing.T) {
+	css := readFrontend(t, "app.css")
+	if !regexp.MustCompile(`\.guide-section\s*\{[^}]*scroll-margin-top`).MatchString(css) {
+		t.Error("guide sections reserve no scroll margin, so an anchored landing would sit under the sticky bar")
 	}
 }
 
@@ -80,7 +140,9 @@ func TestEveryGuideAreaScreenHasAHomePath(t *testing.T) {
 func TestGuideIndexGatesBothTheHandlerAndTheAppearance(t *testing.T) {
 	js := readFrontend(t, "app.js")
 
-	fn := extractFunction(t, js, "openGuideIndex")
+	// The gating now lives in the shared renderer, which is what makes it
+	// cover the home screen's list as well as the index's.
+	fn := extractFunction(t, js, "renderCheckList")
 
 	// The click handler must be attached only inside the has_page branch —
 	// not unconditionally with a later guard, which would still leave a
@@ -89,7 +151,7 @@ func TestGuideIndexGatesBothTheHandlerAndTheAppearance(t *testing.T) {
 	ifBlock := regexp.MustCompile(`(?s)if\s*\(e\.has_page\)\s*\{(.*?)\}\s*else\s*\{(.*?)\}`)
 	m := ifBlock.FindStringSubmatch(fn)
 	if m == nil {
-		t.Fatal("openGuideIndex does not branch on e.has_page with both an if and an else — " +
+		t.Fatal("renderCheckList does not branch on e.has_page with both an if and an else — " +
 			"cannot verify the handler and the disabled state are mutually exclusive")
 	}
 	ifBody, elseBody := m[1], m[2]
@@ -176,10 +238,12 @@ func TestR15HasAGuideLinkFromBothBannerLocations(t *testing.T) {
 // index exists to prevent, one level up.
 func TestGroupedIndexEntriesRenderTheirMembers(t *testing.T) {
 	js := readFrontend(t, "app.js")
-	fn := extractFunction(t, js, "openGuideIndex")
+	// Shared with the home screen's list, so this now covers both places a
+	// grouped row is shown.
+	fn := extractFunction(t, js, "renderCheckList")
 
 	if !strings.Contains(fn, "e.members") {
-		t.Fatal("openGuideIndex never reads e.members — a page serving several rules would render as " +
+		t.Fatal("renderCheckList never reads e.members — a page serving several rules would render as " +
 			"one row with no indication of what else it covers")
 	}
 	if !regexp.MustCompile(`e\.members\s*&&\s*e\.members\.length`).MatchString(fn) {
@@ -289,6 +353,55 @@ func TestEveryBuiltRuleLinkActuallyNavigates(t *testing.T) {
 					m.ID, page.Title, len(page.RuleIDs)-1, anchored)
 			}
 		}
+	}
+}
+
+// TestHomeChecksListIsTheSameComponentAsTheGuideIndex is the reuse the brief
+// requires, asserted rather than assumed.
+//
+// The registry-walk test above proves the navigation data path works for
+// every built rule. That proof carries to the home screen only if the home
+// screen renders through the same code — so what is checked here is exactly
+// that: one renderer, two call sites, and no second list-building loop that
+// would need its own proof and could drift from this one.
+func TestHomeChecksListIsTheSameComponentAsTheGuideIndex(t *testing.T) {
+	js := readFrontend(t, "app.js")
+
+	// Both call sites, naming the element each fills.
+	calls := regexp.MustCompile(`renderCheckList\(\s*\$\("([a-z-]+)"\)`).FindAllStringSubmatch(js, -1)
+	filled := map[string]bool{}
+	for _, c := range calls {
+		filled[c[1]] = true
+	}
+	for _, id := range []string{"checks-list", "guide-index-list"} {
+		if !filled[id] {
+			t.Errorf("#%s is not filled by renderCheckList; it would be a second, unproven list renderer", id)
+		}
+	}
+
+	// And renderHome must not have kept a loop of its own over the checks.
+	// This is the specific shape the brief warned against: a parallel
+	// mechanism that looks fine and is never covered by the navigation test.
+	home := extractFunction(t, js, "renderHome")
+	if !strings.Contains(home, "renderCheckList") {
+		t.Error("renderHome does not delegate to renderCheckList")
+	}
+	if strings.Contains(home, "implemented_checks || []).forEach") {
+		t.Error("renderHome still builds the checks list itself, in parallel with the guide index's renderer")
+	}
+
+	// The rows differ between the two screens in exactly one respect — where
+	// a click returns to — and that is a parameter, not a fork in the
+	// renderer.
+	fn := extractFunction(t, js, "renderCheckList")
+	if !strings.Contains(fn, "rememberReturn(fromView, fromLabel)") {
+		t.Error("renderCheckList does not take its return target as a parameter")
+	}
+	// Arrival from either list is a browse, not a finding, so neither may
+	// pass a finding and summon the context block.
+	if !regexp.MustCompile(`openGuide\(e\.rule_id,\s*null\)`).MatchString(fn) {
+		t.Error("renderCheckList does not open guide pages with a null finding, so a browsed page " +
+			"could render a finding-context block that no finding sent the reader to")
 	}
 }
 
