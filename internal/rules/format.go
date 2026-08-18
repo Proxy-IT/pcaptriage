@@ -63,6 +63,14 @@ func plural(n uint64) string {
 	return "s"
 }
 
+// wasWere agrees a verb with a count, for sentences that state one.
+func wasWere(n int) string {
+	if n == 1 {
+		return "was"
+	}
+	return "were"
+}
+
 // pluralInt is plural for signed counts.
 func pluralInt(n int) string {
 	if n == 1 {

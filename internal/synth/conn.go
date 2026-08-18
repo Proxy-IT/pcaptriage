@@ -213,6 +213,72 @@ func (c *Conn) FinClose(at time.Duration, step time.Duration) {
 	})
 }
 
+// ClientSYN emits a bare opening request from the client, without the rest of
+// the handshake. Fixtures use it to model attempts that were never answered
+// (repeat it for retries) or that were refused.
+//
+// The sequence number does not advance: a retry re-sends the same SYN, and a
+// refused attempt never occupies sequence space at all.
+func (c *Conn) ClientSYN(at time.Duration) {
+	c.b.AddTCP(TCPSpec{
+		At: at, Src: c.client, Dst: c.server,
+		Seq: c.cseq, Flags: capture.FlagSYN, Window: c.cwin,
+		WindowScale: 7, MSS: 1460, SACKPermitted: true,
+	})
+}
+
+// ServerRefuse emits a reset answering the client's opening request, as a host
+// with nothing listening on that port does.
+func (c *Conn) ServerRefuse(at time.Duration) {
+	c.ServerRefuseWithTTL(at, 0)
+}
+
+// ServerRefuseWithTTL is ServerRefuse with an explicit hop count, for the
+// forged-reset case: a device on the path answering on the host's behalf has
+// crossed fewer routers than the host itself, so its reset arrives with a
+// higher TTL than that host's ordinary traffic. Zero means the default.
+func (c *Conn) ServerRefuseWithTTL(at time.Duration, ttl uint8) {
+	c.b.AddTCP(TCPSpec{
+		At: at, Src: c.server, Dst: c.client,
+		Seq: 0, Ack: c.cseq + 1,
+		Flags: capture.FlagRST | capture.FlagACK, Window: 0, WindowScale: -1,
+		TTL: ttl,
+	})
+}
+
+// HandshakeWithTTL is Handshake with an explicit hop count on every segment
+// the server sends, so a fixture can establish what that host's ordinary
+// traffic looks like from the capture point.
+func (c *Conn) HandshakeWithTTL(at, rtt time.Duration, ttl uint8) {
+	c.b.AddTCP(TCPSpec{
+		At: at, Src: c.client, Dst: c.server,
+		Seq: c.cseq, Flags: capture.FlagSYN, Window: c.cwin, WindowScale: 7,
+	})
+	c.b.AddTCP(TCPSpec{
+		At: at + rtt, Src: c.server, Dst: c.client,
+		Seq: c.sseq, Ack: c.cseq + 1,
+		Flags: capture.FlagSYN | capture.FlagACK, Window: c.swin, WindowScale: 7,
+		TTL: ttl,
+	})
+	c.cseq++
+	c.sseq++
+	c.b.AddTCP(TCPSpec{
+		At: at + rtt + rtt/2, Src: c.client, Dst: c.server,
+		Seq: c.cseq, Ack: c.sseq, Flags: capture.FlagACK, Window: c.cwin, WindowScale: -1,
+	})
+}
+
+// ServerDataWithTTL is ServerData with an explicit hop count.
+func (c *Conn) ServerDataWithTTL(at time.Duration, n int, ttl uint8) {
+	c.b.AddTCP(TCPSpec{
+		At: at, Src: c.server, Dst: c.client,
+		Seq: c.sseq, Ack: c.cseq,
+		Flags: capture.FlagPSH | capture.FlagACK, Window: c.swin,
+		WindowScale: -1, PayloadLen: n, TTL: ttl,
+	})
+	c.sseq += uint32(n)
+}
+
 // ServerReset emits a RST from the server.
 func (c *Conn) ServerReset(at time.Duration) {
 	c.b.AddTCP(TCPSpec{

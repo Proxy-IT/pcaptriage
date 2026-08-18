@@ -47,13 +47,37 @@ func TestGuideRegistryBijection(t *testing.T) {
 		}
 	}
 
-	// Forward, strict: every built rule has exactly one guide entry now —
-	// the Batch 1 interim tolerance is gone.
+	// Forward: every built rule has exactly one guide entry.
+	//
+	// batch2Pending is an INTERIM exception, and a narrow one. Batch 2's four
+	// rules land across Parts 1 and 2 while their guide content — one file
+	// covering all four — is embedded in Part 3. Neither ordering avoids a
+	// window: embedding the file early would give R09 and R14 pages before
+	// those rules exist, failing the backward direction above, which is the
+	// worse of the two failures (a guide teaching a check the tool does not
+	// run). So the forward direction yields instead, for exactly the rules of
+	// the batch in flight, and only while their page is genuinely absent.
+	//
+	// What is NOT relaxed: the backward direction, the anchor requirement, and
+	// the guarantee that nothing renders a dead link — the index reports
+	// HasPage false for these and the card link is gated on it, both asserted
+	// below and in TestGuideIndexGatesBothTheHandlerAndTheAppearance.
+	//
+	// TODO(batch2 part 3): embed GUIDE-CONTENT-BATCH2.md and delete this set.
+	batch2Pending := map[string]bool{"R02": true, "R03": true, "R09": true, "R14": true}
+
 	for id := range registered {
 		p, ok := documented[id]
 		if !ok {
+			if batch2Pending[id] {
+				continue
+			}
 			t.Errorf("%s is built but has no guide page: its finding cards would link nowhere", id)
 			continue
+		}
+		if batch2Pending[id] {
+			t.Errorf("%s now has a guide page — remove it from batch2Pending so the strict "+
+				"forward check covers it again", id)
 		}
 		// A rule on a page it shares with others needs its own landing spot;
 		// a rule alone on its page needs none — landing "at that rule's
@@ -74,14 +98,18 @@ func TestGuideRegistryBijection(t *testing.T) {
 
 	// The index is the other reachability path Part 3a names, and must not
 	// disagree with what was just proven true of the guide content directly.
+	// HasPage is what gates both the index row and the finding card's link, so
+	// it has to track the content exactly — in both directions, which is what
+	// keeps a rule awaiting its page from rendering a link that goes nowhere.
 	idx, err := New("test").Guide()
 	if err != nil {
 		t.Fatal(err)
 	}
 	for _, e := range idx.Entries {
 		for _, id := range e.RuleIDs {
-			if !e.HasPage {
-				t.Errorf("%s: index entry says has_page=false for a rule the guide content documents", id)
+			_, hasContent := documented[id]
+			if e.HasPage != hasContent {
+				t.Errorf("%s: index says has_page=%v, guide content says %v", id, e.HasPage, hasContent)
 			}
 		}
 	}

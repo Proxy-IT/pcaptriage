@@ -105,6 +105,27 @@ var Thresholds = struct {
 	CoverageStrongRequiresNoGaps          bool
 	CoverageStrongRequiresCompleteRuleSet bool
 
+	// R02CaptureEndSuppression is how close to the end of a capture an
+	// unanswered SYN may be before R02 declines to report it. A capture that
+	// stopped mid-handshake has not observed silence, it has stopped watching.
+	// [RULES.md] "Suppress for SYNs within 2s of capture end."
+	R02CaptureEndSuppression time.Duration
+
+	// R02BackoffMinRatio is how much each retry interval must grow over the
+	// previous one before "the client retried with standard backoff" is
+	// stated. RULES.md gives the pattern (1s, 2s, 4s, 8s) but timers jitter
+	// and capture timestamps are not the client's clock.
+	// [chosen] Mirrors R05BackoffMinRatio, for the same reason and at the
+	// same value: demanding exact doubling would miss real backoff.
+	R02BackoffMinRatio float64
+
+	// R03TTLTolerance is how far a refusal's TTL may differ from the same
+	// host's other traffic before the finding notes that a device on the path
+	// may have sent it on the host's behalf.
+	// [RULES.md] "Flag when TTL differs by more than 2 from the same peer's
+	// established traffic."
+	R03TTLTolerance uint8
+
 	// R07ReorderMaxDelta is the inter-arrival window inside which a segment
 	// below the high-water mark reads as reordering rather than retransmission,
 	// provided IP ID ordering agrees.
@@ -169,6 +190,10 @@ var Thresholds = struct {
 
 	CoverageStrongRequiresNoGaps:          true,
 	CoverageStrongRequiresCompleteRuleSet: true,
+
+	R02CaptureEndSuppression: 2 * time.Second,
+	R02BackoffMinRatio:       1.5,
+	R03TTLTolerance:          2,
 
 	R07ReorderMaxDelta: 3 * time.Millisecond,
 	R06DupAckMin:       3,

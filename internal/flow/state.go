@@ -189,6 +189,13 @@ func (s *State) OneWay() bool {
 	return s.Packets[DirAToB] == 0 || s.Packets[DirBToA] == 0
 }
 
+// HasPayload reports whether either side ever carried application data, which
+// is the simplest evidence a connection was actually established. A rule about
+// connections that never opened uses it to exclude ones that plainly did.
+func (s *State) HasPayload() bool {
+	return s.DataSegments[DirAToB] > 0 || s.DataSegments[DirBToA] > 0
+}
+
 // Closed reports that a FIN was seen in both directions or a RST in either.
 func (s *State) Closed() bool {
 	return s.SawRST || (s.sawFIN[DirAToB] && s.sawFIN[DirBToA])

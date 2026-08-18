@@ -155,6 +155,8 @@ func Default() []Detector {
 	return []Detector{
 		NewCaptureQualityRule(),
 		NewZeroWindowStall(),
+		NewSynUnanswered(),
+		NewSynRejected(),
 		NewServerResponseOutlier(),
 		NewOutOfOrderNotLoss(loss),
 		NewRTORetransmission(loss),

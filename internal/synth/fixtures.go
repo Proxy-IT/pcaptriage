@@ -103,6 +103,36 @@ func Fixtures() []Fixture {
 			Purpose: "R08 unavailable: a flow captured in one direction only, with retransmissions on the visible side, so the directional comparison cannot be made.",
 			Build:   buildR08OneWay,
 		},
+		{
+			Name:    "r02-syn-unanswered",
+			Purpose: "R02 positive: five SYN attempts over 15s with standard backoff and no reply, against a host answering normally on another port.",
+			Build:   buildR02Positive,
+		},
+		{
+			Name:    "r02-syn-answered",
+			Purpose: "R02 negative: ordinary handshakes, including one retried SYN that is eventually answered, so no attempt went unanswered.",
+			Build:   buildR02Negative,
+		},
+		{
+			Name:    "r02-capture-truncated",
+			Purpose: "R02 suppression: an unanswered SYN inside the capture-end window, where silence was never observed — only the capture stopping.",
+			Build:   buildR02Truncated,
+		},
+		{
+			Name:    "r03-syn-rejected",
+			Purpose: "R03 positive: nine attempts from three clients refused on one port, while the same host answers normally on another.",
+			Build:   buildR03Positive,
+		},
+		{
+			Name:    "r03-syn-accepted",
+			Purpose: "R03 negative: handshakes that complete normally, including one connection closed by reset after its transfer — a close, not a refusal.",
+			Build:   buildR03Negative,
+		},
+		{
+			Name:    "r03-forged-reset",
+			Purpose: "R03 false-positive trap: refusals whose TTL disagrees with the same host's ordinary traffic by ten hops, hinting a middlebox answered on its behalf.",
+			Build:   buildR03ForgedReset,
+		},
 	}
 }
 

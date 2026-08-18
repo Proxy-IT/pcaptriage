@@ -90,10 +90,26 @@ type TCPSpec struct {
 	// segments.
 	SACKPermitted bool
 
+	// TTL is the IPv4 time-to-live, or the IPv6 hop limit. Zero means
+	// DefaultTTL, which is what every fixture authored before this field
+	// existed gets — so adding it changed no committed fixture.
+	//
+	// Per-packet rather than per-connection because the one rule that reads
+	// it, R03, is looking for a segment whose TTL disagrees with the rest of
+	// its peer's traffic: a forged RST injected by a middlebox closer to the
+	// capture point than the real host is. That is only expressible if a
+	// single segment can differ from its neighbours.
+	TTL uint8
+
 	// PayloadLen is the number of payload bytes. The bytes themselves are
 	// zeros; no rule reads them and no report may contain them.
 	PayloadLen int
 }
+
+// DefaultTTL is the hop count fixtures use unless they say otherwise. 64 is
+// the initial TTL Linux and macOS send with, so a packet that has crossed no
+// router still carries it.
+const DefaultTTL = 64
 
 // AddTCP appends one TCP segment.
 func (b *Builder) AddTCP(s TCPSpec) {
@@ -144,6 +160,11 @@ func (b *Builder) AddTCP(s TCPSpec) {
 	binary.BigEndian.PutUint16(tcp[14:16], s.Window)
 	copy(tcp[20:], opts)
 
+	ttl := s.TTL
+	if ttl == 0 {
+		ttl = DefaultTTL
+	}
+
 	var (
 		ip        []byte
 		etherType uint16
@@ -161,7 +182,7 @@ func (b *Builder) AddTCP(s TCPSpec) {
 		// carries the ID it was "first sent" with, the way a real NIC would.
 		binary.BigEndian.PutUint16(ip[4:6], uint16(s.Seq>>8))
 		binary.BigEndian.PutUint16(ip[6:8], 0x4000) // don't fragment
-		ip[8] = 64
+		ip[8] = ttl
 		ip[9] = capture.ProtoTCP
 		copy(ip[12:16], s4[:])
 		copy(ip[16:20], d4[:])
@@ -178,7 +199,7 @@ func (b *Builder) AddTCP(s TCPSpec) {
 		ip[0] = 0x60
 		binary.BigEndian.PutUint16(ip[4:6], uint16(len(tcp)))
 		ip[6] = capture.ProtoTCP // next header
-		ip[7] = 64               // hop limit
+		ip[7] = ttl              // hop limit
 		copy(ip[8:24], s16[:])
 		copy(ip[24:40], d16[:])
 

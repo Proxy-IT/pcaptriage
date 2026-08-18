@@ -5,7 +5,7 @@
     "name": "pcaptriage",
     "version": "test",
     "ruleset_version": "1.0.0-partial",
-    "build": "Partial build: 7 of the 15 v1 rules are implemented (R01 zero-window-stall, R04 server-response-outlier, R05 rto-retransmission, R06 fast-retransmission, R07 out-of-order-not-loss, R08 asymmetric-loss, R15 capture-quality). Every other condition in the v1 rule set was not looked for at all."
+    "build": "Partial build: 9 of the 15 v1 rules are implemented (R01 zero-window-stall, R02 syn-unanswered, R03 syn-rejected, R04 server-response-outlier, R05 rto-retransmission, R06 fast-retransmission, R07 out-of-order-not-loss, R08 asymmetric-loss, R15 capture-quality). Every other condition in the v1 rule set was not looked for at all."
   },
   "invocation": {
     "args": [
@@ -40,14 +40,14 @@
   "coverage": {
     "clean": true,
     "statement": "No significant problems found in what was checked",
-    "qualifier": "That is not the same as the capture being problem-free. 7 of 15 planned checks are built, and what they do not cover has not been examined. What each check looked at, and what could not be assessed on this capture, is below.",
+    "qualifier": "That is not the same as the capture being problem-free. 9 of 15 planned checks are built, and what they do not cover has not been examined. What each check looked at, and what could not be assessed on this capture, is below.",
     "not_checked": [
       {
         "rule_id": "R15",
         "text": "Not assessed: whether the capture host dropped packets before writing them. The classic pcap format has no field to record it, so this file cannot say either way. Packets dropped by the capturing machine look the same as packets lost on the network. If that distinction matters here, re-capturing in pcapng format would record the count."
       }
     ],
-    "unbuilt_checks": 8,
+    "unbuilt_checks": 6,
     "coverage_strong": false,
     "coverage_weak_reason": "some checks could not run on this capture",
     "minor_observations": 0
@@ -59,6 +59,20 @@
       "base_weight": 9,
       "status": "ran",
       "summary": "A receiver advertised a zero window having previously advertised non-zero, blocking the sender until a window update arrived."
+    },
+    {
+      "id": "R02",
+      "name": "syn-unanswered",
+      "base_weight": 9,
+      "status": "ran",
+      "summary": "A connection attempt received no answer at all — no acceptance and no refusal — despite the client retrying."
+    },
+    {
+      "id": "R03",
+      "name": "syn-rejected",
+      "base_weight": 7,
+      "status": "ran",
+      "summary": "A connection attempt was answered with a refusal rather than an acceptance — the host is reachable, and nothing is listening on that port."
     },
     {
       "id": "R04",
