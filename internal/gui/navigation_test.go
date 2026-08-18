@@ -68,9 +68,18 @@ func TestTopBarIsOutsideEveryViewAndUniversallyWired(t *testing.T) {
 
 	// Home is the universal escape hatch, so it is an unconditional jump
 	// rather than anything that depends on where the reader has been.
-	home := regexp.MustCompile(`\$\("nav-home"\)\.addEventListener\(\s*"click"\s*,\s*function\s*\(\)\s*\{\s*show\("home"\)`)
-	if !home.MatchString(js) {
-		t.Error(`#nav-home is not wired to an unconditional show("home")`)
+	if !regexp.MustCompile(`\$\("nav-home"\)\.addEventListener\(\s*"click"\s*,\s*goHome\s*\)`).MatchString(js) {
+		t.Error("#nav-home is not wired to goHome")
+	}
+	goHome := extractFunction(t, js, "goHome")
+	if !strings.Contains(goHome, `show("home")`) {
+		t.Error(`goHome does not show the home view unconditionally`)
+	}
+	// Reaching a root ends the trail rather than suspending it: a back control
+	// still offering "← Guide" after the reader has left for Home would return
+	// them to a screen they deliberately walked out of.
+	if !regexp.MustCompile(`backStack\s*=\s*\[\]`).MatchString(goHome) {
+		t.Error("goHome does not clear the back stack, so the contextual return would survive leaving for a root")
 	}
 
 	// The active state is driven from show(), so revealing a view cannot
@@ -81,39 +90,68 @@ func TestTopBarIsOutsideEveryViewAndUniversallyWired(t *testing.T) {
 	}
 }
 
-// TestContextualBackControlsSurviveTheTopBar guards the coexistence the brief
-// requires. The bar's Home and a screen's "← {label}" do different jobs — one
-// is a universal escape hatch, the other restores the exact card and scroll
-// position the reader left — and consolidating the one-off Home buttons must
-// not have taken the contextual controls with them.
-func TestContextualBackControlsSurviveTheTopBar(t *testing.T) {
+// TestContextualBackControlSurvivesTheTopBarAndIsNotUnderIt guards the
+// coexistence the brief requires. The bar's Home and the "← {label}" return do
+// different jobs — one is a universal escape hatch, the other restores the
+// exact card and scroll position the reader left — and consolidating the
+// one-off Home buttons must not have taken the contextual control with them.
+//
+// It also fixes the position, which is not cosmetic. The control used to sit
+// in each view's own header, in normal flow, directly beneath a sticky bar.
+// Scrolling slid it under: partly covered, still visibly a button, and the
+// click landing on the bar instead — reported as "the back button doesn't work
+// on the first attempt". Inside the bar it cannot be overlaid by the bar, and
+// that is the property asserted here, not merely that some back control
+// exists somewhere.
+func TestContextualBackControlSurvivesTheTopBarAndIsNotUnderIt(t *testing.T) {
 	html := readFrontend(t, "index.html")
 	js := readFrontend(t, "app.js")
 
-	for _, s := range []struct{ view, backID string }{
-		{"guide", "btn-guide-back"},
-		{"guide-index", "btn-index-back"},
-		{"about", "btn-about-back"},
-	} {
-		container := regexp.MustCompile(`(?s)id="view-` + regexp.QuoteMeta(s.view) + `"[^>]*>(.*?)\n</main>`)
-		m := container.FindStringSubmatch(html)
-		if m == nil {
-			t.Fatalf("view-%s container not found", s.view)
-		}
-		if !strings.Contains(m[1], `id="`+s.backID+`"`) {
-			t.Errorf("view-%s lost its contextual back control #%s", s.view, s.backID)
-		}
-		wire := regexp.MustCompile(`\$\("` + regexp.QuoteMeta(s.backID) + `"\)\.addEventListener\(\s*"click"\s*,\s*goBack\s*\)`)
-		if !wire.MatchString(js) {
-			t.Errorf("#%s is no longer wired to goBack, so it would stop restoring scroll position", s.backID)
+	bar := regexp.MustCompile(`(?s)<nav id="topbar".*?</nav>`).FindString(html)
+	if bar == "" {
+		t.Fatal("#topbar element not found")
+	}
+	if !strings.Contains(bar, `id="nav-back"`) {
+		t.Fatal("the contextual return #nav-back is not inside #topbar; anywhere below the sticky bar " +
+			"it can be scrolled under the bar and silently stop taking clicks")
+	}
+
+	wire := regexp.MustCompile(`\$\("nav-back"\)\.addEventListener\(\s*"click"\s*,\s*goBack\s*\)`)
+	if !wire.MatchString(js) {
+		t.Error("#nav-back is not wired to goBack, so it would stop restoring scroll position")
+	}
+
+	// The per-view controls it replaced must be gone rather than left
+	// duplicated — a second copy in normal flow would reintroduce exactly the
+	// swallowed-click bug this consolidation removes.
+	for _, old := range []string{"btn-guide-back", "btn-index-back", "btn-about-back"} {
+		if strings.Contains(html, old) || strings.Contains(js, old) {
+			t.Errorf("%s still exists; the per-view back controls were superseded by #nav-back", old)
 		}
 	}
 
 	// goBack itself must still restore the remembered position rather than
 	// having quietly become a jump to the top.
 	goBack := extractFunction(t, js, "goBack")
-	if !strings.Contains(goBack, "returnTo.scrollY") {
+	if !strings.Contains(goBack, ".scrollY") || !strings.Contains(goBack, "window.scrollTo") {
 		t.Error("goBack no longer restores the remembered scroll position")
+	}
+	// One shared control serving three views has to be repainted whenever a
+	// view is revealed. Painted at open time instead, it would keep the label
+	// and destination of whichever screen last set it — returning to the guide
+	// page under a "← Guide" button that goes nowhere.
+	showFn := extractFunction(t, js, "show")
+	if !strings.Contains(showFn, `$("nav-back")`) {
+		t.Error("show() does not repaint #nav-back; the shared control would carry another view's return target")
+	}
+	if !strings.Contains(showFn, "BACK_VIEWS") {
+		t.Error("show() does not gate #nav-back on the view being one that can be returned from")
+	}
+	// And the memory has to be a stack, not one slot: returning from About to
+	// a guide page has to restore the guide page's own way back, which a
+	// single overwritten slot has by then destroyed.
+	if !strings.Contains(goBack, "backStack.pop()") {
+		t.Error("goBack does not pop a stack, so a two-hop trail would lose the earlier return target")
 	}
 }
 
@@ -126,6 +164,41 @@ func TestStickyBarDoesNotSwallowAnchorLandings(t *testing.T) {
 	css := readFrontend(t, "app.css")
 	if !regexp.MustCompile(`\.guide-section\s*\{[^}]*scroll-margin-top`).MatchString(css) {
 		t.Error("guide sections reserve no scroll margin, so an anchored landing would sit under the sticky bar")
+	}
+}
+
+// TestBodyDoesNotBoxInTheStickyBar guards the reason the bar was not actually
+// persistent, which the swallowed-click investigation turned up underneath it.
+//
+// `html, body { height: 100% }` with `body { overflow-y: auto }` makes body a
+// viewport-sized scroll container. A sticky box cannot travel outside its
+// containing block, and body's box was then one viewport tall while a guide
+// page ran to three — so the bar held position for the first screenful and
+// then scrolled away with the text. Measured in the browser before the fix:
+// the bar's top was at -51px by 600px of scroll on a 1779px page.
+//
+// The property is structural and easy to reintroduce by copying a
+// full-height-app layout idiom, so it is asserted rather than left to the
+// next person to rediscover interactively.
+func TestBodyDoesNotBoxInTheStickyBar(t *testing.T) {
+	css := readFrontend(t, "app.css")
+
+	bodyRules := regexp.MustCompile(`(?m)^\s*(?:html\s*,\s*)?body\s*\{([^}]*)\}`).FindAllStringSubmatch(css, -1)
+	if len(bodyRules) == 0 {
+		t.Fatal("no body rule found in app.css")
+	}
+	for _, r := range bodyRules {
+		decls := r[1]
+		// A fixed height is the half that shrinks the containing block.
+		if regexp.MustCompile(`(?m)(^|;)\s*height\s*:\s*100%`).MatchString(decls) {
+			t.Error("body has height: 100%, which caps the sticky bar's containing block at one viewport — " +
+				"use min-height so the body grows with the page")
+		}
+		// And body owning the scroll is the half that makes it the scrollport.
+		if regexp.MustCompile(`(?m)(^|;)\s*overflow(-y)?\s*:\s*(auto|scroll)`).MatchString(decls) {
+			t.Error("body declares its own overflow, making it the scroll container rather than the document; " +
+				"the sticky bar then sticks within body's box instead of the page")
+		}
 	}
 }
 

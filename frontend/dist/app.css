@@ -8,7 +8,16 @@
 
 * { box-sizing: border-box; }
 
-html, body { height: 100%; }
+/* min-height, not height, and the document scrolls rather than the body.
+   A fixed-height body with its own overflow makes body the scroll container
+   AND the sticky bar's containing block, and a sticky box cannot travel past
+   its containing block: the bar stayed put for one viewport of a guide page
+   and then scrolled away with the text, which is the opposite of persistent.
+   Letting body grow with its content gives the bar the whole page to stick
+   through. The 100% floor stays so the page background still fills a short
+   screen. */
+html { height: 100%; }
+body { min-height: 100%; }
 
 body {
   margin: 0;
@@ -17,7 +26,6 @@ body {
   font-family: var(--font);
   font-size: var(--text-base);
   line-height: var(--leading);
-  overflow-y: auto;
   /* The window chrome is the app frame; text selection is for content only. */
   user-select: none;
   cursor: default;
@@ -53,6 +61,30 @@ body {
 }
 
 .topbar-identity { display: flex; align-items: baseline; gap: .55rem; min-width: 0; }
+
+/* The contextual return, in the bar rather than under it. Bordered where the
+   destination links are not: it undoes a hop rather than naming a place, and
+   the difference should be visible without reading the label. */
+.topbar-back {
+  font: inherit;
+  font-size: .82rem;
+  color: var(--ink-2);
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-tag);
+  padding: .18rem .55rem;
+  cursor: pointer;
+  white-space: nowrap;
+  flex: none;
+}
+.topbar-back:hover { background: var(--wash); color: var(--step-550); }
+.topbar-back:focus-visible { outline: 2px solid var(--step-450); outline-offset: 1px; }
+/* The name is what gives way when the back control and the links compete for
+   a narrow window — the reader can see which app they are in from everything
+   else on screen, but not where the way back went. */
+@media (max-width: 30rem) {
+  .topbar-name { display: none; }
+}
 .topbar-name { font-weight: 600; font-size: .95rem; letter-spacing: -0.01em; }
 .topbar-tagline {
   font-size: .78rem;
@@ -543,7 +575,6 @@ h1, h2, h3 { letter-spacing: -0.01em; }
 /* ---------------- guide ---------------- */
 
 .guide { max-width: 52rem; margin: 0 auto; padding: 2.25rem 2rem 4rem; }
-.guide-nav { display: flex; gap: .5rem; flex-wrap: wrap; }
 .guide-crumb {
   margin: 0 0 .15rem;
   font-family: var(--mono);

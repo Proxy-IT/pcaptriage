@@ -22,7 +22,17 @@
   // Returning to the top of the results list would make the guide expensive to
   // consult: a reader six cards down has to find their place again, so they
   // learn not to click. The scroll position is part of the answer.
-  var returnTo = { view: "home", scrollY: 0, label: "Back" };
+  //
+  // A stack rather than a single slot. One slot was enough while each view
+  // painted its own back label at open time, because a stale label on a view
+  // nobody was looking at did no harm. The bar's single shared control is
+  // repainted on every show(), so a one-hop-deep memory would have the reader
+  // land back on the guide page under a "← Guide" button pointing at itself.
+  var backStack = [];
+
+  function backTop() {
+    return backStack.length ? backStack[backStack.length - 1] : null;
+  }
 
   function $(id) { return document.getElementById(id); }
 
@@ -38,6 +48,11 @@
     about: "nav-about"
   };
   var NAV_LINKS = ["nav-home", "nav-guide", "nav-about"];
+
+  // The views that can be arrived at from somewhere else and returned from.
+  // Findings is absent: it is a root, reached by opening a capture rather than
+  // by navigating, and "← Home" from it would undo the reader's work.
+  var BACK_VIEWS = { guide: true, "guide-index": true, about: true };
 
   // show reveals one view. Pass keepScroll to leave the scroll position alone,
   // which is how a lossless return works.
@@ -57,18 +72,39 @@
         link.removeAttribute("aria-current");
       }
     });
+    // The contextual return is painted here, from one place, for the same
+    // reason the active state is: a view must not be able to appear wearing
+    // another view's way back.
+    var back = $("nav-back");
+    var to = BACK_VIEWS[name] ? backTop() : null;
+    if (to) {
+      back.textContent = "← " + to.label;
+      back.hidden = false;
+    } else {
+      back.textContent = "";
+      back.hidden = true;
+    }
     if (!keepScroll) window.scrollTo(0, 0);
   }
 
   // rememberReturn records the current place before a secondary view opens.
   function rememberReturn(view, label) {
-    returnTo = { view: view, scrollY: window.scrollY, label: label || "Back" };
+    backStack.push({ view: view, scrollY: window.scrollY, label: label || "Back" });
+  }
+
+  // goHome is the bar's escape hatch: it goes to a root, so the trail of
+  // secondary views the reader took to get here is spent, not suspended.
+  function goHome() {
+    backStack = [];
+    show("home");
   }
 
   function goBack() {
-    show(returnTo.view, true);
+    var to = backStack.pop();
+    if (!to) { show("home"); return; }
+    show(to.view, true);
     // Restore after the view is visible; a hidden element has no scroll height.
-    window.scrollTo(0, returnTo.scrollY);
+    window.scrollTo(0, to.scrollY);
   }
 
   function currentView() {
@@ -291,7 +327,6 @@
       .then(function (page) {
         $("guide-rule-id").textContent = (page.rule_ids || [ruleID]).join(" · ");
         $("guide-title").textContent = page.title;
-        $("btn-guide-back").textContent = "← " + returnTo.label;
 
         var ctx = $("guide-context");
         if (finding) {
@@ -395,7 +430,6 @@
   function openGuideIndex() {
     window.go.gui.App.Guide()
       .then(function (idx) {
-        $("btn-index-back").textContent = "← " + returnTo.label;
         renderCheckList($("guide-index-list"), idx.entries, "guide-index", "All checks");
         $("guide-index-planned").textContent = idx.planned_note || "";
         show("guide-index");
@@ -424,7 +458,6 @@
       .then(function (a) {
         $("about-name").textContent = "About " + a.name;
         $("about-tagline").textContent = a.tagline;
-        $("btn-about-back").textContent = "← " + returnTo.label;
 
         var what = $("about-what");
         what.textContent = "";
@@ -726,17 +759,18 @@
     $("btn-another").addEventListener("click", function () { show("home"); pickFile(); });
     $("btn-error-back").addEventListener("click", function () { show("home"); });
 
-    // The contextual returns stay. "← {label}" undoes exactly one hop and
-    // restores the scroll position the reader left, which is a different and
-    // more precise job than the bar's Home — a reader six cards down who
-    // clicked a guide link wants their card back, not the drop zone.
-    $("btn-guide-back").addEventListener("click", goBack);
-    $("btn-index-back").addEventListener("click", goBack);
-    $("btn-about-back").addEventListener("click", goBack);
+    // The contextual return stays, and lives in the bar. "← {label}" undoes
+    // exactly one hop and restores the scroll position the reader left, which
+    // is a different and more precise job than the bar's Home — a reader six
+    // cards down who clicked a guide link wants their card back, not the drop
+    // zone. One control rather than one per view: it used to sit in each
+    // view's header, where the sticky bar scrolled over it and swallowed the
+    // click while it still looked pressable.
+    $("nav-back").addEventListener("click", goBack);
 
     // The persistent bar. Every screen has these three, which is what stops
     // the next screen needing its own one-off way out.
-    $("nav-home").addEventListener("click", function () { show("home"); });
+    $("nav-home").addEventListener("click", goHome);
     $("nav-guide").addEventListener("click", goToGuideIndex);
     $("nav-about").addEventListener("click", goToAbout);
 

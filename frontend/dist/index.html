@@ -23,6 +23,12 @@
      position, which a generic Home link cannot do. -->
 <nav id="topbar" class="topbar" aria-label="Main">
   <span class="topbar-identity">
+    <!-- The contextual return lives in the bar rather than in each view's
+         header. A sticky bar covers whatever scrolls beneath it, so a control
+         sitting just below it is clickable, then half-covered and silently
+         not, then hidden — and the half-covered state still looks clickable.
+         Inside the bar it can never be overlaid by it. -->
+    <button type="button" id="nav-back" class="topbar-back" hidden></button>
     <span class="topbar-name">pcaptriage</span>
     <span class="topbar-tagline">a second set of eyes for packet captures</span>
   </span>
@@ -154,13 +160,6 @@
         <p class="guide-crumb"><span id="guide-rule-id"></span> · guide</p>
         <h2 id="guide-title"></h2>
       </div>
-      <!-- Contextual return only. "All checks" and "Home" moved to the top
-           bar, which offers both from every screen; this one restores the
-           exact card and scroll position the reader left, which the bar
-           cannot. -->
-      <div class="guide-nav">
-        <button type="button" id="btn-guide-back" class="btn"></button>
-      </div>
     </header>
 
     <!-- Present only when the reader arrived from a finding, so the general
@@ -183,9 +182,6 @@
         <h2>What this tool checks</h2>
         <p class="results-file">One entry per check. Each links to a fuller explanation.</p>
       </div>
-      <div class="guide-nav">
-        <button type="button" id="btn-index-back" class="btn"></button>
-      </div>
     </header>
 
     <ul id="guide-index-list" class="index-list"></ul>
@@ -200,9 +196,6 @@
       <div>
         <h2 id="about-name"></h2>
         <p id="about-tagline" class="results-file"></p>
-      </div>
-      <div class="guide-nav">
-        <button type="button" id="btn-about-back" class="btn"></button>
       </div>
     </header>
 
