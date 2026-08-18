@@ -330,7 +330,7 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
     that conclusion is yours to draw from the frames.
   </p>
   <p class="posture">
-    <strong>Partial build.</strong> Partial build: 9 of the 15 v1 rules are implemented (R01 zero-window-stall, R02 syn-unanswered, R03 syn-rejected, R04 server-response-outlier, R05 rto-retransmission, R06 fast-retransmission, R07 out-of-order-not-loss, R08 asymmetric-loss, R15 capture-quality). Every other condition in the v1 rule set was not looked for at all. An empty findings list below means
+    <strong>Partial build.</strong> Partial build: 11 of the 15 v1 rules are implemented (R01 zero-window-stall, R02 syn-unanswered, R03 syn-rejected, R04 server-response-outlier, R05 rto-retransmission, R06 fast-retransmission, R07 out-of-order-not-loss, R08 asymmetric-loss, R09 reset-mid-transfer, R14 connection-churn, R15 capture-quality). Every other condition in the v1 rule set was not looked for at all. An empty findings list below means
     these checks found nothing, not that the capture is healthy.
   </p>
 </header>
@@ -395,7 +395,7 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
 
 
 <section>
-  <h2>Top findings <span class="count">all 5, most significant first</span></h2>
+  <h2>Top findings <span class="count">all 6, most significant first</span></h2>
   
     
 <article class="finding top sev-significant">
@@ -465,6 +465,20 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
   <p class="observation">Advertised a zero receive window 4 times, stalling the sender for 1.5s total (longest single stall 800ms).</p>
   <p class="frames">Frames 52, 169, 231, 237</p>
   <p class="next"><b>Check next:</b> the receiving application on 10.2.2.8 — a zero window means the application is not reading from its socket buffer fast enough. Look at CPU, blocked threads, or a downstream dependency on that host.</p>
+  
+</article>
+
+<article class="finding top sev-informational">
+  <div class="finding-head">
+    <span class="rank">#6</span>
+    <h3>Connections reset during active transfer — 10.2.2.9</h3>
+    <span class="tag tag-rule">R09</span>
+    <span class="tag tag-sev tag-sev-informational">Informational</span>
+    <span class="tag tag-confirmed">confirmed</span>
+  </div>
+  <p class="observation">1 connection terminated by RST while data was still in flight, averaging 1KB transferred before the reset. The remaining 12 connections in this capture closed normally with FIN.</p>
+  <p class="frames">Frames 236</p>
+  <p class="next"><b>Check next:</b> an application-side abort, a resource limit, or a stateful device on the path dropping the session. The TTL on these resets matches the peer&#39;s other traffic, so they appear to originate from the host rather than a middlebox.</p>
   
 </article>
 
@@ -578,12 +592,33 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
 </article>
 
   
+    <h3 class="rule-head">R09 · reset-mid-transfer</h3>
+    <p class="section-note">A connection was terminated by reset while data was still moving, rather than closed cleanly once both sides were done.</p>
+
+    
+
+    
+<article class="finding sev-informational">
+  <div class="finding-head">
+    <span class="rank">#6</span>
+    <h3>Connections reset during active transfer — 10.2.2.9</h3>
+    <span class="tag tag-rule">R09</span>
+    <span class="tag tag-sev tag-sev-informational">Informational</span>
+    <span class="tag tag-confirmed">confirmed</span>
+  </div>
+  <p class="observation">1 connection terminated by RST while data was still in flight, averaging 1KB transferred before the reset. The remaining 12 connections in this capture closed normally with FIN.</p>
+  <p class="frames">Frames 236</p>
+  <p class="next"><b>Check next:</b> an application-side abort, a resource limit, or a stateful device on the path dropping the session. The TTL on these resets matches the peer&#39;s other traffic, so they appear to originate from the host rather than a middlebox.</p>
+  
+</article>
+
+  
 </section>
 
 
 
 <section>
-  <h2>Subjects that produced findings <span class="count">5</span></h2>
+  <h2>Subjects that produced findings <span class="count">6</span></h2>
   <p class="section-note">
     Bounded to the subjects that raised something. A table of every flow in the capture,
     ranked by significance, needs per-flow state retained to the end of the run; flow state
@@ -617,6 +652,14 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
           <td class="mono">R01</td>
           <td class="num">2</td>
           <td class="mono">80, 183</td>
+        </tr>
+      
+        <tr>
+          <td class="mono">10.2.2.9:5432</td>
+          <td>endpoint</td>
+          <td class="mono">R09</td>
+          <td class="num">1</td>
+          <td class="mono">236</td>
         </tr>
       
         <tr>
@@ -684,13 +727,17 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
       
         <tr><td class="mono">R08</td><td class="mono">asymmetric-loss</td><td>Retransmission rate on one flow was at least five times higher in one direction than the other, with at least 20 retransmissions — loss is not symmetric.</td></tr>
       
+        <tr><td class="mono">R09</td><td class="mono">reset-mid-transfer</td><td>A connection was terminated by reset while data was still moving, rather than closed cleanly once both sides were done.</td></tr>
+      
+        <tr><td class="mono">R14</td><td class="mono">connection-churn</td><td>The same client opened and closed many short-lived connections to one server:port instead of reusing them, paying the handshake cost each time.</td></tr>
+      
         <tr><td class="mono">R15</td><td class="mono">capture-quality</td><td>Reports what the capture itself may limit: flows already open when the capture began, connections seen in one direction only, and packets the capture host dropped before writing them.</td></tr>
       
       </tbody>
     </table>
   </div>
   <p class="caption">
-    6 of the fifteen v1 rules are not implemented in this build
+    4 of the fifteen v1 rules are not implemented in this build
     and were therefore not looked for at all. They are not listed above because listing them
     as "skipped" would imply a decision was made per capture; none was.
   </p>

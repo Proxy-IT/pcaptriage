@@ -162,6 +162,8 @@ func Default() []Detector {
 		NewRTORetransmission(loss),
 		NewFastRetransmission(loss),
 		NewAsymmetricLoss(loss),
+		NewResetMidTransfer(),
+		NewConnectionChurn(),
 	}
 }
 

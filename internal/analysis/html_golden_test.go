@@ -2,6 +2,7 @@ package analysis_test
 
 import (
 	"bytes"
+	stdhtml "html"
 	"os"
 	"strings"
 	"testing"
@@ -95,23 +96,33 @@ func TestHTMLMatchesJSONWording(t *testing.T) {
 			res := runFixture(t, f.Name)
 			html := string(renderFixtureHTML(t, f.Name, "pcap"))
 
+			// The renderer escapes for HTML, so the comparison escapes the
+			// expected text the same way rather than looking for the raw
+			// bytes. This used to compare raw, on the grounds that no rule's
+			// wording contained a character that escapes — R09's "the peer's
+			// other traffic" is the first that does, and the test failed
+			// loudly exactly as its previous comment promised. Escaping here
+			// keeps the property being tested ("the renderer emitted this
+			// wording") while leaving the escaping itself intact, which is
+			// what stops capture-derived text from becoming markup.
+			contains := func(hay, needle string) bool {
+				return strings.Contains(hay, stdhtml.EscapeString(needle))
+			}
+
 			for _, fd := range res.Findings {
-				// The renderer escapes for HTML; the fixture wording contains
-				// no characters that escape, so a direct comparison holds and
-				// would fail loudly if that ever stopped being true.
-				if !strings.Contains(html, fd.Title) {
+				if !contains(html, fd.Title) {
 					t.Errorf("HTML is missing the finding title verbatim: %q", fd.Title)
 				}
-				if !strings.Contains(html, fd.Observation) {
+				if !contains(html, fd.Observation) {
 					t.Errorf("HTML is missing the observation verbatim for %q", fd.Title)
 				}
-				if !strings.Contains(html, fd.CheckNext) {
+				if !contains(html, fd.CheckNext) {
 					t.Errorf("HTML is missing the check-next line verbatim for %q", fd.Title)
 				}
 			}
 
 			for _, n := range res.Notes {
-				if !strings.Contains(html, n.Text) {
+				if !contains(html, n.Text) {
 					t.Errorf("HTML is missing a note that the JSON carries: %q", n.Text)
 				}
 			}

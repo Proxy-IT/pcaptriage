@@ -163,11 +163,14 @@ var lossFlagExpectation = map[string]lossExpectation{
 // two numbers legitimately differ, the reason is recorded here.
 type handshakeExpectation struct {
 	Tshark tsharkHandshake
-	// EngineUnanswered and EngineRefused are the totals the engine's R02 and
-	// R03 findings carry for this fixture.
-	EngineUnanswered uint64
-	EngineRefused    uint64
-	Reason           string
+	// EngineUnanswered, EngineRefused, EngineResetMidTransfer and
+	// EngineChurn are the totals the engine's R02, R03, R09 and R14 findings
+	// carry for this fixture.
+	EngineUnanswered       uint64
+	EngineRefused          uint64
+	EngineResetMidTransfer uint64
+	EngineChurn            uint64
+	Reason                 string
 }
 
 // handshakeFixtures pins the fixtures built to exercise R02 and R03. Other
@@ -211,6 +214,49 @@ var handshakeFixtures = map[string]handshakeExpectation{
 		Reason: "five refusals plus one established connection, whose traffic supplies the TTL baseline " +
 			"the refusals are compared against; counts agree, and the engine additionally degrades " +
 			"the finding to inferred because those TTLs disagree",
+	},
+
+	// Part 2's lifecycle fixtures. Every reset in these files is an ending
+	// rather than a refusal — the connections were established first — which
+	// is what keeps R03's count at zero across all of them while R09 accounts
+	// for the same frames.
+	"r09-reset-mid-transfer": {
+		Tshark:                 tsharkHandshake{SYNs: 20, SYNACKs: 20, Resets: 8},
+		EngineResetMidTransfer: 8,
+		Reason: "twenty connections, eight of them cut off while data was still moving and twelve closed " +
+			"with FIN; the oracle's reset count and the engine's interrupted-transfer count agree exactly",
+	},
+	"r09-clean-close": {
+		Tshark: tsharkHandshake{SYNs: 11, SYNACKs: 11, Resets: 1},
+		Reason: "the deliberate divergence: the oracle counts one reset, the engine reports none. That " +
+			"reset arrived ten seconds after the last data segment, so it ended a connection that had " +
+			"already gone quiet rather than interrupting a transfer — RULES.md puts that case outside " +
+			"this rule, and reading it as mid-transfer is the mistake the fixture exists to catch",
+	},
+	"r09-uniform-reset": {
+		Tshark:                 tsharkHandshake{SYNs: 18, SYNACKs: 18, Resets: 14},
+		EngineResetMidTransfer: 14,
+		Reason: "all fourteen resets are reported — the uniformity trap changes how the finding is ranked " +
+			"and worded, never whether the resets are counted, so the oracle and the engine still agree " +
+			"on the number",
+	},
+	"r14-connection-churn": {
+		Tshark:      tsharkHandshake{SYNs: 61, SYNACKs: 61},
+		EngineChurn: 60,
+		Reason: "sixty-one connections opened: sixty short-lived ones to the churning endpoint, plus one " +
+			"long-lived connection to a different port on the same host that is being reused properly " +
+			"and is correctly not counted as churn",
+	},
+	"r14-connection-reuse": {
+		Tshark: tsharkHandshake{SYNs: 8, SYNACKs: 8},
+		Reason: "eight connections, each held open across ten exchanges — below the connection minimum and " +
+			"far above the lifetime threshold, so reuse is working and nothing fires",
+	},
+	"r14-midstream": {
+		Tshark: tsharkHandshake{SYNs: 5, SYNACKs: 5},
+		Reason: "only five handshakes are visible for sixty connections to this endpoint; the other " +
+			"fifty-five were already open when the capture began. The engine reports no finding and an " +
+			"unavailable note instead, because a lifetime cannot be measured without an opening",
 	},
 }
 
@@ -472,13 +518,17 @@ func TestTsharkCrossValidation(t *testing.T) {
 				}
 
 				// Connection lifecycle, both sides.
-				var engUnanswered, engRefused uint64
+				var engUnanswered, engRefused, engResetMid, engChurn uint64
 				for _, fd := range res.Findings {
 					switch fd.RuleID {
 					case "R02":
 						engUnanswered += fd.TotalCount
 					case "R03":
 						engRefused += fd.TotalCount
+					case "R09":
+						engResetMid += fd.TotalCount
+					case "R14":
+						engChurn += fd.TotalCount
 					}
 				}
 
@@ -497,6 +547,20 @@ func TestTsharkCrossValidation(t *testing.T) {
 					t.Errorf("engine reports %d unanswered attempts but the capture holds only %d opening requests",
 						engUnanswered, scan.Handshake.SYNs)
 				}
+				if engResetMid > scan.Handshake.Resets {
+					t.Errorf("engine reports %d connections reset mid-transfer but the capture holds only %d resets",
+						engResetMid, scan.Handshake.Resets)
+				}
+				if engRefused+engResetMid > scan.Handshake.Resets {
+					t.Errorf("R03 and R09 together claim %d resets but the capture holds only %d — "+
+						"a reset is either a refusal or an ending, never both",
+						engRefused+engResetMid, scan.Handshake.Resets)
+				}
+				if engChurn > scan.Handshake.SYNs {
+					t.Errorf("engine reports %d churned connections but the capture holds only %d opening requests — "+
+						"churn is measured from handshakes, so this cannot exceed them",
+						engChurn, scan.Handshake.SYNs)
+				}
 
 				hs, pinned := handshakeFixtures[f.Name]
 				if !pinned {
@@ -507,10 +571,14 @@ func TestTsharkCrossValidation(t *testing.T) {
 						"  tshark   %+v\n  expected %+v\n  reason on file: %s",
 						scan.Handshake, hs.Tshark, hs.Reason)
 				}
-				if engUnanswered != hs.EngineUnanswered || engRefused != hs.EngineRefused {
+				if engUnanswered != hs.EngineUnanswered || engRefused != hs.EngineRefused ||
+					engResetMid != hs.EngineResetMidTransfer || engChurn != hs.EngineChurn {
 					t.Errorf("engine handshake classification diverges from documented expectation:\n"+
-						"  engine   unanswered=%d refused=%d\n  expected unanswered=%d refused=%d\n  reason on file: %s",
-						engUnanswered, engRefused, hs.EngineUnanswered, hs.EngineRefused, hs.Reason)
+						"  engine   unanswered=%d refused=%d reset-mid=%d churn=%d\n"+
+						"  expected unanswered=%d refused=%d reset-mid=%d churn=%d\n  reason on file: %s",
+						engUnanswered, engRefused, engResetMid, engChurn,
+						hs.EngineUnanswered, hs.EngineRefused, hs.EngineResetMidTransfer, hs.EngineChurn,
+						hs.Reason)
 				}
 			})
 		}

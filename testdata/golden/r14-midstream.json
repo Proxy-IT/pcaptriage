@@ -1,0 +1,165 @@
+{
+  "schema_version": "4",
+  "schema_note": "This format is internal to pcaptriage and may change in any release. It is not a stability contract; do not build tooling that depends on its shape.",
+  "tool": {
+    "name": "pcaptriage",
+    "version": "test",
+    "ruleset_version": "1.0.0-partial",
+    "build": "Partial build: 11 of the 15 v1 rules are implemented (R01 zero-window-stall, R02 syn-unanswered, R03 syn-rejected, R04 server-response-outlier, R05 rto-retransmission, R06 fast-retransmission, R07 out-of-order-not-loss, R08 asymmetric-loss, R09 reset-mid-transfer, R14 connection-churn, R15 capture-quality). Every other condition in the v1 rule set was not looked for at all."
+  },
+  "invocation": {
+    "args": [
+      "testdata/fixtures/r14-midstream"
+    ],
+    "input": "testdata/fixtures/r14-midstream",
+    "max_flows": 0
+  },
+  "capture": {
+    "path": "testdata/fixtures/r14-midstream",
+    "format": "normalised",
+    "link_type": "Ethernet",
+    "snaplen": 262144,
+    "packets_read": 375,
+    "packets_tcp": 375,
+    "packets_non_tcp": 0,
+    "packets_undecoded": 0,
+    "first_packet_time": "2024-03-14T09:00:00.1Z",
+    "last_packet_time": "2024-03-14T09:00:04.468Z",
+    "duration_seconds": 4.368,
+    "timezone": "UTC",
+    "tcp_flows": 60,
+    "tcp_hosts": 2,
+    "flows_complete": 5,
+    "flows_partial": 0,
+    "flows_midstream": 55,
+    "flows_one_way": 0,
+    "flow_cap": 16384,
+    "flows_evicted": 0,
+    "peak_live_flows": 60
+  },
+  "coverage": {
+    "clean": true,
+    "statement": "No significant problems found in what was checked",
+    "qualifier": "That is not the same as the capture being problem-free. 11 of 15 planned checks are built, and what they do not cover has not been examined. What each check looked at, and what could not be assessed on this capture, is below.",
+    "not_checked": [
+      {
+        "rule_id": "R14",
+        "text": "Not assessed: connection reuse for 10.10.10.7:5432 (55 of 60 connections were already open when the capture began). Measuring how long a connection lasts needs its opening handshake, which is not in this capture for those flows."
+      },
+      {
+        "rule_id": "R15",
+        "text": "Not assessed: receive window sizing. 55 of 60 flows (92%) began before the capture started, so the window scale factor for them is unknown. Zero-window detection does not depend on it and was performed on every flow."
+      },
+      {
+        "rule_id": "R15",
+        "text": "Not assessed: whether the capture host dropped packets before writing them. The classic pcap format has no field to record it, so this file cannot say either way. Packets dropped by the capturing machine look the same as packets lost on the network. If that distinction matters here, re-capturing in pcapng format would record the count."
+      }
+    ],
+    "unbuilt_checks": 4,
+    "coverage_strong": false,
+    "coverage_weak_reason": "some checks could not run on this capture",
+    "minor_observations": 0
+  },
+  "checks": [
+    {
+      "id": "R01",
+      "name": "zero-window-stall",
+      "base_weight": 9,
+      "status": "ran",
+      "summary": "A receiver advertised a zero window having previously advertised non-zero, blocking the sender until a window update arrived."
+    },
+    {
+      "id": "R02",
+      "name": "syn-unanswered",
+      "base_weight": 9,
+      "status": "ran",
+      "summary": "A connection attempt received no answer at all — no acceptance and no refusal — despite the client retrying."
+    },
+    {
+      "id": "R03",
+      "name": "syn-rejected",
+      "base_weight": 4,
+      "status": "ran",
+      "summary": "A connection attempt was answered with a refusal rather than an acceptance — the host is reachable, and nothing is listening on that port."
+    },
+    {
+      "id": "R04",
+      "name": "server-response-outlier",
+      "base_weight": 8,
+      "status": "ran",
+      "summary": "A server:port took materially longer to begin responding than its peers in the same capture, with network round-trip time subtracted."
+    },
+    {
+      "id": "R05",
+      "name": "rto-retransmission",
+      "base_weight": 7,
+      "status": "ran",
+      "summary": "Segments were retransmitted after a timer-shaped quiet gap with no duplicate ACKs asking for them — the sender stalled waiting for a timeout."
+    },
+    {
+      "id": "R06",
+      "name": "fast-retransmission",
+      "base_weight": 4,
+      "status": "ran",
+      "summary": "Segments were retransmitted after three or more duplicate ACKs — packet loss the connection recovered from quickly."
+    },
+    {
+      "id": "R07",
+      "name": "out-of-order-not-loss",
+      "base_weight": 5,
+      "status": "ran",
+      "summary": "Segments arrived out of sequence within milliseconds and in original transmission order by IP ID — reordering on the path, not packet loss."
+    },
+    {
+      "id": "R08",
+      "name": "asymmetric-loss",
+      "base_weight": 8,
+      "status": "ran",
+      "summary": "Retransmission rate on one flow was at least five times higher in one direction than the other, with at least 20 retransmissions — loss is not symmetric."
+    },
+    {
+      "id": "R09",
+      "name": "reset-mid-transfer",
+      "base_weight": 7,
+      "status": "ran",
+      "summary": "A connection was terminated by reset while data was still moving, rather than closed cleanly once both sides were done."
+    },
+    {
+      "id": "R14",
+      "name": "connection-churn",
+      "base_weight": 5,
+      "status": "ran",
+      "summary": "The same client opened and closed many short-lived connections to one server:port instead of reusing them, paying the handshake cost each time."
+    },
+    {
+      "id": "R15",
+      "name": "capture-quality",
+      "base_weight": 0,
+      "status": "ran",
+      "summary": "Reports what the capture itself may limit: flows already open when the capture began, connections seen in one direction only, and packets the capture host dropped before writing them."
+    }
+  ],
+  "findings": [],
+  "notes": [
+    {
+      "kind": "info",
+      "rule_id": "R04",
+      "text": "Comparative ranking was unavailable for server response time: 1 server endpoint had enough exchanges to assess, which is not a peer group. The 1.0s absolute threshold was used instead of a comparison against the capture."
+    },
+    {
+      "kind": "unavailable",
+      "rule_id": "R14",
+      "text": "Not assessed: connection reuse for 10.10.10.7:5432 (55 of 60 connections were already open when the capture began). Measuring how long a connection lasts needs its opening handshake, which is not in this capture for those flows."
+    },
+    {
+      "kind": "unavailable",
+      "rule_id": "R15",
+      "text": "Not assessed: receive window sizing. 55 of 60 flows (92%) began before the capture started, so the window scale factor for them is unknown. Zero-window detection does not depend on it and was performed on every flow."
+    },
+    {
+      "kind": "unavailable",
+      "rule_id": "R15",
+      "text": "Not assessed: whether the capture host dropped packets before writing them. The classic pcap format has no field to record it, so this file cannot say either way. Packets dropped by the capturing machine look the same as packets lost on the network. If that distinction matters here, re-capturing in pcapng format would record the count."
+    }
+  ]
+}

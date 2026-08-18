@@ -133,6 +133,36 @@ func Fixtures() []Fixture {
 			Purpose: "R03 false-positive trap: refusals whose TTL disagrees with the same host's ordinary traffic by ten hops, hinting a middlebox answered on its behalf.",
 			Build:   buildR03ForgedReset,
 		},
+		{
+			Name:    "r09-reset-mid-transfer",
+			Purpose: "R09 positive: eight transfers cut off by reset while data was still moving, against twelve from the same host that closed normally.",
+			Build:   buildR09Positive,
+		},
+		{
+			Name:    "r09-clean-close",
+			Purpose: "R09 negative: the same transfers closed properly with FIN, plus one reset ten seconds after the last data — an idle close, not an interrupted transfer.",
+			Build:   buildR09Negative,
+		},
+		{
+			Name:    "r09-uniform-reset",
+			Purpose: "R09 false-positive trap: a host that ends every connection with a reset and never a FIN — a habit to report as context, not fourteen separate faults.",
+			Build:   buildR09Uniform,
+		},
+		{
+			Name:    "r14-connection-churn",
+			Purpose: "R14 positive: sixty connections to one server:port in seven seconds, each living about 70ms, alongside one long-lived connection that is being reused properly.",
+			Build:   buildR14Positive,
+		},
+		{
+			Name:    "r14-connection-reuse",
+			Purpose: "R14 negative: eight connections each held open across ten exchanges — well under the connection minimum and far over the lifetime threshold.",
+			Build:   buildR14Negative,
+		},
+		{
+			Name:    "r14-midstream",
+			Purpose: "R14 degradation: fifty-five connections to one endpoint already open when the capture began, so lifetime cannot be measured and the check reports unavailable.",
+			Build:   buildR14Midstream,
+		},
 	}
 }
 

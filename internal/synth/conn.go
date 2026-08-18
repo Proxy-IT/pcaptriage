@@ -120,6 +120,11 @@ func (c *Conn) ServerSegmentAt(at time.Duration, seq uint32, n int) {
 	})
 }
 
+// ServerNextSeq reports the sequence number the server's next data segment
+// will carry, so a fixture can acknowledge a specific earlier segment rather
+// than whatever the conversation has reached.
+func (c *Conn) ServerNextSeq() uint32 { return c.sseq }
+
 // ClientAdvance moves the client's next sequence number without emitting,
 // for stream bytes the fixture emitted via ClientSegmentAt.
 func (c *Conn) ClientAdvance(n int) { c.cseq += uint32(n) }

@@ -152,6 +152,32 @@ var Thresholds = struct {
 	// [chosen] 1.5 is above any plausible jitter and below every doubling.
 	R05BackoffMinRatio float64
 
+	// R09DataRecencyWindow is how soon after a data segment a reset must
+	// arrive to count as interrupting an active transfer, rather than ending
+	// a connection that had already gone quiet.
+	// [RULES.md] "RST sent on a flow with data in flight or within 1 s of a
+	// data segment."
+	R09DataRecencyWindow time.Duration
+
+	// R09UniformityMinConnections is how many connections a host must have
+	// reset — with no clean close anywhere — before the behaviour is treated
+	// as a habit rather than a fault.
+	// [chosen] RULES.md says to detect uniformity but gives no minimum. Below
+	// a handful, "every connection" is too small a sample to call a habit: one
+	// or two resets with no clean close is as easily a fault that happened to
+	// hit every connection there was.
+	R09UniformityMinConnections int
+
+	// R14MinConnections is how many measurable connections to one server:port
+	// are needed before connection reuse is assessed.
+	// [RULES.md] "More than 50 connections to the same server:port."
+	R14MinConnections int
+
+	// R14MaxMedianLifetime is the median connection lifetime below which
+	// connections are treated as cycling rather than being reused.
+	// [RULES.md] "with a median lifetime under 1 s".
+	R14MaxMedianLifetime time.Duration
+
 	// R08MinRatio is how many times higher one direction's retransmission
 	// rate must be than the reverse direction's before loss is asymmetric.
 	// [RULES.md] "exceeding the reverse direction by ≥5×"
@@ -202,6 +228,11 @@ var Thresholds = struct {
 
 	R08MinRatio:           5.0,
 	R08MinRetransmissions: 20,
+
+	R09DataRecencyWindow:        1 * time.Second,
+	R09UniformityMinConnections: 5,
+	R14MinConnections:           50,
+	R14MaxMedianLifetime:        1 * time.Second,
 
 	R15KernelDropRatio: 0.001, // 0.1% of packets read
 }
