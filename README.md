@@ -30,7 +30,9 @@ source is public, both are auditable claims rather than marketing ones.
 The primary interface is a desktop app. Build it with:
 
 ```bash
-wails build -nopackage
+version=$(grep -o '"productVersion": *"[^"]*"' wails.json | cut -d'"' -f4)
+[ -n "$version" ] || { echo "could not read productVersion from wails.json" >&2; exit 1; }
+wails build -nopackage -ldflags "-X main.version=$version"
 ```
 
 The binary lands in `build/bin/`. `wails dev` runs it with live reload. The
@@ -43,7 +45,25 @@ version block come from `winres/winres.json`, compiled into the committed
 writes a competing version resource that Windows can locate but cannot read
 strings from, so a binary built without the flag reports an empty `ProductName`
 and `FileDescription` — which is what Task Manager and SmartScreen's "unknown
-publisher" prompt show a user. Regenerate the resources only when they change:
+publisher" prompt show a user.
+
+**The `-ldflags` line is required too, for the same reason.** `main.go`
+declares `var version = "dev"` and says so in its own comment: it is a
+placeholder, stamped at build time. `wails build` does not do that stamping
+for you — skip the flag and the binary is correctly iconned and versioned in
+its Windows properties dialog, but reports itself as `dev` on its own About
+screen and in every report it exports (`tool.version` in the JSON, the same
+string in the HTML masthead). `wails.json`'s `info.productVersion` is the
+source of truth for the release version everywhere it appears — `winres.json`
+restates it for the Windows resource, and `TestVersionAgreesEverywhere`
+(`internal/gui/winres_test.go`) holds the two in step the same way
+`TestCopyrightAgreesEverywhere` holds the licence line. Bump it in one place
+when cutting a release; the command above reads it fresh every time, so
+nothing else needs to change to match.
+
+`winres/winres.json`'s version fields need updating by hand alongside
+`wails.json`'s (the test above says so, loudly, if they drift), then
+regenerate the resources:
 
 ```bash
 go generate .

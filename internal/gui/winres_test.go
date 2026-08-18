@@ -142,3 +142,97 @@ func TestCopyrightAgreesEverywhere(t *testing.T) {
 			"they are compiled into the same binary and must not disagree", a, b)
 	}
 }
+
+// winresVersions is the slice of winres.json this test cares about: every
+// field that ends up as a version string somewhere in the compiled resource
+// — the manifest identity, the fixed file/product version, and the two
+// string-table copies of the same pair.
+type winresVersions struct {
+	RTManifest map[string]map[string]struct {
+		Identity struct {
+			Version string `json:"version"`
+		} `json:"identity"`
+	} `json:"RT_MANIFEST"`
+	RTVersion map[string]map[string]struct {
+		Fixed struct {
+			FileVersion    string `json:"file_version"`
+			ProductVersion string `json:"product_version"`
+		} `json:"fixed"`
+		Info map[string]struct {
+			FileVersion    string `json:"FileVersion"`
+			ProductVersion string `json:"ProductVersion"`
+		} `json:"info"`
+	} `json:"RT_VERSION"`
+}
+
+// TestVersionAgreesEverywhere is TestCopyrightAgreesEverywhere's counterpart
+// for the other string that lives in these two files and nowhere else that
+// checks it: wails.json's info.productVersion is the source of truth (README
+// now reads it into the -ldflags that stamp main.version), and winres.json
+// restates it five times across the manifest identity and the version
+// resource. A release tag has to match whichever of these a reader actually
+// looks at, so all six copies are required to agree exactly.
+func TestVersionAgreesEverywhere(t *testing.T) {
+	root := repoRoot(t)
+
+	read := func(name string) []byte {
+		t.Helper()
+		b, err := os.ReadFile(filepath.Join(root, name))
+		if err != nil {
+			t.Fatal(err)
+		}
+		return b
+	}
+
+	var wails struct {
+		Info struct {
+			ProductVersion string `json:"productVersion"`
+		} `json:"info"`
+	}
+	if err := json.Unmarshal(read("wails.json"), &wails); err != nil {
+		t.Fatal(err)
+	}
+	source := wails.Info.ProductVersion
+
+	// The guard a malformed source needs: an empty productVersion would flow,
+	// unnoticed, into `-ldflags "-X main.version="` — not "dev", which at
+	// least announces itself as a placeholder, but a silent blank. Cheaper to
+	// catch here than to notice on a shipped binary's properties dialog.
+	if strings.TrimSpace(source) == "" {
+		t.Fatal("wails.json's info.productVersion is empty; it is the source of truth for every " +
+			"version string in the build (see README) and a release build would silently stamp a blank one")
+	}
+
+	var winres winresVersions
+	if err := json.Unmarshal(read("winres/winres.json"), &winres); err != nil {
+		t.Fatal(err)
+	}
+
+	got := map[string]string{}
+	for _, langs := range winres.RTManifest {
+		for _, block := range langs {
+			got["RT_MANIFEST identity.version"] = block.Identity.Version
+		}
+	}
+	for _, langs := range winres.RTVersion {
+		for _, block := range langs {
+			got["RT_VERSION fixed.file_version"] = block.Fixed.FileVersion
+			got["RT_VERSION fixed.product_version"] = block.Fixed.ProductVersion
+			for _, strs := range block.Info {
+				got["RT_VERSION info.FileVersion"] = strs.FileVersion
+				got["RT_VERSION info.ProductVersion"] = strs.ProductVersion
+			}
+		}
+	}
+	if len(got) < 5 {
+		t.Fatalf("only found %d version fields in winres.json; the parse is wrong and this test "+
+			"would pass without checking anything", len(got))
+	}
+
+	for label, v := range got {
+		if v != source {
+			t.Errorf("winres.json's %s is %q, but wails.json's info.productVersion (the source of "+
+				"truth) is %q", label, v, source)
+		}
+	}
+}
