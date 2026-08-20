@@ -153,6 +153,25 @@
     return (n || 0).toLocaleString("en-US");
   }
 
+  // tagLink builds a badge that is also a link to the concept page answering
+  // the question it shows — reused by both badges on a finding card. It
+  // records the return point and calls openConcept exactly as the guide
+  // index's rows do (renderConceptList), rather than opening anything of its
+  // own: this is the same tested navigation mechanism, not a parallel path.
+  //
+  // "findings" is hard-coded rather than taken as a parameter: badges only
+  // ever appear on a finding card, and a finding card only ever appears on
+  // the findings view, so there is no second call site to generalise for.
+  function tagLink(cls, text, slug) {
+    var btn = el("button", "tag tag-link " + cls, text);
+    btn.type = "button";
+    btn.addEventListener("click", function () {
+      rememberReturn("findings", "Findings");
+      openConcept(slug);
+    });
+    return btn;
+  }
+
   function formatBytes(n) {
     if (!n || n < 0) return "";
     var units = ["B", "KB", "MB", "GB", "TB"];
@@ -250,9 +269,13 @@
     head.appendChild(el("h3", null, f.title));
     head.appendChild(el("span", "tag tag-rule", f.rule_id));
     // Severity carries the colour and always its word with it; quality sits
-    // beside it, colourless, answering a different question.
-    head.appendChild(el("span", "tag tag-sev tag-sev-" + sev, f.severity_label || ""));
-    head.appendChild(el("span", "tag tag-" + (f.quality || "confirmed"), f.quality || ""));
+    // beside it, colourless, answering a different question. Both badges are
+    // links to the concept page that explains the question they're
+    // answering (session brief Part 2) — severity to "severity", quality to
+    // "evidence-quality" — via tagLink, which reuses openConcept rather than
+    // opening anything of its own.
+    head.appendChild(tagLink("tag-sev tag-sev-" + sev, f.severity_label || "", "severity"));
+    head.appendChild(tagLink("tag-" + (f.quality || "confirmed"), f.quality || "", "evidence-quality"));
     card.appendChild(head);
 
     card.appendChild(el("p", "observation", f.observation));

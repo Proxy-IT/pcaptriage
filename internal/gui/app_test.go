@@ -43,11 +43,14 @@ var previewVariant = flag.String("preview-variant", "", "construct an otherwise 
 // previewLand opens the preview directly on a secondary view, so a render can
 // be looked at without clicking through to it.
 //
+//	findings            the findings view itself, no further navigation
 //	guide-from-finding  a guide page reached from a card (context block present)
 //	guide-from-index    the same page reached from the index (no context block)
 //	guide-index         the index
+//	badge-quality       the evidence-quality concept page, reached from a badge
+//	badge-severity      the severity concept page, reached from a badge
 //	about               the About page
-var previewLand = flag.String("preview-land", "", "open the preview on a view: guide-from-finding | guide-from-index | guide-index | r15-from-banner | about")
+var previewLand = flag.String("preview-land", "", "open the preview on a view: findings | guide-from-finding | guide-from-index | guide-index | badge-quality | badge-severity | r15-from-banner | about")
 
 // previewTheme overrides the resolved theme the preview's Info() stub
 // reports, so a dark render can be produced deterministically without
@@ -89,10 +92,28 @@ func landingScript(land string) string {
       document.querySelectorAll("#guide-index-list .index-link")[4].click();`
 	case "guide-index":
 		steps = `window.__emit("nav:guide");`
+	case "findings":
+		// No further step: the dropzone click above already lands here. Named
+		// explicitly so a preview of the findings view itself — e.g. Part 2's
+		// badge-affordance checkpoint render — does not have to borrow an
+		// unrelated case's side effect to get one.
+		steps = ``
 	case "r15-from-banner":
 		// Use with -preview-fixture clean-capture: the clean-state screen's
 		// gaps column carries R15's one banner link (3c).
 		steps = `document.getElementById("btn-clean-gaps-guide").click();`
+	case "badge-quality":
+		// Part 2 checkpoint render: an INFERRED badge reaching the
+		// evidence-quality concept page. Use with -preview-fixture
+		// r03-forged-reset, whose one finding is the TTL-mismatch case R03
+		// degrades to Inferred — the only fixture with an Inferred finding on
+		// its first card.
+		steps = `document.querySelector(".finding .tag-inferred").click();`
+	case "badge-severity":
+		// The severity badge's counterpart, for checking the other concept
+		// page reached the same way. Any fixture with at least one finding
+		// works, since every severity value links to the same page.
+		steps = `document.querySelector(".finding .tag-sev").click();`
 	case "about":
 		steps = `window.__emit("nav:about");`
 	default:

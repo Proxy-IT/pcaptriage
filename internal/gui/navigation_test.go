@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Proxy-IT/pcaptriage/internal/findings"
 	"github.com/Proxy-IT/pcaptriage/internal/rules"
 	"github.com/Proxy-IT/pcaptriage/internal/synth"
 )
@@ -429,16 +430,197 @@ func TestEveryBuiltRuleLinkActuallyNavigates(t *testing.T) {
 	}
 }
 
+// TestEveryBadgeLinkActuallyNavigates is Part 2's counterpart to
+// TestEveryBuiltRuleLinkActuallyNavigates: every value a badge can carry —
+// all three severities, both evidence-quality values — must resolve to a
+// working link to the concept page answering the question that badge asks,
+// not only whichever combination a fixture happens to emit.
+//
+// Neither badge's destination actually varies by value — a significant
+// finding and an informational one both link to "severity", a confirmed one
+// and an inferred one both link to "evidence-quality" — so what would make
+// coverage of one value silently regress is a future per-value branch that
+// only some values reach. That is checked structurally: findingCard must
+// call tagLink with the slug as a literal, not a computed lookup, which by
+// construction means no value can take a different path than the others.
+// Each real value is still walked below, both so a broken destination page
+// is caught in the name of the value that would have hit it, and so this
+// test reads as the enumeration the session brief asked for rather than as
+// a single assertion the brief's wording would leave implicit.
+func TestEveryBadgeLinkActuallyNavigates(t *testing.T) {
+	app := New("test")
+	js := readFrontend(t, "app.js")
+
+	card := extractFunction(t, js, "findingCard")
+
+	sevCall := regexp.MustCompile(`tagLink\(\s*"tag-sev[^"]*"(?:\s*\+\s*sev)?\s*,\s*f\.severity_label[^,]*,\s*"severity"\s*\)`)
+	if !sevCall.MatchString(card) {
+		t.Error("findingCard does not link the severity badge to the \"severity\" concept via tagLink " +
+			"with a literal slug — a computed slug could omit a severity value")
+	}
+	qualCall := regexp.MustCompile(`tagLink\(\s*"tag-"\s*\+[^,]*,\s*f\.quality[^,]*,\s*"evidence-quality"\s*\)`)
+	if !qualCall.MatchString(card) {
+		t.Error("findingCard does not link the evidence-quality badge to the \"evidence-quality\" concept " +
+			"via tagLink with a literal slug — a computed slug could omit a quality value")
+	}
+
+	// tagLink itself must be the tested navigation mechanism, not a parallel
+	// one: the same rememberReturn + openConcept pair renderConceptList's
+	// rows already use.
+	tagLinkFn := extractFunction(t, js, "tagLink")
+	if !strings.Contains(tagLinkFn, "rememberReturn(") {
+		t.Error("tagLink does not call rememberReturn, so the back control would have nowhere to return to")
+	}
+	if !strings.Contains(tagLinkFn, "openConcept(slug)") {
+		t.Error("tagLink does not call openConcept — it is not reusing the tested navigation mechanism")
+	}
+
+	// And the two destinations actually resolve, walked once per value so a
+	// failure names the value it was checking on behalf of.
+	for _, sev := range []findings.Severity{
+		findings.SeveritySignificant, findings.SeverityWorthNoting, findings.SeverityInformational,
+	} {
+		page, err := app.GuideConcept("severity")
+		if err != nil {
+			t.Fatalf("the severity badge for %q links to a concept that does not resolve: %v", sev, err)
+		}
+		if page.Title == "" {
+			t.Errorf("the severity concept page has no title (checked on behalf of %q)", sev)
+		}
+	}
+	for _, q := range []findings.Quality{findings.Confirmed, findings.Inferred} {
+		page, err := app.GuideConcept("evidence-quality")
+		if err != nil {
+			t.Fatalf("the evidence-quality badge for %q links to a concept that does not resolve: %v", q, err)
+		}
+		if page.Title == "" {
+			t.Errorf("the evidence-quality concept page has no title (checked on behalf of %q)", q)
+		}
+	}
+}
+
+// TestBadgeLinksStayBadges is the styling half of Part 2, and it exists
+// because making the badges buttons broke the red badge's own box on the
+// first attempt.
+//
+// A <button> resets line-height to normal. At the badge's 0.68rem that is
+// about 4px shorter than the --leading the <span> was inheriting, so the red
+// significant badge's painted area came out 8% smaller — measured in the
+// browser, before/after, on the same page. That is the standing "the accent
+// must never outrank the red badge" constraint failing from the badge's own
+// side, which is not a shape anyone would think to look for when the change
+// under review is "add a link".
+//
+// So the property asserted is the one that makes the change safe by
+// construction: .tag-link resets only what a <button> adds and nothing that
+// paints or sizes. Colour, border and background stay owned by the severity
+// and quality rules, and the box stays the box the span had.
+func TestBadgeLinksStayBadges(t *testing.T) {
+	css := readFrontend(t, "app.css")
+
+	rule := regexp.MustCompile(`(?s)\n\.tag-link\s*\{(.*?)\}`).FindStringSubmatch(css)
+	if rule == nil {
+		t.Fatal("no .tag-link rule in app.css — the badges would render with full OS button chrome")
+	}
+	decls := rule[1]
+
+	// The box must not change. line-height is the one that actually bit; the
+	// others are the same class of mistake one edit away.
+	if regexp.MustCompile(`line-height\s*:\s*normal`).MatchString(decls) {
+		t.Error(".tag-link sets line-height: normal, which is a <button> default ~4px shorter than the " +
+			"badge's inherited --leading — it shrinks the red significant badge's painted box")
+	}
+	if !regexp.MustCompile(`line-height\s*:\s*inherit`).MatchString(decls) {
+		t.Error(".tag-link does not restore line-height: inherit, so the badge box depends on the " +
+			"user agent's button default rather than on the app's own leading")
+	}
+	for _, prop := range []string{"font-size", "padding", "border-width", "border-radius"} {
+		if regexp.MustCompile(prop + `\s*:`).MatchString(decls) {
+			t.Errorf(".tag-link declares %s; sizing belongs to .tag and the severity rules, and "+
+				"redeclaring it here changes the badge's painted area", prop)
+		}
+	}
+
+	// And it must not paint. A colour here would be the accent competing with
+	// severity for attention from inside the severity badge itself.
+	for _, prop := range []string{"color", "background", "background-color", "border-color"} {
+		if regexp.MustCompile(`(^|;|\s)` + prop + `\s*:`).MatchString(decls) {
+			t.Errorf(".tag-link declares %s; colour on this card is severity's alone, and a link "+
+				"affordance that recolours the badge makes the badges compete with it", prop)
+		}
+	}
+
+	// The affordance itself: present, and confined to hover/focus so the badge
+	// reads as a badge at rest rather than as a button.
+	if !regexp.MustCompile(`\.tag-link:hover\s*\{[^}]*text-decoration\s*:\s*underline`).MatchString(css) {
+		t.Error("badge links have no hover affordance; a link with no cue at all is not discoverable")
+	}
+	if regexp.MustCompile(`(?s)\n\.tag-link\s*\{[^}]*text-decoration\s*:\s*underline`).MatchString(css) {
+		t.Error(".tag-link underlines at rest, so the badges read as links rather than as badges")
+	}
+	if !regexp.MustCompile(`\.tag-link:focus-visible\s*\{[^}]*outline`).MatchString(css) {
+		t.Error("badge links have no visible focus ring; they are reachable by keyboard and must show it")
+	}
+}
+
+// TestStylesheetCommentsDoNotSwallowRules catches the other way Part 2 broke
+// on its first attempt, which was not a CSS mistake at all.
+//
+// The comment introducing .tag-link named the selectors it deferred to as
+// ".tag-sev-*​/.tag-confirmed". CSS comments do not nest and have no escape:
+// the "*" followed by "/" closed the comment early, the rest of the prose
+// became garbage declarations, and the .tag-link rule that followed was
+// discarded entirely by the parser. The stylesheet still loaded, every other
+// rule still applied, and the badges silently rendered with OS button chrome
+// and a default cursor.
+//
+// A rule vanishing because of punctuation inside a comment is invisible to
+// review and to every test that reads the file as text, so what is checked
+// is the parse: strip comments the way a parser does, then require the
+// selectors the app depends on to have survived.
+func TestStylesheetCommentsDoNotSwallowRules(t *testing.T) {
+	for _, name := range []string{"app.css", "tokens.css"} {
+		src := readFrontend(t, name)
+
+		// Strip comments non-greedily, exactly as a CSS parser resolves them:
+		// the first "*/" after a "/*" ends it, wherever that lands.
+		stripped := regexp.MustCompile(`(?s)/\*.*?\*/`).ReplaceAllString(src, "")
+
+		// Anything left that looks like prose rather than CSS means a comment
+		// ended somewhere its author did not intend.
+		if strings.Contains(stripped, "*/") {
+			t.Errorf("%s has an unbalanced */ after comment stripping — a comment closed early "+
+				"and the declarations after it are being parsed as CSS", name)
+		}
+
+		if name != "app.css" {
+			continue
+		}
+		// The selectors whose loss would be silent. Each must survive the
+		// strip, which is what proves it is not sitting inside a comment.
+		for _, sel := range []string{
+			".tag-link", ".tag-link:hover", ".tag-sev-significant", ".tag-inferred", ".index-link",
+		} {
+			if !strings.Contains(stripped, sel+" ") && !strings.Contains(stripped, sel+"\n") &&
+				!strings.Contains(stripped, sel+"{") && !strings.Contains(stripped, sel+",") {
+				t.Errorf("%s declares no %s outside a comment; the rule is either missing or swallowed "+
+					"by a comment that closed early", name, sel)
+			}
+		}
+	}
+}
+
 // TestEveryConceptIsReachableFromTheIndex is TestEveryBuiltRuleLinkActuallyNavigates's
 // counterpart for the guide's other section: every concept the index lists
 // resolves through GuideConcept, and the two id spaces — rule IDs, concept
 // slugs — never bleed into each other's list.
 //
 // This is Part 1's half of the concept bijection the session brief asks for.
-// The other half — reachable from a badge link — has nothing to check yet;
-// badges do not exist until Part 2, and this test will gain that check
-// alongside them rather than assert it early against a link that is not
-// there.
+// The other half — reachable from a badge link — is
+// TestEveryBadgeLinkActuallyNavigates, added alongside Part 2's badges rather
+// than folded in here: that test walks every severity level and quality
+// value, which is a different enumeration from this one's walk over
+// idx.Concepts.
 func TestEveryConceptIsReachableFromTheIndex(t *testing.T) {
 	app := New("test")
 
