@@ -153,6 +153,15 @@ func Run(path string, opts Options) (*Result, error) {
 	detectors := rules.Default()
 	store := findings.NewStore()
 
+	// Resolved once rather than type-asserted per packet: this runs in the
+	// hot loop, and the set cannot change during a run.
+	var rawObservers []rules.RawObserver
+	for _, d := range detectors {
+		if o, ok := d.(rules.RawObserver); ok {
+			rawObservers = append(rawObservers, o)
+		}
+	}
+
 	info := CaptureInfo{
 		Path:             path,
 		Format:           string(r.Format()),
@@ -263,6 +272,14 @@ func Run(path string, opts Options) (*Result, error) {
 		}
 
 		info.PacketsDecoded++
+
+		// Rules that read protocols the flow machinery does not track see
+		// every decoded packet, before the TCP-only path below drops the rest.
+		// R11's DNS is the case this exists for.
+		for _, o := range rawObservers {
+			o.OnRawPacket(&pkt)
+		}
+
 		if pkt.Proto != capture.ProtoTCP {
 			info.PacketsNonTCP++
 			continue

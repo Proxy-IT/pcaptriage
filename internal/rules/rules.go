@@ -60,6 +60,25 @@ type Detector interface {
 	Emit(pop *Population, out *findings.Store)
 }
 
+// RawObserver is implemented by rules that need packets the flow machinery
+// never offers them.
+//
+// The Detector lifecycle is built around TCP conversations: NewFlow, OnPacket
+// for packets on that flow, OnFlowEnd. R11 reads DNS over UDP, which has no
+// flow to hang off — the engine counts a UDP frame as non-TCP and moves on —
+// so a rule that needs it has to be handed the packet directly.
+//
+// Optional and additive rather than a change to Detector, because eleven rules
+// have no use for it and widening the interface would make every one of them
+// carry an empty method to say so.
+//
+// The packet is the engine's reused buffer: valid for the call and not
+// afterwards. A rule keeping anything from it must copy the values out, the
+// same rule OnPacket already follows.
+type RawObserver interface {
+	OnRawPacket(pkt *capture.Packet)
+}
+
 // CaptureQuality carries the facts about the capture itself that make other
 // rules' findings less certain than they look.
 //
