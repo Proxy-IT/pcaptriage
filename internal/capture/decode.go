@@ -24,6 +24,7 @@ var (
 	ErrFragment         = errors.New("non-first IP fragment carries no L4 header")
 	ErrShortTCP         = errors.New("frame shorter than a TCP header")
 	ErrBadTCPOffset     = errors.New("TCP data offset is below the minimum header size")
+	ErrShortUDP         = errors.New("frame shorter than a UDP header")
 	ErrNotTCP           = errors.New("not a TCP segment")
 )
 
@@ -245,6 +246,9 @@ func decodeIPv6(b []byte, p *Packet) error {
 }
 
 func decodeL4(b []byte, p *Packet) error {
+	if p.Proto == ProtoUDP {
+		return decodeUDP(b, p)
+	}
 	if p.Proto != ProtoTCP {
 		p.DecodeErr = ErrNotTCP
 		return ErrNotTCP
@@ -285,6 +289,50 @@ func decodeL4(b []byte, p *Packet) error {
 	}
 	if optEnd > 20 {
 		parseTCPOptions(b[20:optEnd], p)
+	}
+
+	// TLS, where there is payload to read it from. Gated on the captured
+	// bytes rather than on the IP length: a truncating snaplen leaves
+	// PayloadLength honest about what travelled while the bytes to parse are
+	// not here, and parsing past the buffer would be reading someone else's
+	// memory to satisfy a rule.
+	if payload > 0 && p.DataOffset < len(b) {
+		decodeTLS(b[p.DataOffset:], p)
+	}
+	return nil
+}
+
+// decodeUDP reads the UDP header, and the DNS header inside it on port 53.
+//
+// UDP decodes successfully rather than being rejected as "not TCP", because
+// R11 has to see it. It still creates no flow: the engine tracks TCP
+// conversations only, so a UDP frame is counted as non-TCP and offered to the
+// rules that asked to see raw packets.
+func decodeUDP(b []byte, p *Packet) error {
+	if len(b) < 8 {
+		p.Truncated = true
+		p.DecodeErr = ErrShortUDP
+		return ErrShortUDP
+	}
+	p.SrcPort = binary.BigEndian.Uint16(b[0:2])
+	p.DstPort = binary.BigEndian.Uint16(b[2:4])
+
+	// The UDP length field covers header plus payload.
+	payload := int(binary.BigEndian.Uint16(b[4:6])) - 8
+	if payload < 0 {
+		payload = 0
+	}
+	p.PayloadLength = payload
+
+	if p.SrcPort == dnsPort || p.DstPort == dnsPort {
+		end := 8 + payload
+		if end > len(b) {
+			p.Truncated = true
+			end = len(b)
+		}
+		if end > 8 {
+			decodeDNS(b[8:end], p)
+		}
 	}
 	return nil
 }

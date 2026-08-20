@@ -213,18 +213,79 @@ func TestDecodeNonFirstFragment(t *testing.T) {
 	}
 }
 
-// TestDecodeNonTCP checks that other protocols decode to L3 and stop, rather
-// than being reported as a decode failure. The v1 rules are TCP only, and a
-// capture full of UDP is not a capture the tool failed to read.
+// TestDecodeNonTCP checks that a protocol this build does not read decodes to
+// L3 and stops, rather than being reported as a decode failure. A capture full
+// of traffic the rules ignore is not a capture the tool failed to read.
+//
+// ICMP stands in for that case now. It used to be UDP, until R11 needed to see
+// DNS — see TestDecodeUDPForDNS below, which covers the other half.
 func TestDecodeNonTCP(t *testing.T) {
 	f := buildFrame(nil, 40, nil)
-	f[14+9] = ProtoUDP
+	f[14+9] = ProtoICMPv4
 	var p Packet
 	if err := DecodeEthernet(f, &p); !errors.Is(err, ErrNotTCP) {
 		t.Errorf("err = %v, want ErrNotTCP", err)
 	}
-	if p.Proto != ProtoUDP {
-		t.Errorf("Proto = %d, want %d", p.Proto, ProtoUDP)
+	if p.Proto != ProtoICMPv4 {
+		t.Errorf("Proto = %d, want %d", p.Proto, ProtoICMPv4)
+	}
+}
+
+// TestDecodeUDPForDNS is the other half: UDP decodes rather than stopping at
+// L3, because R11 reads DNS out of it.
+//
+// What must stay true regardless is that decoding UDP creates no flow — the
+// engine tracks TCP conversations only and counts a UDP frame as non-TCP. This
+// test covers the decode side; the engine side is covered where the flow store
+// is exercised.
+func TestDecodeUDPForDNS(t *testing.T) {
+	// A minimal DNS response: id 0x1234, QR set with rcode SERVFAIL, one
+	// question, no answers.
+	dns := []byte{
+		0x12, 0x34, // id
+		0x80, 0x02, // flags: response, rcode 2 (SERVFAIL)
+		0x00, 0x01, // qdcount
+		0x00, 0x00, // ancount
+		0x00, 0x00, // nscount
+		0x00, 0x00, // arcount
+	}
+	udp := make([]byte, 8+len(dns))
+	binary.BigEndian.PutUint16(udp[0:2], 53)   // src port
+	binary.BigEndian.PutUint16(udp[2:4], 5300) // dst port
+	binary.BigEndian.PutUint16(udp[4:6], uint16(len(udp)))
+	copy(udp[8:], dns)
+
+	ip := make([]byte, 20)
+	ip[0] = 0x45
+	binary.BigEndian.PutUint16(ip[2:4], uint16(20+len(udp)))
+	ip[8] = 64
+	ip[9] = ProtoUDP
+	copy(ip[12:16], []byte{10, 1, 1, 5})
+	copy(ip[16:20], []byte{10, 0, 0, 53})
+
+	f := make([]byte, 12)
+	f = append(f, 0x08, 0x00)
+	f = append(f, ip...)
+	f = append(f, udp...)
+
+	var p Packet
+	if err := DecodeEthernet(f, &p); err != nil {
+		t.Fatalf("UDP should decode, got %v", err)
+	}
+	if p.SrcPort != 53 {
+		t.Errorf("SrcPort = %d, want 53", p.SrcPort)
+	}
+	if !p.DNSPresent {
+		t.Fatal("DNS header was not read from a port 53 datagram")
+	}
+	if !p.DNSIsResponse {
+		t.Error("the response bit was not read")
+	}
+	if p.DNSRcode != DNSRcodeServFail {
+		t.Errorf("DNSRcode = %d, want %d", p.DNSRcode, DNSRcodeServFail)
+	}
+	if p.DNSQuestions != 1 || p.DNSAnswers != 0 {
+		t.Errorf("counts = %d/%d, want 1/0", p.DNSQuestions, p.DNSAnswers)
 	}
 }
 

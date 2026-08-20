@@ -1,13 +1,38 @@
-// Package capture reads pcap and pcapng files and decodes Ethernet/IP/TCP
-// headers by hand.
+// Package capture reads pcap and pcapng files and decodes Ethernet, IP, TCP
+// and UDP headers by hand, plus the two application protocols the v1 rules
+// read.
 //
 // Framing (block structure, timestamp resolution, multiple interfaces) is
 // delegated to pcapgo. Everything above that is decoded here, into a single
 // reusable Packet struct, so the hot loop allocates nothing per packet.
 //
-// The decoder never retains payload bytes. It records PayloadLength and
-// nothing else about the payload, which is what makes the "no payload bytes in
-// output" guarantee structural rather than a filtering step.
+// # The payload guarantee, and how its basis changed
+//
+// Hard constraint 3 is that no payload bytes reach output. Until Batch 3 this
+// package enforced it in the strongest possible way: **it never looked.** The
+// decoder stopped at the TCP header, recorded PayloadLength, and had no code
+// path that could read a payload byte — so there was nothing to leak and
+// nothing to review.
+//
+// R11 and R12 ended that. A DNS response code lives in the payload, and so
+// does a TLS alert number and a certificate's expiry date, and a rule cannot
+// report what a decoder refuses to read. So the basis moved, deliberately and
+// with a compensating guard:
+//
+//	before: structural because payload is never read
+//	now:    structural because only named scalars survive reading it
+//
+// That is genuinely weaker. "We only extract named fields" is an assertion
+// where "we never read payload" was a property, so it is held up by tests
+// rather than by intent — see allowlist_test.go, which requires every
+// application-layer field to be declared in an explicit allowlist and to be a
+// scalar incapable of holding a name, a subject, or a span of traffic.
+//
+// What is read above L4 is deliberately minimal, and appdecode.go says what
+// each field is for. The DNS question section is not parsed at all: R11
+// reports how many lookups failed and how long they took, never which names,
+// so reading them would be collecting data the tool has no use for and then
+// owing a promise about not emitting it.
 package capture
 
 import (
@@ -95,6 +120,34 @@ type Packet struct {
 	// ends agreed on in view of the capture.
 	OptMSS uint16
 
+	// Application-layer fields, for the two v1 rules that read above L4.
+	//
+	// Every one is a named scalar. There is deliberately no []byte and no
+	// string here: a field capable of holding a span of payload is a field
+	// that will eventually hold one, and the "no payload bytes in output"
+	// guarantee is enforced by the shape of this struct rather than by
+	// remembering not to copy anything into it. See appdecode.go for what each
+	// field is for, and allowlist_test.go for the guard.
+	//
+	// DNS, read from UDP port 53 only. The question section — which carries
+	// the name being looked up — is not parsed at all.
+	DNSPresent    bool
+	DNSIsResponse bool
+	DNSID         uint16
+	DNSRcode      uint8
+	DNSQuestions  uint16
+	DNSAnswers    uint16
+
+	// TLS, read from TCP payload. TLSCertNotAfter is a Unix second, zero when
+	// no certificate was read — which is the common case, not an error.
+	TLSPresent       bool
+	TLSRecordType    uint8
+	TLSHandshakeType uint8
+	TLSAlertLevel    uint8
+	TLSAlertDesc     uint8
+	TLSVersion       uint16
+	TLSCertNotAfter  int64
+
 	// DecodeErr is set when the frame was read but could not be decoded. The
 	// packet is then not usable beyond its framing fields.
 	DecodeErr error
@@ -154,5 +207,18 @@ func (p *Packet) reset() {
 	p.PayloadLength = 0
 	p.OptWindowScale = -1
 	p.OptMSS = 0
+	p.DNSPresent = false
+	p.DNSIsResponse = false
+	p.DNSID = 0
+	p.DNSRcode = 0
+	p.DNSQuestions = 0
+	p.DNSAnswers = 0
+	p.TLSPresent = false
+	p.TLSRecordType = 0
+	p.TLSHandshakeType = 0
+	p.TLSAlertLevel = 0
+	p.TLSAlertDesc = 0
+	p.TLSVersion = 0
+	p.TLSCertNotAfter = 0
 	p.DecodeErr = nil
 }
