@@ -347,6 +347,47 @@ that is correct (it was for R03) or whether there is a real cost being
 overlooked (there was for R09). Check it during implementation, not after the
 severity table comes out flat.
 
+## Tests that pass while asserting nothing
+
+**Noted 2026-08-20, during the evidence-quality session. Not queued — recorded
+so the pattern is not rediscovered, and because it is now guarded.**
+
+Four separate instances turned up inside one session. Each looked different,
+each was green, and none of them measured the thing its name claimed:
+
+- **The escaping match.** Compared two strings that were both empty, so the
+  comparison held for a reason unrelated to escaping.
+- **The emphasis round-trip.** Reconstructed its expected value using the same
+  parser it was testing, so empty runs rebuilt the correct source string and
+  42 genuinely broken `**bold**` spans passed. Live in the shipped alpha.
+- **The inlined-stylesheet match.** Asserted a CSS class appeared in an
+  exported report. The report inlines its whole stylesheet, so the class
+  matched its own rule definition rather than any finding card.
+- **The vacuous loop.** `TestR04MidstreamRTTIsInferred` iterated R04 findings
+  in a fixture whose R04 findings are all confirmed. The loop body never ran,
+  for the degradation the app demonstrates most.
+
+The common failure is that a test's *subject* can vanish while its assertions
+stay valid, and an assertion over nothing is indistinguishable in CI from an
+assertion that held. Green means "found no counterexample", which is not the
+same as "checked".
+
+Only the fourth shape is mechanically detectable, and it is now linted:
+`TestNoTestAssertsOnlyInsideAnUncheckedLoop` (`internal/analysis/
+empty_assertion_test.go`) parses the repo's own test files and fails any test
+whose assertions all sit inside a range loop with nothing establishing the loop
+runs. Writing it surfaced nine further instances, all fixed — including
+`TestPaletteMeetsContrastThresholds`, which would have verified no contrast
+ratio at all on an empty pair list while reading exactly like a full
+accessibility pass.
+
+**Checklist item when writing any test:** ask what makes it fail. If the answer
+depends on a collection being non-empty, a regex matching, or a fixture still
+producing a particular finding, assert that premise separately — the lint only
+catches the loop shape, and three of the four instances above were other
+shapes. The general discipline the lint cannot enforce: prove a new test fails
+against the bug it targets before trusting that it passes.
+
 ## D. Ceiling pressure (decision needed before P12/P13)
 If the fifteen-rule ceiling holds and C-items are adopted, something gives.
 **R03 (`syn-rejected`) is the weakest current rule** — connection refused is

@@ -61,6 +61,10 @@ restates it for the Windows resource, and `TestVersionAgreesEverywhere`
 when cutting a release; the command above reads it fresh every time, so
 nothing else needs to change to match.
 
+`CHANGELOG.md`'s "Unreleased" section accumulates user-visible changes as they
+land, so cutting a tag is a matter of retitling that section rather than
+reconstructing months of history from commit messages.
+
 `winres/winres.json`'s version fields need updating by hand alongside
 `wails.json`'s (the test above says so, loudly, if they drift), then
 regenerate the resources:

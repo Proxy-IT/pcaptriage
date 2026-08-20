@@ -821,6 +821,76 @@
     return wrap;
   }
 
+  // Whether the reader has opened the informational band. Reset when a new
+  // capture is analysed, per the brief: the fold is a reading position within
+  // one report, not a preference that outlives it.
+  var infoExpanded = false;
+
+  // renderFindingList paints the ranked findings, folding the informational
+  // band into one row.
+  //
+  // The band is a contiguous tail rather than something scattered through the
+  // list, and that is by construction, not by luck: findings sort by
+  // significance descending, and rules.SeverityFor is a monotonic step
+  // function of significance, so severity can only fall as you read down.
+  // That is what makes a single row correct — see
+  // TestInformationalBandIsAContiguousTail, which pins the property this
+  // rendering depends on rather than trusting it.
+  //
+  // Takes the list to render rather than reading the report, so the fold
+  // composes with a filtered subset later without a second code path.
+  function renderFindingList(list, findings) {
+    var split = findings.length;
+    while (split > 0 && (findings[split - 1].severity || "informational") === "informational") {
+      split--;
+    }
+
+    // Everything is informational. Folding here would open the report to one
+    // collapsed row and nothing else, which reads as a broken screen rather
+    // than as a quiet result — and the quiet result is the honest message.
+    if (split === 0) {
+      findings.forEach(function (f) { list.appendChild(findingCard(f)); });
+      return;
+    }
+
+    findings.slice(0, split).forEach(function (f) { list.appendChild(findingCard(f)); });
+
+    var band = findings.slice(split);
+    if (band.length === 0) return;
+
+    // A button, not a div with a click handler: focusability and
+    // Enter/Space activation are what a button already is, and
+    // reimplementing them on a div is how they end up subtly wrong.
+    var row = el("button", "info-fold");
+    row.type = "button";
+    var body = el("div", "info-fold-body");
+    list.appendChild(row);
+    list.appendChild(body);
+
+    function paint() {
+      row.textContent = "";
+      // Counted from the band itself. Narrating the number — or deriving it
+      // from anything but the findings actually being folded — is how a fold
+      // becomes a display floor that lies about what it hid.
+      row.appendChild(el("span", "info-fold-count",
+        band.length + " informational finding" + (band.length === 1 ? "" : "s")));
+      row.appendChild(el("span", "info-fold-action", infoExpanded ? "hide" : "show"));
+      row.setAttribute("aria-expanded", infoExpanded ? "true" : "false");
+
+      body.textContent = "";
+      body.hidden = !infoExpanded;
+      if (infoExpanded) {
+        band.forEach(function (f) { body.appendChild(findingCard(f)); });
+      }
+    }
+
+    row.addEventListener("click", function () {
+      infoExpanded = !infoExpanded;
+      paint();
+    });
+    paint();
+  }
+
   function renderFindings(result) {
     var doc = result.report;
     var findings = doc.findings || [];
@@ -855,7 +925,7 @@
     } else {
       // Already ranked by significance in the engine. Order is the only place
       // significance is expressed; it is never shown as a number.
-      findings.forEach(function (f) { list.appendChild(findingCard(f)); });
+      renderFindingList(list, findings);
     }
 
     var notesSection = $("notes-section");
@@ -893,6 +963,11 @@
   function analyze(path) {
     if (!path || busy) return;
     busy = true;
+
+    // A new capture is a new report. Carrying the previous one's fold state
+    // over would mean opening a fresh result already scrolled past part of
+    // it, on the strength of a decision made about different findings.
+    infoExpanded = false;
 
     resetProgress(path.replace(/^.*[\\/]/, ""));
     show("loading");
