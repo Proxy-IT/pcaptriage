@@ -6,14 +6,13 @@ import (
 	"testing"
 
 	"github.com/Proxy-IT/pcaptriage/internal/report"
-	"github.com/Proxy-IT/pcaptriage/internal/synth"
 )
 
 // TestSeverityChangesNothingButTheField is the constraint that makes the P4
 // mapping safe: it is presentation calibration, so ranking, wording, frames and
 // every other field must come through untouched.
 func TestSeverityChangesNothingButTheField(t *testing.T) {
-	for _, f := range synth.Fixtures() {
+	for _, f := range allFixtures(t) {
 		t.Run(f.Name, func(t *testing.T) {
 			res := runFixture(t, f.Name)
 			doc := report.Build(res, report.Invocation{}, "test")
@@ -50,6 +49,14 @@ func TestSeverityIsDerivedNotStored(t *testing.T) {
 	res := runFixture(t, "mixed-findings")
 	doc := report.Build(res, report.Invocation{}, "test")
 
+	// A monotonicity check over an empty list is vacuously true, so the list
+	// has to be known non-empty before the loop means anything. mixed-findings
+	// is the multi-severity fixture; more than one finding is the premise.
+	if len(doc.Findings) < 2 {
+		t.Fatalf("mixed-findings produced %d findings; a severity ordering check needs at least two",
+			len(doc.Findings))
+	}
+
 	// Findings are ordered most significant first, so severity must be
 	// non-increasing down the list. A rise would mean the label disagrees with
 	// the ordering the reader is being shown.
@@ -78,7 +85,7 @@ func TestSeverityIsDerivedNotStored(t *testing.T) {
 // lower-weight rule such as R06 lands.
 func TestCurrentBuildProducesOnlySignificantFindings(t *testing.T) {
 	var counts = map[string]int{}
-	for _, f := range synth.Fixtures() {
+	for _, f := range allFixtures(t) {
 		res := runFixture(t, f.Name)
 		for _, fd := range report.Build(res, report.Invocation{}, "test").Findings {
 			counts[fd.Severity]++

@@ -9,6 +9,24 @@ import (
 	"github.com/Proxy-IT/pcaptriage/internal/synth"
 )
 
+// allFixtures is synth.Fixtures() with the emptiness check the tests that walk
+// it were each missing.
+//
+// A test whose only assertions are inside `for _, f := range synth.Fixtures()`
+// passes unchanged if that list is ever empty, which is indistinguishable from
+// passing on a correct one — the defect class
+// TestNoTestAssertsOnlyInsideAnUncheckedLoop exists to catch. One helper puts
+// the check in a single place rather than repeating a length assertion in each
+// caller.
+func allFixtures(t *testing.T) []synth.Fixture {
+	t.Helper()
+	all := synth.Fixtures()
+	if len(all) == 0 {
+		t.Fatal("no fixtures registered, so a walk over them would assert nothing")
+	}
+	return all
+}
+
 // runFixture analyses a committed fixture.
 func runFixture(t *testing.T, name string) *analysis.Result {
 	t.Helper()

@@ -25,7 +25,7 @@ import (
 func TestInferredFindingsAlwaysStateTheirBasis(t *testing.T) {
 	var checked int
 
-	for _, fx := range synth.Fixtures() {
+	for _, fx := range allFixtures(t) {
 		for _, format := range []string{"pcap", "pcapng"} {
 			res, err := analysis.Run(synth.FixturePath(fx.Name, format), analysis.Options{})
 			if err != nil {
@@ -68,27 +68,26 @@ func TestInferredFindingsAlwaysStateTheirBasis(t *testing.T) {
 // TestEveryInferredRulePathHasAFixture records which rules can reach inferred
 // and which of those any committed fixture actually exercises.
 //
-// It does not fail on a gap. Building a capture that reaches R04's midstream
-// degradation is rule-fixture work under RULES.md's handoff notes, not
-// something to invent while changing how the basis is displayed. What it does
-// is make the gap visible in test output instead of leaving it to be
-// rediscovered: R04 is the rule the origin screenshot came from, and no
-// fixture reaches either of its inferred branches today.
+// It does not fail on a gap, because "no committed fixture" is not the same as
+// "untested" and the remaining gaps are the benign kind.
 //
-// "No committed fixture" is not the same as "untested", and the difference
-// matters when reading this output. R05, R06 and R08 all degrade through one
-// seam — pop.Quality.KernelDropsSignificant, with the basis sentence written
-// once in dropQuality — and TestKernelDropGatingReachesTheLossRules exercises
-// that seam for R05 against a pcapng built at run time rather than committed.
-// R04's two branches are the ones with no coverage anywhere: the test named
-// for the midstream case iterates R04 findings in a fixture whose R04
-// findings are all confirmed, so its body never runs.
+// R03, R04 and R07 are exercised by committed fixtures. R04 joined them when
+// r04-midstream was built for its midstream degradation — the branch the app
+// demonstrates most and the one that, until then, no fixture reached and no
+// test asserted.
+//
+// R05, R06 and R08 are absent here and that is expected: they degrade only
+// when the capture file reports capture-host drops, which needs pcapng
+// interface statistics that a fixture built from traffic alone cannot carry.
+// All three are asserted directly by TestKernelDropGatingReachesTheLossRules,
+// against pcapngs built at run time. This test exists to notice if a rule ever
+// falls out of both lists.
 func TestEveryInferredRulePathHasAFixture(t *testing.T) {
 	// Rules whose source has a path assigning findings.Inferred.
 	canInfer := []string{"R03", "R04", "R05", "R06", "R07", "R08"}
 
 	seen := map[string][]string{}
-	for _, fx := range synth.Fixtures() {
+	for _, fx := range allFixtures(t) {
 		res, err := analysis.Run(synth.FixturePath(fx.Name, "pcapng"), analysis.Options{})
 		if err != nil {
 			t.Fatalf("analyse %s: %v", fx.Name, err)

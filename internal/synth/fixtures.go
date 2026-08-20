@@ -47,6 +47,11 @@ func Fixtures() []Fixture {
 			Build:   buildR04Positive,
 		},
 		{
+			Name:    "r04-midstream",
+			Purpose: "R04 inferred: the same slow server measured only by flows that were already open, so RTT comes from the minimum observed ACK round trip and the finding degrades.",
+			Build:   buildR04Midstream,
+		},
+		{
 			Name:    "r04-server-push",
 			Purpose: "R04 negative: server-sent events and a protocol banner, neither of which is a slow response.",
 			Build:   buildR04Negative,
@@ -400,6 +405,66 @@ func buildR04Positive() *Builder {
 	// Twelve peers, each with five exchanges from 20ms to 28ms plus one at
 	// 30ms, so every peer's p95 is 30ms and the wording can say the others are
 	// under 40ms.
+	peerDeltas := []time.Duration{20 * ms, 22 * ms, 24 * ms, 26 * ms, 30 * ms}
+	for i := 0; i < 12; i++ {
+		c := b.NewConn(ConnOpts{
+			Client:    fmt.Sprintf("10.1.1.5:%d", 45000+i),
+			Server:    fmt.Sprintf("10.2.2.%d:443", 10+i),
+			ClientISN: uint32(20000 + i*1000),
+			ServerISN: uint32(70000 + i*1000),
+		})
+		start := 50*ms + time.Duration(i)*40*ms
+		c.Handshake(start, 10*ms)
+		e := exchanges(c, start+30*ms, peerDeltas, 10*ms, 40*ms)
+		c.FinClose(e, 5*ms)
+	}
+
+	return b
+}
+
+// buildR04Midstream is R04's inferred path: the same slow server, but every
+// flow that measures it was already open when the capture began.
+//
+// This is the real-world condition, not a contrivance — a capture started on a
+// running system to investigate a complaint catches its connections
+// mid-conversation. Without a handshake there is no observed round trip to
+// subtract, so flow.NetworkRTT falls back to the minimum observed ACK round
+// trip and reports BasisInferred, and R04 degrades the finding and states what
+// it substituted.
+//
+// The slow server's flows carry no handshake; the peer group's do. Quality is
+// decided per server aggregate, so the peers stay confirmed and only the
+// server under test degrades — which is also what makes the fixture prove the
+// degradation is attributable rather than capture-wide.
+//
+// Every contributing flow must produce an ACK round-trip sample, or R04 takes
+// its rttMissing branch instead and states a different basis. The exchange
+// pattern below ends each response with a client ACK for exactly that reason.
+func buildR04Midstream() *Builder {
+	b := New()
+
+	// The same twenty response times as the R04 positive, split across four
+	// flows to one server: p95 by nearest rank is the second largest, so 1.8s
+	// with a 4.1s maximum, and the basis sentence can say "4 of 4".
+	slowDeltas := append(evenDeltas(18, 1000*ms, 40*ms), 1800*ms, 4100*ms)
+
+	for i := 0; i < 4; i++ {
+		c := b.NewConn(ConnOpts{
+			Client:    fmt.Sprintf("10.1.1.5:%d", 44210+i),
+			Server:    "10.2.2.7:443",
+			ClientISN: uint32(1000 + i*1000),
+			ServerISN: uint32(5000 + i*1000),
+		})
+		// No Handshake: the flow is already established. The first packet is
+		// a client request, which is what tells the engine which side is
+		// serving.
+		start := 30*ms + time.Duration(i)*12*s
+		end := exchanges(c, start, slowDeltas[i*5:(i+1)*5], 10*ms, 100*ms)
+		c.FinClose(end, 5*ms)
+	}
+
+	// Twelve peers whose openings were captured, so the comparison group is
+	// measured on observed round trips and stays confirmed.
 	peerDeltas := []time.Duration{20 * ms, 22 * ms, 24 * ms, 26 * ms, 30 * ms}
 	for i := 0; i < 12; i++ {
 		c := b.NewConn(ConnOpts{

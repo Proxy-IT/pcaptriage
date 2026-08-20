@@ -215,6 +215,16 @@ func barPairs() []pair {
 // so its ratios cannot differ by theme and checking it under "dark" as well
 // would only re-run the identical arithmetic under a different label.
 func TestPaletteMeetsContrastThresholds(t *testing.T) {
+	// An accessibility check that iterates an empty pair list passes while
+	// verifying no contrast at all, and reads in CI exactly like one that
+	// verified every pair. Both generators are asserted non-empty first.
+	if len(themedPairs()) == 0 {
+		t.Fatal("themedPairs() is empty, so no contrast ratio would be checked")
+	}
+	if len(barPairs()) == 0 {
+		t.Fatal("barPairs() is empty, so the ink bar's contrast would go unchecked")
+	}
+
 	for _, theme := range []string{"light", "dark"} {
 		t.Run(theme, func(t *testing.T) {
 			for _, p := range themedPairs() {

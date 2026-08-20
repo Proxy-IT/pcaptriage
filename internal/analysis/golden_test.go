@@ -69,7 +69,7 @@ func TestGolden(t *testing.T) {
 		}
 	}
 
-	for _, f := range synth.Fixtures() {
+	for _, f := range allFixtures(t) {
 		t.Run(f.Name, func(t *testing.T) {
 			got := renderFixture(t, f.Name, "pcap")
 
@@ -100,7 +100,7 @@ func TestGolden(t *testing.T) {
 // The most likely way it breaks is a findings list, flow table, or per-host
 // aggregate assembled from a Go map and emitted without sorting.
 func TestDeterminism(t *testing.T) {
-	for _, f := range synth.Fixtures() {
+	for _, f := range allFixtures(t) {
 		t.Run(f.Name, func(t *testing.T) {
 			first := renderFixture(t, f.Name, "pcap")
 			for i := 1; i < determinismRuns; i++ {
@@ -122,7 +122,7 @@ func TestDeterminism(t *testing.T) {
 // the ordering property itself, so a collection that is emitted in map order
 // fails here even if two runs happened to agree.
 func TestEmittedCollectionsAreSorted(t *testing.T) {
-	for _, f := range synth.Fixtures() {
+	for _, f := range allFixtures(t) {
 		t.Run(f.Name, func(t *testing.T) {
 			var doc struct {
 				Checks []struct {
@@ -243,7 +243,7 @@ func renderIgnoringContainerFacts(t *testing.T, name, format string) []byte {
 // assumed: two findings sharing a scope key would silently reintroduce
 // dependence on Go's map iteration order.
 func TestFindingOrderingKeyIsTotal(t *testing.T) {
-	for _, f := range synth.Fixtures() {
+	for _, f := range allFixtures(t) {
 		t.Run(f.Name, func(t *testing.T) {
 			res := runFixture(t, f.Name)
 			seen := make(map[string]string, len(res.Findings))
@@ -264,7 +264,7 @@ func TestFindingOrderingKeyIsTotal(t *testing.T) {
 // analysis. Both readers have to yield the same frames, in the same order,
 // with the same timestamps.
 func TestPcapAndPcapngAgree(t *testing.T) {
-	for _, f := range synth.Fixtures() {
+	for _, f := range allFixtures(t) {
 		t.Run(f.Name, func(t *testing.T) {
 			if f.FormatsDiffer {
 				// Capture-host drop counters live in a pcapng block that

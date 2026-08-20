@@ -35,8 +35,13 @@ var previewFixture = flag.String("preview-fixture", "mixed-findings", "fixture t
 //	force-strong  clean capture with coverage forced strong, to see what green
 //	              looks like — unreachable today because 13 checks are unbuilt
 //	no-tcp        packets present, no TCP conversations
-//	r04-inferred  R04 degraded by the midstream-RTT branch — the origin
-//	              finding, unreachable by any committed fixture
+//
+// There is deliberately no variant for R04's inferred case. It had one
+// briefly, while no fixture reached that branch; the r04-midstream fixture now
+// does, so the render comes from real engine output instead of a patched
+// finding. Constructing a state the engine can actually produce is worse than
+// analysing it — the construction can drift from the wording it imitates
+// without anything failing.
 //
 // Both are marked in the rendered page as constructed rather than observed, so a
 // screenshot of one cannot be mistaken for the tool's real output.
@@ -585,35 +590,6 @@ func TestWritePreview(t *testing.T) {
 		}}, report.Invocation{}, "preview")
 		res.Report.Coverage = noTCP.Coverage
 		res.Report.Coverage.Qualifier = "CONSTRUCTED FOR REVIEW — " + res.Report.Coverage.Qualifier
-	case "r04-inferred":
-		// The finding the evidence-quality session exists because of: R04
-		// degraded to inferred by the midstream-RTT branch, which is the case
-		// the origin screenshot showed rendering its downgrade reason as an
-		// unlabelled paragraph.
-		//
-		// Constructed rather than analysed, because no committed fixture
-		// reaches either of R04's inferred branches — see
-		// TestEveryInferredRulePathHasAFixture, which reports that gap. The
-		// basis sentence below is copied verbatim from r04_server_response.go
-		// rather than written here, so the render shows the real wording under
-		// the new label and not an approximation of it.
-		var patched int
-		for i := range res.Report.Findings {
-			if res.Report.Findings[i].RuleID != "R04" {
-				continue
-			}
-			res.Report.Findings[i].Quality = "inferred"
-			res.Report.Findings[i].QualityBasis = "Network round-trip time was taken from the " +
-				"minimum observed ACK round trip on 3 of 5 contributing flows, because those flows " +
-				"began before the capture started and no handshake was available. That approximation " +
-				"can overestimate the round trip and so understate the server time."
-			patched++
-		}
-		if patched == 0 {
-			t.Fatalf("no R04 finding in fixture %q to construct the inferred case from", *previewFixture)
-		}
-		res.Report.Coverage.Qualifier = "CONSTRUCTED FOR REVIEW — R04's inferred branch is " +
-			"reachable in the engine but not by any committed fixture. " + res.Report.Coverage.Qualifier
 	default:
 		t.Fatalf("unknown -preview-variant %q", *previewVariant)
 	}

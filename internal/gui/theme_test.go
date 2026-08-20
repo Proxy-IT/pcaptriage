@@ -22,7 +22,17 @@ func TestInkIsConfinedToTheBar(t *testing.T) {
 	rule := regexp.MustCompile(`(?s)([^{}]+)\{([^{}]*)\}`)
 	barToken := regexp.MustCompile(`var\(\s*--bar-[a-z-]+\s*\)`)
 
-	for _, m := range rule.FindAllStringSubmatch(css, -1) {
+	rules := rule.FindAllStringSubmatch(css, -1)
+	// The regex is the whole test. If a stylesheet restructuring ever stopped
+	// it matching, every check below would be skipped and this would report
+	// the ink as perfectly confined — the most reassuring possible way to
+	// measure nothing.
+	if len(rules) < 50 {
+		t.Fatalf("the rule regex matched %d rules in app.css, which is too few to be a real parse; "+
+			"the checks below would be silently skipped", len(rules))
+	}
+
+	for _, m := range rules {
 		selector := strings.TrimSpace(m[1])
 		decls := m[2]
 

@@ -260,27 +260,32 @@ func TestR08OneWayFlowIsUnavailableNotSilent(t *testing.T) {
 	}
 }
 
-// TestKernelDropGatingReachesTheLossRules is the R15 seam the brief asks to
-// verify: on a capture whose host discarded a significant share of traffic,
-// apparent loss may be capture loss, and R05's finding must degrade to
-// inferred with the basis stated — degraded, never suppressed.
-func TestKernelDropGatingReachesTheLossRules(t *testing.T) {
-	// The RTO fixture's traffic, in a pcapng whose interface statistics say
-	// the capture host dropped ~11% of what it saw.
+// withKernelDrops rebuilds a committed fixture's traffic as a pcapng whose
+// interface statistics report the capture host discarding a significant share
+// of what it saw, and analyses it.
+//
+// Factored out so R05, R06 and R08 can each be asserted directly. They share
+// one gating seam and one basis sentence, but "shares a seam with something
+// tested" is not the same as tested: each rule decides separately whether to
+// consult pop.Quality at all, and a rule that quietly stopped consulting it
+// would keep reporting capture loss as network loss with nothing failing.
+func withKernelDrops(t *testing.T, fixture string, stats synth.InterfaceStats) *analysis.Result {
+	t.Helper()
+
 	var b *synth.Builder
 	for _, f := range synth.Fixtures() {
-		if f.Name == "r05-rto-burst" {
+		if f.Name == fixture {
 			b = f.Build()
 		}
 	}
 	if b == nil {
-		t.Fatal("the r05-rto-burst fixture is gone")
+		t.Fatalf("the %s fixture is gone", fixture)
 	}
-	data, err := b.WithInterfaceStats(synth.InterfaceStats{Received: 270, Dropped: 30}).Pcapng()
+	data, err := b.WithInterfaceStats(stats).Pcapng()
 	if err != nil {
 		t.Fatal(err)
 	}
-	path := filepath.Join(t.TempDir(), "rto-with-drops.pcapng")
+	path := filepath.Join(t.TempDir(), fixture+"-with-drops.pcapng")
 	if err := os.WriteFile(path, data, 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -290,23 +295,59 @@ func TestKernelDropGatingReachesTheLossRules(t *testing.T) {
 		t.Fatal(err)
 	}
 	if !res.Quality.KernelDropsSignificant {
-		t.Fatal("the constructed drop ratio did not clear the R15 threshold; the test premise is gone")
+		t.Fatalf("the constructed drop ratio did not clear the R15 threshold for %s; "+
+			"the test premise is gone", fixture)
+	}
+	return res
+}
+
+// TestKernelDropGatingReachesTheLossRules is the R15 seam the brief asks to
+// verify: on a capture whose host discarded a significant share of traffic,
+// apparent loss may be capture loss, and the loss rules must degrade to
+// inferred with the basis stated — degraded, never suppressed.
+//
+// All three rules that read this seam are asserted, not just R05. R06 and R08
+// rode R05's coverage until the evidence-quality session's audit; the gating
+// is a separate decision in each rule's Emit, so one test standing in for
+// three was measuring one of them.
+func TestKernelDropGatingReachesTheLossRules(t *testing.T) {
+	cases := []struct {
+		rule    string
+		fixture string
+		stats   synth.InterfaceStats
+	}{
+		{"R05", "r05-rto-burst", synth.InterfaceStats{Received: 270, Dropped: 30}},
+		{"R06", "r06-fast-retransmit", synth.InterfaceStats{Received: 270, Dropped: 30}},
+		{"R08", "r08-asymmetric-loss", synth.InterfaceStats{Received: 270, Dropped: 30}},
 	}
 
-	var r05 *findings.Finding
-	for _, f := range res.Findings {
-		if f.RuleID == "R05" {
-			r05 = f
-		}
-	}
-	if r05 == nil {
-		t.Fatal("kernel drops suppressed the R05 finding entirely; the seam degrades, never suppresses")
-	}
-	if r05.Quality != findings.Inferred {
-		t.Errorf("R05 quality = %q under significant kernel drops, want inferred", r05.Quality)
-	}
-	if r05.QualityBasis == "" || !strings.Contains(r05.QualityBasis, "capture") {
-		t.Errorf("the degraded finding does not state its basis: %q", r05.QualityBasis)
+	for _, tc := range cases {
+		t.Run(tc.rule, func(t *testing.T) {
+			res := withKernelDrops(t, tc.fixture, tc.stats)
+
+			var got *findings.Finding
+			for _, f := range res.Findings {
+				if f.RuleID == tc.rule {
+					got = f
+				}
+			}
+			if got == nil {
+				t.Fatalf("kernel drops suppressed the %s finding entirely; the seam degrades, "+
+					"never suppresses", tc.rule)
+			}
+			if got.Quality != findings.Inferred {
+				t.Errorf("%s quality = %q under significant kernel drops, want inferred", tc.rule, got.Quality)
+			}
+			if got.QualityBasis == "" {
+				t.Fatalf("%s degraded without stating a basis", tc.rule)
+			}
+			// The drop basis specifically. Every one of these rules has
+			// exactly one inferred path, so any other sentence here means the
+			// finding degraded for a reason this test is not exercising.
+			if !strings.Contains(got.QualityBasis, "capture host itself dropped") {
+				t.Errorf("%s did not degrade through the kernel-drop seam:\n  %s", tc.rule, got.QualityBasis)
+			}
+		})
 	}
 }
 

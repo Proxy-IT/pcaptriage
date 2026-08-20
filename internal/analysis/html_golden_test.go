@@ -56,7 +56,7 @@ func TestHTMLGolden(t *testing.T) {
 		}
 	}
 
-	for _, f := range synth.Fixtures() {
+	for _, f := range allFixtures(t) {
 		t.Run(f.Name, func(t *testing.T) {
 			got := renderFixtureHTML(t, f.Name, "pcap")
 			path := strings.TrimSuffix(synth.GoldenPath(f.Name), ".json") + ".html"
@@ -84,7 +84,7 @@ func TestHTMLGolden(t *testing.T) {
 // pipeline rather than checked on a hand-built document: parse, analyse, rank
 // and render, repeatedly, and require byte-identical HTML every time.
 func TestHTMLDeterminismEndToEnd(t *testing.T) {
-	for _, f := range synth.Fixtures() {
+	for _, f := range allFixtures(t) {
 		t.Run(f.Name, func(t *testing.T) {
 			first := renderFixtureHTML(t, f.Name, "pcap")
 			for i := 1; i < determinismRuns; i++ {
@@ -102,7 +102,7 @@ func TestHTMLDeterminismEndToEnd(t *testing.T) {
 // The HTML is a view over the same document, so every finding's wording must
 // appear in both, character for character.
 func TestHTMLMatchesJSONWording(t *testing.T) {
-	for _, f := range synth.Fixtures() {
+	for _, f := range allFixtures(t) {
 		t.Run(f.Name, func(t *testing.T) {
 			res := runFixture(t, f.Name)
 			html := string(renderFixtureHTML(t, f.Name, "pcap"))
@@ -145,7 +145,7 @@ func TestHTMLMatchesJSONWording(t *testing.T) {
 // rendered from real captures, where the prose and labels carry addresses
 // rather than the hand-built strings the unit test uses.
 func TestHTMLFixturesAreSelfContained(t *testing.T) {
-	for _, f := range synth.Fixtures() {
+	for _, f := range allFixtures(t) {
 		t.Run(f.Name, func(t *testing.T) {
 			html := strings.ToLower(string(renderFixtureHTML(t, f.Name, "pcap")))
 			for _, banned := range []string{"http://", "https://", "<script", "@import", "url(", "<link ", "<img "} {

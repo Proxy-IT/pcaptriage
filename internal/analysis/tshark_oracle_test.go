@@ -438,7 +438,7 @@ func TestTsharkCrossValidation(t *testing.T) {
 	}
 	t.Logf("oracle: %s", tshark)
 
-	for _, f := range synth.Fixtures() {
+	for _, f := range allFixtures(t) {
 		for _, format := range []string{"pcap", "pcapng"} {
 			t.Run(f.Name+"/"+format, func(t *testing.T) {
 				path := synth.FixturePath(f.Name, format)

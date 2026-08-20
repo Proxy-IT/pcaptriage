@@ -153,10 +153,18 @@ func TestR04PacketEvidenceShowsRequestAndResponse(t *testing.T) {
 // TestPacketEvidenceCarriesNoPayload is the "no payload bytes in output"
 // guarantee applied to the one feature most likely to breach it.
 func TestPacketEvidenceCarriesNoPayload(t *testing.T) {
+	// Counted rather than asserted per-fixture: this walks three fixtures and
+	// what matters is that packet evidence was actually inspected somewhere.
+	// Nested loops over findings and their packets are each empty on a fixture
+	// that produced nothing, and a "no payload leaked" result computed over
+	// zero packets is the same clean pass as a real one.
+	var inspected int
+
 	for _, name := range []string{"r01-zero-window-stall", "r04-server-response-outlier", "mixed-findings"} {
 		res := runFixture(t, name)
 		for _, f := range res.Findings {
 			for _, p := range f.Packets {
+				inspected++
 				// Payload length is a derived metric and is fine; the bytes
 				// themselves must have no field to live in.
 				if p.PayloadLen < 0 {
@@ -169,6 +177,11 @@ func TestPacketEvidenceCarriesNoPayload(t *testing.T) {
 				}
 			}
 		}
+	}
+
+	if inspected == 0 {
+		t.Fatal("no packet evidence was inspected across three fixtures, so this asserted nothing " +
+			"about payload bytes reaching the output")
 	}
 }
 
