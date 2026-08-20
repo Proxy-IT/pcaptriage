@@ -124,6 +124,42 @@ P4's severity work is where a floor would be calibrated if one is ever wanted;
 `MinorObservations` (always zero today) is the seam left for it. Don't introduce
 a floor casually as a side effect of badge work — it's a §9-relevant decision.
 
+## Filtered export — designed, deliberately not built
+
+**Specified in the filterability session and deferred there. Blocked on a GUI
+export action existing at all, which today it does not.**
+
+Presentation-layer filtering now exists in the app: clicking the hosts and
+ports a finding names scopes the view, and a chip bar carries a mandatory
+"Showing N of M" for as long as any filter is active. **The export is always
+the complete, unfiltered report**, and that is the deliberate position rather
+than an unfinished one. An export is the artifact a stranger reads with no
+context and no chip bar; a silently-filtered one is the false-all-clear risk in
+its worst form, because nothing on the page would admit the subset.
+
+What a filtered export needs before it can exist, from BRIEF §8's filter-state
+requirement:
+
+- A **loud provenance banner** in the document itself, stating the filter that
+  produced it, in the same place the reader is told about capture completeness.
+  §8 puts this beside the coverage gaps for the same reason: a report that
+  looks clean because the filter excluded the problem fails identically to one
+  that looks clean because a check never ran.
+- The banner in the **JSON as well as the HTML**, since the JSON is the machine
+  artifact and a consumer cannot see a visual banner.
+- A decision about **comparative wording**, which is the sharp edge. Findings
+  say things like "the other 8 servers in this capture are under 40ms" —
+  measured against the full population, correct in a full report, and
+  potentially confusing in a filtered one where those 8 servers do not appear.
+  The wording is right and must not change; the banner has to carry the
+  explanation.
+
+**Sequencing:** there is no export action in the GUI at all yet — export lives
+only in the dev CLI's `-html`/`-json` flags, which are not a shipped product.
+When a GUI export is built, it inherits the session's rule immediately: if a
+filter is active, say plainly at the action that the export contains the
+complete report. That note has no home until the action exists.
+
 ## P5. A5 — Redaction as a visible control
 
 Visible toggle at export/share time, one-line statement of what the report

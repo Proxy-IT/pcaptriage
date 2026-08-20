@@ -54,6 +54,28 @@
   // by navigating, and "← Home" from it would undo the reader's work.
   var BACK_VIEWS = { guide: true, "guide-index": true, about: true };
 
+  // The tuned values this renderer owns.
+  //
+  // Provenance is marked the way internal/rules/thresholds.go marks its own,
+  // for the same reason: a bare number invites the next reader to wonder
+  // whether it was reasoned or arbitrary. These live here rather than in that
+  // struct because they are presentation decisions with no bearing on
+  // detection, and because reaching into a Go binding for them would make the
+  // fold depend on the backend — which is precisely what
+  // TestInformationalFoldIsPresentationOnly forbids.
+  //
+  //   [chosen]  picked here and open to change
+  var Display = {
+    // MinFoldBand is the smallest informational band worth folding.
+    //
+    // [chosen] Below three, the fold costs a click and saves no vertical
+    // space: one card becomes one row, which is a swap rather than a saving,
+    // and two is a wash. Three is where a reader gets back more than they
+    // gave up. The row's count stays exact at any size, so this changes when
+    // the fold appears and never what it claims.
+    MinFoldBand: 3
+  };
+
   // show reveals one view. Pass keepScroll to leave the scroll position alone,
   // which is how a lossless return works.
   function show(name, keepScroll) {
@@ -260,13 +282,87 @@
   // uses: what was observed, the frames that evidence it, what to check next.
   // The wording arrives from the engine already written and is never edited,
   // reflowed or summarised here.
+  // findingTitle renders a card's heading with its own endpoints made
+  // clickable.
+  //
+  // The endpoints are not found by pattern-matching the title. They are the
+  // finding's structured subject, and what happens here is a search for those
+  // exact strings inside the heading — so a host can only become a control if
+  // the finding is genuinely about it. Guessing at address-shaped text would
+  // pick up whatever else a title mentions and quietly widen what "subject"
+  // means, which is the one definition this whole mechanism rests on.
+  //
+  // Titles name their subject in several forms across the rule set — bare
+  // host, host:port, and two hosts joined by an arrow — so every endpoint
+  // contributes both of its spellings as candidates, and the longest match at
+  // a position wins so "10.2.2.7:5432" is never split into a host and a
+  // stray port.
+  function findingTitle(f) {
+    var h3 = el("h3");
+    var title = f.title || "";
+
+    var candidates = [];
+    findingEndpoints(f).forEach(function (e) {
+      var bracketed = e.host.indexOf(":") >= 0;
+      if (e.port) {
+        candidates.push({ text: (bracketed ? "[" + e.host + "]" : e.host) + ":" + e.port, term: e });
+      }
+      // The bare host, as a filter on the host alone rather than this port.
+      candidates.push({ text: e.host, term: { host: e.host, port: null } });
+    });
+    candidates.sort(function (a, b) { return b.text.length - a.text.length; });
+
+    var i = 0;
+    var plain = "";
+    function flush() {
+      if (plain) { h3.appendChild(document.createTextNode(plain)); plain = ""; }
+    }
+    while (i < title.length) {
+      var hit = null;
+      for (var c = 0; c < candidates.length; c++) {
+        if (candidates[c].text && title.substr(i, candidates[c].text.length) === candidates[c].text) {
+          hit = candidates[c];
+          break;
+        }
+      }
+      if (!hit) { plain += title.charAt(i); i++; continue; }
+      flush();
+      h3.appendChild(endpointControl(hit.text, hit.term));
+      i += hit.text.length;
+    }
+    flush();
+    return h3;
+  }
+
+  // endpointControl is an endpoint rendered as a filter control.
+  //
+  // Quietly interactive, on purpose. It sits inside a card heading beside a
+  // severity badge, so anything with colour or weight of its own would pull
+  // the eye away from the badge — the standing rule that nothing may outrank
+  // the red one applies here more sharply than anywhere, because this
+  // affordance is *inside* the title the badge sits next to. Hover underline
+  // and a pointer, nothing at rest.
+  //
+  // Not styled as a guide link either: those open an explanation, these
+  // narrow the list, and two different jobs wearing one appearance is how a
+  // reader learns to distrust both.
+  function endpointControl(text, term) {
+    var btn = el("button", "endpoint", text);
+    btn.type = "button";
+    btn.title = "Show only findings involving " + termKey(term);
+    btn.addEventListener("click", function () {
+      addFilterTerm({ host: term.host, port: term.port || null });
+    });
+    return btn;
+  }
+
   function findingCard(f) {
     var sev = f.severity || "informational";
     var card = el("article", "finding sev-" + sev);
 
     var head = el("div", "finding-head");
     head.appendChild(el("span", "finding-rank", "#" + f.rank));
-    head.appendChild(el("h3", null, f.title));
+    head.appendChild(findingTitle(f));
     head.appendChild(el("span", "tag tag-rule", f.rule_id));
     // Severity carries the colour and always its word with it; quality sits
     // beside it, colourless, answering a different question. Both badges are
@@ -826,6 +922,117 @@
   // one report, not a preference that outlives it.
   var infoExpanded = false;
 
+  // ------------------------------------------------------------ filtering
+  //
+  // Filtering is presentation-only. These functions read the completed report
+  // and decide what to paint; nothing here re-runs analysis, re-ranks, or
+  // rewrites a sentence. That is what keeps a comparative observation like
+  // "the other 8 servers in this capture" true under any filter — the
+  // population it refers to was measured before any of this ran, and a view
+  // cannot change what was measured.
+
+  // The active filter, as a list of terms. A term is a host, optionally with
+  // a port. Reset on a new capture along with the fold.
+  var filterTerms = [];
+  // The report currently on screen, held so a filter change can repaint from
+  // it rather than ask the backend for anything.
+  var currentResult = null;
+
+  function termKey(t) {
+    return t.port ? t.host + ":" + t.port : t.host;
+  }
+
+  // termLabel is what a chip shows. Deliberately the same string the reader
+  // clicked, so the chip is recognisably the thing they picked rather than a
+  // normalised restatement of it.
+  function termLabel(t) {
+    return termKey(t);
+  }
+
+  // parseEndpoint splits "10.2.2.7:5432" or "[2001:db8::5]:8443" into parts.
+  //
+  // Bracketed form first: an IPv6 address is full of colons, so "last colon
+  // wins" is only safe once the bracketed case is out of the way, and a bare
+  // v6 address with no port must not have its final group mistaken for one.
+  function parseEndpoint(s) {
+    s = (s || "").trim();
+    if (!s) return null;
+    if (s.charAt(0) === "[") {
+      var close = s.indexOf("]");
+      if (close < 0) return null;
+      var h = s.slice(1, close);
+      var rest = s.slice(close + 1);
+      return { host: h, port: rest.charAt(0) === ":" ? rest.slice(1) : null };
+    }
+    var firstColon = s.indexOf(":");
+    if (firstColon < 0) return { host: s, port: null };
+    // More than one colon and no brackets: a bare IPv6 address, no port.
+    if (s.indexOf(":", firstColon + 1) >= 0) return { host: s, port: null };
+    return { host: s.slice(0, firstColon), port: s.slice(firstColon + 1) };
+  }
+
+  // findingEndpoints returns the endpoints a finding is *about*.
+  //
+  // Read from the structured subject rather than scraped from the wording,
+  // which is what makes the brief's subject rule hold by construction: hosts
+  // that appear only as comparative context — R04's "the other 8 servers" —
+  // live in the observation and never in the subject, so they cannot become
+  // filter terms and cannot make a finding match one.
+  function findingEndpoints(f) {
+    var subject = f.subject || "";
+    var parts = f.scope_kind === "flow" ? subject.split("<->") : [subject];
+    var out = [];
+    parts.forEach(function (p) {
+      var e = parseEndpoint(p);
+      if (e && e.host) out.push(e);
+    });
+    return out;
+  }
+
+  // findingMatches decides whether one finding survives the active filter.
+  //
+  // Terms intersect: two hosts mean the conversation between them, which is
+  // the bidirectional reading BRIEF §8 requires — there is no direction here
+  // to get wrong, because a term matches an endpoint on either side.
+  function findingMatches(f, terms) {
+    if (terms.length === 0) return true;
+    var eps = findingEndpoints(f);
+    return terms.every(function (t) {
+      return eps.some(function (e) {
+        if (e.host !== t.host) return false;
+        return t.port ? e.port === t.port : true;
+      });
+    });
+  }
+
+  function filteredFindings(findings) {
+    if (filterTerms.length === 0) return findings;
+    return findings.filter(function (f) { return findingMatches(f, filterTerms); });
+  }
+
+  function addFilterTerm(term) {
+    if (!term || !term.host) return;
+    var key = termKey(term);
+    // Already filtering on it: nothing to do. Re-clicking does not toggle off
+    // — removal is the chip's job, so there is one way in and one way out
+    // rather than a hidden state machine the reader has to model.
+    for (var i = 0; i < filterTerms.length; i++) {
+      if (termKey(filterTerms[i]) === key) return;
+    }
+    filterTerms.push(term);
+    repaintFindings();
+  }
+
+  function removeFilterTerm(key) {
+    filterTerms = filterTerms.filter(function (t) { return termKey(t) !== key; });
+    repaintFindings();
+  }
+
+  function clearFilter() {
+    filterTerms = [];
+    repaintFindings();
+  }
+
   // renderFindingList paints the ranked findings, folding the informational
   // band into one row.
   //
@@ -845,10 +1052,15 @@
       split--;
     }
 
-    // Everything is informational. Folding here would open the report to one
+    // Two reasons not to fold, kept as one branch because they have the same
+    // answer: render every card plainly.
+    //
+    // Everything is informational — folding would open the report to one
     // collapsed row and nothing else, which reads as a broken screen rather
-    // than as a quiet result — and the quiet result is the honest message.
-    if (split === 0) {
+    // than as a quiet result, and the quiet result is the honest message.
+    //
+    // Or the band is too small to be worth a fold. See Display.MinFoldBand.
+    if (split === 0 || findings.length - split < Display.MinFoldBand) {
       findings.forEach(function (f) { list.appendChild(findingCard(f)); });
       return;
     }
@@ -856,7 +1068,6 @@
     findings.slice(0, split).forEach(function (f) { list.appendChild(findingCard(f)); });
 
     var band = findings.slice(split);
-    if (band.length === 0) return;
 
     // A button, not a div with a click handler: focusability and
     // Enter/Space activation are what a button already is, and
@@ -891,7 +1102,106 @@
     paint();
   }
 
+  // repaintFindings paints the findings column for the current filter.
+  //
+  // Everything it needs is already in hand: it reads currentResult and never
+  // calls the backend, because a filter is a view over completed results.
+  // Called both on a fresh analysis and on every filter change, so the two
+  // paths cannot drift into rendering the same state differently.
+  //
+  // Note what it deliberately does not touch: the coverage banner, the notes
+  // section, and the build note all live outside it and render in full under
+  // every filter. Capture-quality warnings are statements about the whole
+  // file — a filter that could hide "the capture host dropped packets" would
+  // manufacture confidence the capture does not support.
+  function repaintFindings() {
+    if (!currentResult) return;
+    var doc = currentResult.report;
+    var all = doc.findings || [];
+    var shown = filteredFindings(all);
+
+    renderFilterBar(all.length, shown.length);
+
+    var list = $("findings-list");
+    list.textContent = "";
+
+    // The clean state belongs to a capture with no findings, and only to
+    // that. A filter cannot reach it: filtering to nothing has its own state
+    // below, which says something entirely different.
+    var reallyClean = all.length === 0;
+    if (reallyClean) {
+      renderCleanState(doc);
+      $("clean-state").hidden = false;
+    } else {
+      $("clean-state").hidden = true;
+    }
+
+    var filteredToNothing = !reallyClean && shown.length === 0;
+    renderFilteredEmpty(filteredToNothing, all.length);
+
+    if (!reallyClean && !filteredToNothing) {
+      // Already ranked by significance in the engine. Order is the only place
+      // significance is expressed; it is never shown as a number. The fold
+      // applies to whatever survived the filter, so its count describes what
+      // is on screen rather than what the capture holds.
+      renderFindingList(list, shown);
+    }
+  }
+
+  // renderFilterBar paints the chips and the subset admission.
+  function renderFilterBar(total, shown) {
+    var bar = $("filter-bar");
+    if (filterTerms.length === 0) {
+      bar.hidden = true;
+      $("filter-chips").textContent = "";
+      $("filter-count").textContent = "";
+      return;
+    }
+
+    var chips = $("filter-chips");
+    chips.textContent = "";
+    filterTerms.forEach(function (t) {
+      var key = termKey(t);
+      var chip = el("span", "chip");
+      chip.appendChild(el("span", "chip-text", termLabel(t)));
+      var x = el("button", "chip-x", "×");
+      x.type = "button";
+      x.setAttribute("aria-label", "Remove filter " + key);
+      x.addEventListener("click", function () { removeFilterTerm(key); });
+      chip.appendChild(x);
+      chips.appendChild(chip);
+    });
+
+    // Mandatory whenever a filter is active. This sentence is the only thing
+    // standing between a filtered screen and being read as the whole report.
+    $("filter-count").textContent =
+      "Showing " + shown + " of " + total + " finding" + (total === 1 ? "" : "s");
+    bar.hidden = false;
+  }
+
+  // renderFilteredEmpty paints the filtered-to-nothing state.
+  //
+  // Its wording is chosen against the clean state rather than in isolation:
+  // it leads with the filter, states how many findings the capture actually
+  // holds, and names the terms that excluded them. A reader arriving here
+  // must not be able to take away "nothing is wrong".
+  function renderFilteredEmpty(active, total) {
+    var box = $("filtered-empty");
+    if (!active) { box.hidden = true; return; }
+
+    var terms = filterTerms.map(termKey);
+    var subject = terms.length === 1
+      ? terms[0]
+      : terms.slice(0, -1).join(", ") + " and " + terms[terms.length - 1];
+
+    $("filtered-empty-detail").textContent =
+      total + " finding" + (total === 1 ? "" : "s") + " exist" + (total === 1 ? "s" : "") +
+      " in this capture — none involve " + subject + ".";
+    box.hidden = false;
+  }
+
   function renderFindings(result) {
+    currentResult = result;
     var doc = result.report;
     var findings = doc.findings || [];
     var notes = doc.notes || [];
@@ -909,24 +1219,7 @@
     $("results-title").textContent =
       findings.length > 0 ? "Top findings" : "Analysis complete";
 
-    var list = $("findings-list");
-    list.textContent = "";
-
-    if (findings.length === 0) {
-      renderCleanState(doc);
-      $("clean-state").hidden = false;
-    } else {
-      $("clean-state").hidden = true;
-    }
-
-    if (findings.length === 0) {
-      // The clean state above carries the whole message; an empty list beneath
-      // it would only restate it.
-    } else {
-      // Already ranked by significance in the engine. Order is the only place
-      // significance is expressed; it is never shown as a number.
-      renderFindingList(list, findings);
-    }
+    repaintFindings();
 
     var notesSection = $("notes-section");
     var notesList = $("notes-list");
@@ -967,7 +1260,13 @@
     // A new capture is a new report. Carrying the previous one's fold state
     // over would mean opening a fresh result already scrolled past part of
     // it, on the strength of a decision made about different findings.
+    //
+    // The filter goes with it, and for a sharper reason: terms name hosts
+    // from the capture just closed, so a stale filter would open the new one
+    // scoped to addresses that may not appear in it at all — a full report
+    // presenting itself as empty.
     infoExpanded = false;
+    filterTerms = [];
 
     resetProgress(path.replace(/^.*[\\/]/, ""));
     show("loading");
@@ -1026,6 +1325,13 @@
     };
     $("btn-clean-gaps-guide").addEventListener("click", openR15Guide);
     $("btn-notes-guide").addEventListener("click", openR15Guide);
+
+    // Two ways out of a filter, both removing everything. The chip bar's is
+    // where the reader is already looking while working; the filtered-empty
+    // screen's is the one that matters, because that reader has nothing else
+    // on screen to act on.
+    $("filter-clear").addEventListener("click", clearFilter);
+    $("filtered-empty-clear").addEventListener("click", clearFilter);
 
     // Drag feedback only. The path itself arrives from the Go side, because a
     // webview's drop event exposes file contents but not a usable filesystem

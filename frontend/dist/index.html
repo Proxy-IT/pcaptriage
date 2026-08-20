@@ -21,6 +21,12 @@
      there. The contextual "← where you came from" buttons inside the guide
      and About views are deliberately kept: they restore an exact scroll
      position, which a generic Home link cannot do. -->
+<!-- The sticky wrapper. The bar and the filter chips have to travel as one
+     piece: two separately-sticky elements both pinned to the top of the
+     viewport would overlap, and pinning the lower one to the height of the
+     upper one means hard-coding a height that changes when the bar wraps on a
+     narrow window. One container, one sticking behaviour. -->
+<div id="sticky-head" class="sticky-head">
 <nav id="topbar" class="topbar" aria-label="Main">
   <span class="topbar-identity">
     <!-- The contextual return lives in the bar rather than in each view's
@@ -38,6 +44,25 @@
     <button type="button" id="nav-about" class="topbar-link">About</button>
   </span>
 </nav>
+
+<!-- The filter chips. Outside every view for the same reason the bar above is:
+     it must not be able to scroll under the bar, and the two have to move as
+     one piece. It travels with the nav rather than introducing a second
+     sticking behaviour, per the brief. Hidden unless a filter is active —
+     there is no persistent filter chrome, because a control that is always
+     there implies the view is always filtered.
+
+     The "Showing N of M" count is not decoration. It is the standing
+     admission that this is a subset, and it renders whenever the bar does. -->
+<div id="filter-bar" class="filter-bar" hidden>
+  <span class="filter-lede">Filtering:</span>
+  <span id="filter-chips" class="filter-chips"></span>
+  <span class="filter-tail">
+    <span id="filter-count" class="filter-count"></span>
+    <button type="button" id="filter-clear" class="linkish">clear all</button>
+  </span>
+</div>
+</div>
 
 <!-- ==================== HOME ==================== -->
 <main id="view-home" class="view">
@@ -131,6 +156,21 @@
           <div id="clean-gaps"></div>
         </section>
       </div>
+    </section>
+
+    <!-- Filtered to nothing. A separate state from the clean-capture block
+         above, and deliberately nothing like it to look at: that one says the
+         checks found nothing, this one says the checks found things and none
+         of them are on screen. Confusing the two would let a reader close a
+         ticket on a live fault because they had narrowed to the wrong host.
+
+         The total is stated, the chips stay visible above, and clearing is one
+         click. The clean state's wording is banned from here by test, not by
+         care — see the posture ban-list. -->
+    <section id="filtered-empty" class="filtered-empty" hidden>
+      <h3>No findings match this filter.</h3>
+      <p id="filtered-empty-detail"></p>
+      <button type="button" id="filtered-empty-clear" class="btn">Clear the filter</button>
     </section>
 
     <div id="findings-list" class="findings"></div>

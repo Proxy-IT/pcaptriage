@@ -73,7 +73,7 @@ func TestAllInformationalReportDoesNotFold(t *testing.T) {
 	js := readFrontend(t, "app.js")
 	fn := extractFunction(t, js, "renderFindingList")
 
-	m := regexp.MustCompile(`(?s)if\s*\(split === 0\)\s*\{(.*?)\n    \}`).FindStringSubmatch(fn)
+	m := regexp.MustCompile(`(?s)if\s*\(split === 0[^)]*\)\s*\{(.*?)\n    \}`).FindStringSubmatch(fn)
 	if m == nil {
 		t.Fatal("renderFindingList has no split === 0 branch, so an all-informational report would fold")
 	}
@@ -83,6 +83,41 @@ func TestAllInformationalReportDoesNotFold(t *testing.T) {
 	}
 	if strings.Contains(body, "info-fold") {
 		t.Error("the all-informational branch still builds a fold row")
+	}
+}
+
+// TestSmallInformationalBandsDoNotFold covers the other no-fold case.
+//
+// Folding one card swaps a card for a row: it saves no vertical space and
+// costs a click. Two is a wash. The threshold is a named constant rather than
+// a literal in the branch, so the next reader finds the reasoning where the
+// value is instead of reconstructing it from behaviour — the same treatment
+// internal/rules/thresholds.go gives its own tuned values.
+func TestSmallInformationalBandsDoNotFold(t *testing.T) {
+	js := readFrontend(t, "app.js")
+
+	// Declared, marked as a judgment call, and reasoned, in one place.
+	decl := regexp.MustCompile(`(?s)//\s*\[chosen\][^\n]*(?:\n\s*//[^\n]*)*\n\s*MinFoldBand:\s*(\d+)`)
+	m := decl.FindStringSubmatch(js)
+	if m == nil {
+		t.Fatal("MinFoldBand is not declared with a [chosen] provenance note; a bare number here " +
+			"invites the next reader to assume it was arbitrary")
+	}
+	if m[1] != "3" {
+		t.Errorf("MinFoldBand = %s, want 3 — change it deliberately and say why, do not drift it", m[1])
+	}
+
+	// And actually consulted by the branch, rather than declared beside a
+	// hardcoded comparison that would silently outrank it.
+	fn := extractFunction(t, js, "renderFindingList")
+	if !strings.Contains(fn, "Display.MinFoldBand") {
+		t.Error("renderFindingList does not consult Display.MinFoldBand, so the constant documents " +
+			"a threshold the code does not use")
+	}
+	if regexp.MustCompile(`split\s*<\s*[0-9]`).MatchString(fn) ||
+		regexp.MustCompile(`-\s*split\s*<\s*[0-9]`).MatchString(fn) {
+		t.Error("renderFindingList compares the band size against a literal; the threshold must come " +
+			"from the named constant so the two cannot disagree")
 	}
 }
 

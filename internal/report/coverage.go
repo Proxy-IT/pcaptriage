@@ -63,6 +63,22 @@ type CoverageGap struct {
 	Text   string `json:"text"`
 }
 
+// CleanStateBans lists phrasing that belongs only to a genuinely clean
+// capture, and must never appear on a screen that reached emptiness some other
+// way.
+//
+// The filtered-to-nothing view is the case this exists for. "No findings match
+// this filter" and "no significant problems found" are opposite statements
+// about the same blank screen, and a reader who takes the second away from the
+// first closes a ticket on a live fault. The two states are already built to
+// look different; this is what keeps them reading differently as the wording
+// is edited.
+var CleanStateBans = []string{
+	"no significant problems",
+	"found in what was checked",
+	"nothing was surfaced",
+}
+
 // VerdictBans lists phrasing the coverage wording must never contain.
 //
 // This is the P3 posture ban: the clean-capture statement may say what was
@@ -77,11 +93,19 @@ var VerdictBans = []string{
 
 // buildCoverage assembles the coverage summary for a completed run.
 //
-// If presentation-layer filtering is ever added (BRIEF.md section 8), the
-// coverage must state the active filter alongside the gaps below: a report that
-// looks clean because the filter excluded the problem is the same failure mode
-// as one that looks clean because a check never ran. Not built here — there is
-// no filtering yet — but this is where it belongs.
+// BRIEF.md section 8 requires a report to state its active filter alongside
+// the gaps, on the grounds that a report looking clean because the filter
+// excluded the problem is the same failure mode as one looking clean because a
+// check never ran. Presentation-layer filtering now exists, and this function
+// still has no filter to state — deliberately.
+//
+// The filter is a view over a completed report and never reaches this
+// document: the export and the JSON are always the full, unfiltered result, so
+// a "filter applied" line here would always read "none" and would be false the
+// moment filtered export is built. The requirement is met where the filtering
+// actually happens — the app's chip bar carries a mandatory "Showing N of M"
+// for as long as any filter is active. When filtered export arrives, its
+// provenance banner belongs here, and section 8 specifies what it must say.
 func buildCoverage(res *analysis.Result) Coverage {
 	c := Coverage{
 		Clean: len(res.Findings) == 0,

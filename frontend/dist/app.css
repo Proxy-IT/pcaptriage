@@ -45,10 +45,17 @@ body {
    it costs about forty pixels, which is what keeps a guide page's summary and
    a finding's context block above the fold where the answer-first structure
    needs them. */
-.topbar {
+/* The sticking moved up to the wrapper when the filter chips arrived. The bar
+   and the chips have to pin as one piece: two separately-sticky boxes both at
+   top: 0 overlap, and pinning the lower one to the height of the upper one
+   would hard-code a height that changes whenever the bar wraps. */
+.sticky-head {
   position: sticky;
   top: 0;
   z-index: 40;
+}
+
+.topbar {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
@@ -127,6 +134,108 @@ body {
   font-weight: 600;
   background: var(--bar-surface-raised);
 }
+
+/* ---------------- filter chips ---------------- */
+
+/* Chrome that exists only while working. There is no persistent filter UI:
+   a control that is always on screen implies the view is always filtered,
+   and the whole risk being designed against is a subset read as the whole.
+
+   Light surface rather than the bar's ink. It belongs to the results below
+   it, not to the navigation above it, and inheriting the bar's darkness
+   would make it read as permanent chrome. */
+.filter-bar {
+  display: flex;
+  align-items: baseline;
+  gap: .5rem;
+  flex-wrap: wrap;
+  padding: .45rem 1.25rem;
+  background: var(--accent-wash);
+  border-bottom: 1px solid var(--rule);
+  font-size: .85rem;
+}
+.filter-lede { color: var(--ink-secondary); flex: none; }
+.filter-chips { display: flex; gap: .35rem; flex-wrap: wrap; min-width: 0; }
+/* Pushed to the far end so the count sits opposite the chips rather than
+   trailing them — it qualifies the whole bar, not the last chip. */
+.filter-tail {
+  margin-left: auto;
+  display: flex;
+  align-items: baseline;
+  gap: .6rem;
+  flex: none;
+}
+/* The subset admission. Weighted like the chips rather than dimmed: it is the
+   sentence that stops this screen being mistaken for the whole report, so it
+   must not read as a footnote to the thing it qualifies. */
+.filter-count { color: var(--ink-primary); font-weight: 600; }
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: .3rem;
+  padding: .1rem .2rem .1rem .45rem;
+  background: var(--surface);
+  border: 1px solid var(--outline);
+  border-radius: var(--radius-tag);
+  font-family: var(--mono);
+  font-size: .8rem;
+}
+.chip-text { color: var(--ink-primary); }
+.chip-x {
+  font: inherit;
+  font-family: var(--font);
+  font-size: 1rem;
+  line-height: 1;
+  color: var(--ink-muted);
+  background: none;
+  border: none;
+  padding: 0 .25rem;
+  cursor: pointer;
+}
+.chip-x:hover { color: var(--sev-significant); }
+.chip-x:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+
+/* ---------------- filtered-empty ---------------- */
+
+/* The load-bearing screen. Its whole job is to be unmistakable for the clean
+   state, so it borrows none of that state's shape: no columns, no coverage
+   lists, no calibrated statement, and a heading that leads with the filter
+   rather than with the result.
+
+   Bordered in the neutral outline rather than in any severity or success
+   colour. Green here would be the false all-clear in its purest form; red
+   would claim a problem the filter has no basis to assert. */
+.filtered-empty {
+  margin: 1.5rem 0 0;
+  padding: 1.25rem 1.4rem;
+  background: var(--surface);
+  border: 1px solid var(--outline);
+  border-radius: var(--radius-card);
+}
+.filtered-empty h3 { margin: 0; font-size: 1.05rem; }
+.filtered-empty p { margin: .5rem 0 1rem; color: var(--ink-secondary); }
+
+/* ---------------- endpoint controls ---------------- */
+
+/* An address inside a card heading, made clickable.
+
+   The restraint here is the same the badge links follow, and for a sharper
+   reason: this affordance sits *inside* the title, immediately beside the
+   severity badge. Anything with colour or weight of its own would pull the
+   eye off the badge, and the standing rule is that nothing outranks the red
+   one. So: inherits the heading entirely, and shows an underline only on
+   hover. Nothing at rest. */
+.endpoint {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+.endpoint:hover { text-decoration: underline; text-underline-offset: 2px; }
+.endpoint:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 
 /* A sticky bar overlaps whatever scrollIntoView brings to the top of the
    viewport, so anchored guide sections reserve room for it. Without this,
