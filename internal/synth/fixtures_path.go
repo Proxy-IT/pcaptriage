@@ -144,3 +144,93 @@ func buildR10Negative() *Builder {
 
 	return b
 }
+
+// buildR13Positive is R13's positive: a transfer where large segments vanish.
+//
+// The connection works. Small segments are sent and acknowledged throughout,
+// which is what makes the pattern confusing to a human and recognisable to
+// this check. Segments of 1400 bytes are sent, retransmitted three times each,
+// and never acknowledged — the receiver never saw them, and nothing on the
+// path said why.
+//
+// The 1400/300 split is not a threshold the rule knows. The rule reads the
+// largest delivered size out of the capture and treats anything above it as
+// the failing class, so the fixture only has to make the two classes distinct.
+func buildR13Positive() *Builder {
+	b := New()
+
+	c := b.NewConn(ConnOpts{
+		Client: "10.1.1.5:52000", Server: "10.9.9.4:443",
+		ClientISN: 1000, ServerISN: 5000,
+	})
+	c.HandshakeWithOptions(0, 12*ms, 1460, true)
+
+	// Small exchanges that work, establishing the control: this path carries
+	// 300-byte segments perfectly well.
+	t := 40 * ms
+	for i := 0; i < 5; i++ {
+		c.ClientData(t, 300)
+		c.ServerData(t+15*ms, 200)
+		c.ClientAck(t+20*ms, 65535)
+		t += 120 * ms
+	}
+
+	// Now the client tries to send something large. Three attempts each, none
+	// acknowledged, spread over the retransmission backoff a real sender uses.
+	largeSeq := c.ClientNextSeq()
+	for attempt := 0; attempt < 3; attempt++ {
+		c.ClientSegmentAt(t, largeSeq, 1400)
+		t += time.Duration(300*(1<<attempt)) * ms
+	}
+	// A second large segment behind it, equally stuck.
+	for attempt := 0; attempt < 3; attempt++ {
+		c.ClientSegmentAt(t, largeSeq+1400, 1400)
+		t += time.Duration(300*(1<<attempt)) * ms
+	}
+
+	// The server keeps acknowledging only what it received, which is
+	// everything up to the first large segment — the stalled-transfer shape.
+	c.ServerAck(t+50*ms, 65535)
+	c.FinClose(t+400*ms, 8*ms)
+
+	return b
+}
+
+// buildR13Negative is the false-positive trap: large segments that are simply
+// lost and then recovered.
+//
+// Loss happens on healthy paths. What separates it from a blackhole is that
+// the retransmission works — the segment is eventually acknowledged, and the
+// size that failed once succeeds on the retry. A rule keying on "large
+// segments were retransmitted" without checking whether they ever landed would
+// report this as a size limit, which it is not.
+func buildR13Negative() *Builder {
+	b := New()
+
+	c := b.NewConn(ConnOpts{
+		Client: "10.1.1.5:52100", Server: "10.9.9.5:443",
+		ClientISN: 2000, ServerISN: 6000,
+	})
+	c.HandshakeWithOptions(0, 12*ms, 1460, true)
+
+	t := 40 * ms
+	for i := 0; i < 5; i++ {
+		c.ClientData(t, 300)
+		c.ServerData(t+15*ms, 200)
+		c.ClientAck(t+20*ms, 65535)
+		t += 120 * ms
+	}
+
+	// A large segment lost once, retransmitted, and delivered.
+	for i := 0; i < 3; i++ {
+		seq := c.ClientNextSeq()
+		c.ClientSegmentAt(t, seq, 1400)
+		c.ClientSegmentAt(t+400*ms, seq, 1400) // the retry
+		c.ClientAdvance(1400)
+		c.ServerAck(t+430*ms, 65535)
+		t += 700 * ms
+	}
+
+	c.FinClose(t+200*ms, 8*ms)
+	return b
+}

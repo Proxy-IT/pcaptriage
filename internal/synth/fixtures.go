@@ -47,6 +47,16 @@ func Fixtures() []Fixture {
 			Build:   buildR04Positive,
 		},
 		{
+			Name:    "r13-pmtu-blackhole",
+			Purpose: "R13 positive: 1400-byte segments retransmitted three times each and never acknowledged, while 300-byte segments on the same flow are delivered throughout.",
+			Build:   buildR13Positive,
+		},
+		{
+			Name:    "r13-loss-recovered",
+			Purpose: "R13 negative: large segments lost once and successfully retransmitted — ordinary loss, not a size limit, and the trap a rule that ignored whether they landed would fall into.",
+			Build:   buildR13Negative,
+		},
+		{
 			Name:    "r10-distant-host",
 			Purpose: "R10 positive: one host at 180ms against twelve at 8ms, with latency steady across its connections — the path-length signature.",
 			Build:   buildR10Positive,

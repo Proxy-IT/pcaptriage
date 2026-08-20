@@ -593,7 +593,7 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
     that conclusion is yours to draw from the frames.
   </p>
   <p class="posture">
-    <strong>Partial build.</strong> Partial build: 12 of the 15 v1 rules are implemented (R01 zero-window-stall, R02 syn-unanswered, R03 syn-rejected, R04 server-response-outlier, R05 rto-retransmission, R06 fast-retransmission, R07 out-of-order-not-loss, R08 asymmetric-loss, R09 reset-mid-transfer, R10 rtt-outlier, R14 connection-churn, R15 capture-quality). Every other condition in the v1 rule set was not looked for at all. An empty findings list below means
+    <strong>Partial build.</strong> Partial build: 13 of the 15 v1 rules are implemented (R01 zero-window-stall, R02 syn-unanswered, R03 syn-rejected, R04 server-response-outlier, R05 rto-retransmission, R06 fast-retransmission, R07 out-of-order-not-loss, R08 asymmetric-loss, R09 reset-mid-transfer, R10 rtt-outlier, R13 pmtu-blackhole, R14 connection-churn, R15 capture-quality). Every other condition in the v1 rule set was not looked for at all. An empty findings list below means
     these checks found nothing, not that the capture is healthy.
   </p>
   
@@ -835,6 +835,8 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
       
         <tr><td class="mono">R10</td><td class="mono">rtt-outlier</td><td>Round trips to one host took far longer than to every other host in the same capture, which usually reflects distance or a congested link rather than anything wrong with the host.</td></tr>
       
+        <tr><td class="mono">R13</td><td class="mono">pmtu-blackhole</td><td>Large segments were retransmitted repeatedly and never acknowledged while smaller ones on the same connection were delivered, which is the signature of a size limit on the path that nothing is reporting back to the sender.</td></tr>
+      
         <tr><td class="mono">R14</td><td class="mono">connection-churn</td><td>The same client opened and closed many short-lived connections to one server:port instead of reusing them, paying the handshake cost each time.</td></tr>
       
         <tr><td class="mono">R15</td><td class="mono">capture-quality</td><td>Reports what the capture itself may limit: flows already open when the capture began, connections seen in one direction only, and packets the capture host dropped before writing them.</td></tr>
@@ -843,7 +845,7 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
     </table>
   </div>
   <p class="caption">
-    3 of the fifteen v1 rules are not implemented in this build
+    2 of the fifteen v1 rules are not implemented in this build
     and were therefore not looked for at all. They are not listed above because listing them
     as "skipped" would imply a decision was made per capture; none was.
   </p>

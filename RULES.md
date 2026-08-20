@@ -650,3 +650,111 @@ invariant to attempt count. Forty-seven refusals score exactly the same as
 two, because the model's impact factor measures seconds lost and a refusal
 loses none. That is a scoring-model question rather than a weight question —
 recorded in BACKLOG rather than resolved by picking a different number.
+
+---
+
+### Batch 3 — R10's impact denominator
+
+**Added 2026-08-20, Batch 3 Checkpoint 0.**
+
+R10 as specified had no seconds denominator, which under
+`significance = base × impact × scope × deviation` pins a rule to whatever
+`base × scope × deviation` gives regardless of how much traffic the condition
+touched. Measured on this rule's own specification example — 180ms against an
+8ms median, one host, 22 connections — that is `6 × 1.0 × 1.2 × 3.0 = 21.6`,
+**worth noting**, and it is the same 21.6 whether the host was contacted twice
+or twenty-two thousand times.
+
+**The denominator now used:** the excess round-trip time over the capture-wide
+median, accumulated across the connections that paid it.
+
+    time_lost = (host_median_rtt − capture_median_rtt) × flows_to_that_host
+
+Elevated latency is not lost time the way a stall is — nothing is stopped. But
+it is paid again on every round trip, so the honest magnitude is the excess
+multiplied by how often the path was actually traversed. This is the same
+construction R04 already uses for server response time, where impact is the
+excess over what the population manages across every exchange.
+
+**Before and after, on the specification's own example:**
+
+| | impact factor | significance | severity |
+|---|---|---|---|
+| no denominator | 1.00 | 21.6 | worth noting |
+| accumulated excess (22 connections) | 2.36 | 50.9 | **significant** |
+
+And the volume responsiveness that is the point of the change:
+
+| connections | time lost | significance | severity |
+|---|---|---|---|
+| 2 | 0.34s | 27.1 | worth noting |
+| 6 | 1.04s | 35.0 | worth noting |
+| 22 | 3.78s | 50.9 | significant |
+| 220 | 37.8s | 90.3 | significant |
+
+A host that is far away and rarely contacted is a fact about the network. The
+same host carrying the bulk of a capture's conversations is a finding. The
+model could not previously tell those apart.
+
+### Batch 3 — R13's offload gate, resolved
+
+**Added 2026-08-20, Batch 3 Checkpoint 0.**
+
+R13's degradation as specified reads "downgrade to `inferred` when R15 has
+flagged offload artifacts". R15 was formalised for midstream, one-way and
+capture-host drops only; TSO/LRO had no tracking of any kind, so the gate had
+nothing to gate on. R13's second signal is entirely "large segments
+retransmitted while small ones succeed", which is precisely what offload
+corrupts, so shipping without the gate was not acceptable.
+
+**Resolution: the detection was built, comparing against the connection's own
+negotiated MSS rather than against an assumed link MTU.**
+
+A flow records the smaller of the two advertised maximum segment sizes and the
+largest payload observed. A segment larger than that negotiated maximum cannot
+have crossed the wire in that shape — the peer said it would not accept more —
+so the capture was taken before the sending interface split it.
+
+The comparative form was chosen over a constant on measurement, not
+preference. Against a 1460-byte constant, three committed fixtures trip the
+detection and six golden files change. Against each connection's own
+negotiation, none do, because those fixtures negotiate no MSS at all. **Where
+no maximum was negotiated the check declines to speak**, rather than
+substituting a guess about the link — which also means it needs no chosen
+threshold.
+
+The consequence is a blind spot worth stating: a midstream flow carries no
+handshake and therefore no negotiation, so offload on such a flow is not
+detected. Midstream is already an R15 condition reported in its own right, so
+the reader is not left without a signal.
+
+### Batch 3 — per-host grouping for R10, a deliberate narrowing
+
+**Added 2026-08-20.**
+
+R10's condition offers "per host or subnet". **Only per-host is built.**
+
+This is a narrowing rather than an omission. The rule's own report wording is
+per host ("Higher network latency to one host — 10.7.7.3"), and its check-next
+line sends the reader to the path to a single address. Subnet grouping would
+additionally require a definition of "subnet" that a capture cannot supply: a
+packet carries addresses, never the prefix length its network was configured
+with, so any grouping would rest on an assumed mask — /24 by habit — which is
+an assumption about the reader's network rather than an observation of it.
+
+That is the same reasoning the offload gate above rests on, applied to a
+different quantity: compare against what the capture observed, and decline to
+speak where it observed nothing.
+
+### Batch 3 — thresholds introduced
+
+**Added 2026-08-20.** Provenance marked as in `internal/rules/thresholds.go`.
+
+| threshold | value | provenance |
+|---|---|---|
+| `R10PeerRatio` | 4.0 | **[RULES.md]** — "exceeding the capture-wide median by ≥4×" |
+| `R10MinFlows` | 3 | [chosen] — the fewest samples that can show whether latency is steady or variable, which is a distinction the finding reports. Two samples have a spread but no shape. |
+| `R10MinPeerHosts` | 2 | [chosen] — mirrors `R04MinPeerGroup`; the smallest number that permits a comparison at all. |
+| `R10SteadyDispersion` | 0.5 | [chosen] — the spread between a host's slowest and fastest round trip, over its median, below which latency is called steady. The specification says "consistent rather than intermittent" without a figure. Set so the stronger claim (distance rather than congestion) needs the tighter evidence. |
+| `R13MinLargeRetransmits` | 3 | [chosen] — the specification says "repeated" without a figure. Three separates a pattern from a coincidence. |
+| `R13MinSmallDelivered` | 3 | [chosen] — the small side is the control in "large fails while small succeeds", so it needs enough successes to be a control rather than an anecdote. |

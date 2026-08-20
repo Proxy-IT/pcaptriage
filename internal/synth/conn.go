@@ -125,6 +125,10 @@ func (c *Conn) ServerSegmentAt(at time.Duration, seq uint32, n int) {
 // than whatever the conversation has reached.
 func (c *Conn) ServerNextSeq() uint32 { return c.sseq }
 
+// ClientNextSeq is ServerNextSeq's counterpart, for fixtures that model the
+// client stalling — a transfer that hangs going out rather than coming in.
+func (c *Conn) ClientNextSeq() uint32 { return c.cseq }
+
 // ClientAdvance moves the client's next sequence number without emitting,
 // for stream bytes the fixture emitted via ClientSegmentAt.
 func (c *Conn) ClientAdvance(n int) { c.cseq += uint32(n) }

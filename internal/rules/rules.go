@@ -178,6 +178,7 @@ func Default() []Detector {
 		NewResetMidTransfer(),
 		NewConnectionChurn(),
 		NewRTTOutlier(),
+		NewPMTUBlackhole(),
 	}
 }
 

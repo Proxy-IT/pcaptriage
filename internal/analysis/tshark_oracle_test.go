@@ -81,6 +81,22 @@ type lossExpectation struct {
 // both sides: an accidental retransmission in a fixture that does not model
 // one is a synthesizer bug the loss rules would inherit.
 var lossFlagExpectation = map[string]lossExpectation{
+	"r13-pmtu-blackhole": {
+		Tshark:    tsharkLossCounts{Retransmissions: 5, DuplicateAcks: 1},
+		EngineRTO: 4,
+		Reason: "the blackhole shape: two large segments sent three times each and never acknowledged. " +
+			"Both tools see the repeats as retransmissions and neither is wrong to — the divergence is " +
+			"one of counting, since the oracle also counts the final unacknowledged attempt the engine " +
+			"has already folded into its episode. What separates R13 from R05 here is not the count but " +
+			"the outcome: these never landed, while the small segments alongside them did",
+	},
+	"r13-loss-recovered": {
+		Tshark:    tsharkLossCounts{Retransmissions: 3},
+		EngineRTO: 3,
+		Reason: "three large segments lost once each and successfully retransmitted; engine and Wireshark " +
+			"agree exactly. R13 reports nothing here, which is the point of the fixture — the retries " +
+			"worked, so there is no blackhole to find",
+	},
 	"r05-rto-burst": {
 		Tshark:    tsharkLossCounts{Retransmissions: 3},
 		EngineRTO: 3,

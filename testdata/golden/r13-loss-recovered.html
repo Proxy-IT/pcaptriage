@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>pcap triage — r03-forged-reset</title>
+<title>pcap triage — r13-loss-recovered</title>
 <style>/* Design tokens — the single source of the palette, type base and radii for
    both rendering surfaces: the desktop app's stylesheet and the exported HTML
    report's. A finding must look like itself whether it is read in the app or
@@ -582,10 +582,10 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
 
 <header class="masthead">
   <h1>pcap triage report</h1>
-  <div class="file">testdata/fixtures/r03-forged-reset</div>
+  <div class="file">testdata/fixtures/r13-loss-recovered</div>
   <div class="stamp">
     pcaptriage test · ruleset 1.0.0-partial · schema 4
-    · capture 2024-03-14T09:00:00.1Z to 2024-03-14T09:00:00.905Z (UTC)
+    · capture 2024-03-14T09:00:00Z to 2024-03-14T09:00:02.956Z (UTC)
   </div>
   <p class="posture">
     <strong>Advisory, not diagnostic.</strong> Each finding states what was observed, why it
@@ -619,18 +619,18 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
   <div class="tiles">
     <div class="tile">
       <div class="tile-label">Packets read</div>
-      <div class="tile-value">19</div>
-      <div class="tile-context">19 TCP · 0 other · 0 undecodable</div>
+      <div class="tile-value">30</div>
+      <div class="tile-context">30 TCP · 0 other · 0 undecodable</div>
     </div>
     <div class="tile">
       <div class="tile-label">TCP flows</div>
-      <div class="tile-value">6</div>
+      <div class="tile-value">1</div>
       <div class="tile-context">across 2 hosts</div>
     </div>
     <div class="tile">
       <div class="tile-label">Began before capture</div>
       <div class="tile-value">0%</div>
-      <div class="tile-context">0 of 6 flows midstream</div>
+      <div class="tile-context">0 of 1 flow midstream</div>
     </div>
     <div class="tile">
       <div class="tile-label">Snaplen</div>
@@ -642,14 +642,14 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
   
   <div class="figure">
     <h3>Flows by capture completeness</h3>
-    <svg class="chart chart-stack" viewBox="0 0 680 22" width="680" height="22" role="img" aria-label="Flows by capture completeness"><title>Flows by capture completeness</title><path d="M0,0 h113 v22 h-113 Z" class="fill-strong"/><path d="M115,0 H676 A4,4 0 0 1 680,4 V18 A4,4 0 0 1 676,22 H115 Z" class="fill-mid"/></svg>
+    <svg class="chart chart-stack" viewBox="0 0 680 22" width="680" height="22" role="img" aria-label="Flows by capture completeness"><title>Flows by capture completeness</title><path d="M0,0 H676 A4,4 0 0 1 680,4 V18 A4,4 0 0 1 676,22 H0 Z" class="fill-strong"/></svg>
     <div class="legend">
       
       <span class="key"><span class="swatch fill-strong"></span>Complete
-        <span class="num">1 (17%)</span></span>
+        <span class="num">1 (100%)</span></span>
       
       <span class="key"><span class="swatch fill-mid"></span>Partial
-        <span class="num">5 (83%)</span></span>
+        <span class="num">0 (0%)</span></span>
       
       <span class="key"><span class="swatch fill-soft"></span>Midstream
         <span class="num">0 (0%)</span></span>
@@ -669,19 +669,18 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
   <h2>Top findings <span class="count">all 1, most significant first</span></h2>
   
     
-<article class="finding top sev-informational">
+<article class="finding top sev-worth-noting">
   <div class="finding-head">
     <span class="rank">#1</span>
-    <h3>Connections actively refused — 10.10.10.9:8443</h3>
-    <span class="tag tag-rule">R03</span>
-    <span class="tag tag-sev tag-sev-informational">Informational</span>
-    <span class="tag tag-inferred">inferred</span>
+    <h3>Timeout-driven retransmissions — 10.1.1.5 → 10.9.9.5</h3>
+    <span class="tag tag-rule">R05</span>
+    <span class="tag tag-sev tag-sev-worth-noting">Worth noting</span>
+    <span class="tag tag-confirmed">confirmed</span>
   </div>
   
-  <p class="basis basis-inferred"><b class="basis-label">Marked inferred because:</b> The reset arrived with a TTL of 62 while this host&#39;s other traffic arrived with 52. A difference that large can mean a device on the path sent the reset on the host&#39;s behalf rather than the host itself.</p>
-  <p class="observation">5 connection attempts from 1 client answered with RST. The host is reachable and responding; nothing is listening on that port.</p>
-  <p class="frames">Frames 11, 13, 15, 17, 19</p>
-  <p class="next"><b>Check next:</b> whether the service is running and bound to the expected port and address. Distinct from R02 — the host itself is up and answering.</p>
+  <p class="observation">3 segments retransmitted after timeout, costing 1.2s of transfer time. Retransmission rate on this path is 27.3% against a capture-wide median of 0%.</p>
+  <p class="frames">Frames 20, 23, 26</p>
+  <p class="next"><b>Check next:</b> sustained loss on the path between these hosts. This is more disruptive than the fast-retransmit pattern in R06 — the sender stalled waiting for a timer rather than recovering from duplicate ACKs.</p>
 </article>
 
   
@@ -692,25 +691,24 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
 <section>
   <h2>All findings by rule</h2>
   
-    <h3 class="rule-head">R03 · syn-rejected</h3>
-    <p class="section-note">A connection attempt was answered with a refusal rather than an acceptance — the host is reachable, and nothing is listening on that port.</p>
+    <h3 class="rule-head">R05 · rto-retransmission</h3>
+    <p class="section-note">Segments were retransmitted after a timer-shaped quiet gap with no duplicate ACKs asking for them — the sender stalled waiting for a timeout.</p>
 
     
 
     
-<article class="finding sev-informational">
+<article class="finding sev-worth-noting">
   <div class="finding-head">
     <span class="rank">#1</span>
-    <h3>Connections actively refused — 10.10.10.9:8443</h3>
-    <span class="tag tag-rule">R03</span>
-    <span class="tag tag-sev tag-sev-informational">Informational</span>
-    <span class="tag tag-inferred">inferred</span>
+    <h3>Timeout-driven retransmissions — 10.1.1.5 → 10.9.9.5</h3>
+    <span class="tag tag-rule">R05</span>
+    <span class="tag tag-sev tag-sev-worth-noting">Worth noting</span>
+    <span class="tag tag-confirmed">confirmed</span>
   </div>
   
-  <p class="basis basis-inferred"><b class="basis-label">Marked inferred because:</b> The reset arrived with a TTL of 62 while this host&#39;s other traffic arrived with 52. A difference that large can mean a device on the path sent the reset on the host&#39;s behalf rather than the host itself.</p>
-  <p class="observation">5 connection attempts from 1 client answered with RST. The host is reachable and responding; nothing is listening on that port.</p>
-  <p class="frames">Frames 11, 13, 15, 17, 19</p>
-  <p class="next"><b>Check next:</b> whether the service is running and bound to the expected port and address. Distinct from R02 — the host itself is up and answering.</p>
+  <p class="observation">3 segments retransmitted after timeout, costing 1.2s of transfer time. Retransmission rate on this path is 27.3% against a capture-wide median of 0%.</p>
+  <p class="frames">Frames 20, 23, 26</p>
+  <p class="next"><b>Check next:</b> sustained loss on the path between these hosts. This is more disruptive than the fast-retransmit pattern in R06 — the sender stalled waiting for a timer rather than recovering from duplicate ACKs.</p>
 </article>
 
   
@@ -732,11 +730,11 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
       <tbody>
       
         <tr>
-          <td class="mono">10.10.10.9:8443</td>
-          <td>endpoint</td>
-          <td class="mono">R03</td>
-          <td class="num">5</td>
-          <td class="mono">11, 13, 15, 17, 19</td>
+          <td class="mono">10.1.1.5:52100 &lt;-&gt; 10.9.9.5:443</td>
+          <td>flow</td>
+          <td class="mono">R05</td>
+          <td class="num">3</td>
+          <td class="mono">20, 23, 26</td>
         </tr>
       
       </tbody>
@@ -758,13 +756,8 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
   
     
     <div class="note unavailable">
-      <span class="who">R04 · not assessed</span>
-      Not assessed: server response time for 1 server endpoint with fewer than 5 completed request/response exchanges. Percentiles over that few samples would not describe a distribution.
-    </div>
-    
-    <div class="note unavailable">
       <span class="who">R10 · not assessed</span>
-      Not assessed: comparative network latency. 1 host had at least 3 flows with a usable round-trip measurement, and this check compares hosts against the others in the same capture, so fewer than 2 gives it nothing to compare.
+      Not assessed: comparative network latency. 0 hosts had at least 3 flows with a usable round-trip measurement, and this check compares hosts against the others in the same capture, so fewer than 2 gives it nothing to compare.
     </div>
     
     <div class="note unavailable">
@@ -774,6 +767,11 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
     
   
 
+  
+  <div class="note">
+    <span class="who">R04 · note</span>
+    Comparative ranking was unavailable for server response time: 1 server endpoint had enough exchanges to assess, which is not a peer group. The 1.0s absolute threshold was used instead of a comparison against the capture.
+  </div>
   
 
   <h2 style="margin-top:2rem;">Checks that ran</h2>
