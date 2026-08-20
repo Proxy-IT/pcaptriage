@@ -3,6 +3,7 @@ package guide
 import (
 	"os"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strings"
 	"testing"
@@ -272,6 +273,121 @@ func TestProseIsVerbatim(t *testing.T) {
 	if checked < 40 {
 		t.Errorf("only %d blocks checked; the parse is probably dropping content", checked)
 	}
+
+	// The structural half: every **strong** and *emphasis* span in the spec
+	// must have produced a run carrying the matching flag, not merely text
+	// that, once reassembled, happens to be found somewhere in the document.
+	// See assertEmphasisMatchesSource for why the substring check above
+	// cannot catch this on its own.
+	//
+	// Built from pageContent, not flat: flat deliberately includes each
+	// document's front matter (GUIDE-CONTENT.md's own two-registers
+	// explanation uses emphasis in its own prose), which is exactly the text
+	// parse() discards before the first page heading and which therefore
+	// never reaches any Page's runs. Checking it against flat would demand a
+	// run that has nowhere to come from.
+	var pageOnlySrc string
+	for _, src := range allSources() {
+		pageOnlySrc += flattenWhitespace(pageContent(src)) + " "
+	}
+	var runs []Inline
+	for _, p := range pages {
+		runs = append(runs, allRuns(p.Sections)...)
+	}
+	assertEmphasisMatchesSource(t, "rule pages", pageOnlySrc, runs)
+}
+
+// pageContent returns src with its front matter removed — the part parse()
+// and parseConcepts both discard before the first "## Guide page:" heading.
+// Front matter carries its own prose (the two-registers note, the concepts
+// document's structural note) that never becomes part of any page, so an
+// emphasis span living only there would never have a run to match against.
+func pageContent(src string) string {
+	chunks := strings.Split(src, "\n## Guide page:")
+	return strings.Join(chunks[1:], " ")
+}
+
+// allRuns flattens every inline run across every block in every section, for
+// checks that care about which spans got emphasised rather than which
+// section they came from.
+func allRuns(sections []Section) []Inline {
+	var out []Inline
+	for _, s := range sections {
+		for _, blk := range s.Blocks {
+			out = append(out, blk.Runs...)
+			for _, item := range blk.Items {
+				out = append(out, item...)
+			}
+		}
+	}
+	return out
+}
+
+// assertEmphasisMatchesSource is the structural half of "verbatim": every
+// **strong** and *emphasis* span in src must have produced a run carrying
+// the matching text and the matching flag — not merely text that, once
+// reconstructed, happens to appear somewhere the spec does.
+//
+// Deliberately independent of inlineRuns's own logic: the expected spans come
+// from a second, unrelated regex reading src directly, not from asking the
+// parser under test what it thinks its own inputs were. A round-trip check
+// built the other way could not have caught the double-asterisk bug —
+// reconstructing "**" from two empty Strong runs reproduces the source
+// string exactly, which is why a text-only comparison passed while the parse
+// was already wrong. That is the class of gap this closes, not just the one
+// instance of it: any future span whose marking gets lost, of either width,
+// fails here regardless of what produces it.
+func assertEmphasisMatchesSource(t *testing.T, label, src string, runs []Inline) {
+	t.Helper()
+
+	// Strong spans first, and removed from the text before the emphasis pass
+	// runs — otherwise a **strong** span's own asterisks would be read as two
+	// single-asterisk markers by the pattern below, the same ambiguity
+	// inlineRuns itself resolves by checking the wider marker first.
+	strongPattern := regexp.MustCompile(`\*\*([^*]+)\*\*`)
+	var wantStrong []string
+	for _, m := range strongPattern.FindAllStringSubmatch(src, -1) {
+		wantStrong = append(wantStrong, flattenWhitespace(m[1]))
+	}
+	stripped := strongPattern.ReplaceAllString(src, "")
+	emphasisPattern := regexp.MustCompile(`\*([^*]+)\*`)
+	var wantEmphasis []string
+	for _, m := range emphasisPattern.FindAllStringSubmatch(stripped, -1) {
+		wantEmphasis = append(wantEmphasis, flattenWhitespace(m[1]))
+	}
+	if len(wantStrong) == 0 && len(wantEmphasis) == 0 {
+		t.Fatalf("%s: found no **strong** or *emphasis* spans in the source to check against; "+
+			"the regex is probably wrong and this check would pass vacuously", label)
+	}
+
+	gotStrong := map[string]bool{}
+	gotEmphasis := map[string]bool{}
+	for _, r := range runs {
+		txt := flattenWhitespace(r.Text)
+		if txt == "" {
+			continue
+		}
+		if r.Strong {
+			gotStrong[txt] = true
+		}
+		if r.Emphasis {
+			gotEmphasis[txt] = true
+		}
+	}
+
+	for _, want := range wantStrong {
+		if !gotStrong[want] {
+			t.Errorf("%s: the source has a **%s** span, but no parsed run marks that text Strong — "+
+				"a bold span that produces no bold run is the exact defect this check exists to catch",
+				label, want)
+		}
+	}
+	for _, want := range wantEmphasis {
+		if !gotEmphasis[want] {
+			t.Errorf("%s: the source has a *%s* span, but no parsed run marks that text Emphasis",
+				label, want)
+		}
+	}
 }
 
 // TestEmphasisIsCarriedNotFlattened checks the one place the original content
@@ -355,6 +471,26 @@ func TestInlineRuns(t *testing.T) {
 		{"*leading* rest", []Inline{{Text: "leading", Emphasis: true}, {Text: " rest"}}},
 		// An unpaired asterisk stays literal rather than eating the sentence.
 		{"unpaired * asterisk", []Inline{{Text: "unpaired * asterisk"}}},
+
+		// **Strong** — the bug this table exists to pin down. Before the fix,
+		// this produced two empty Emphasis runs flanking "label" as plain
+		// text: a parse TestProseIsVerbatim's text-reconstruction check could
+		// not catch, because "**" + "" + "label" + "" + "**" reassembles to
+		// exactly the source string.
+		{"**label** rest", []Inline{{Text: "label", Strong: true}, {Text: " rest"}}},
+		{"say **why** it is", []Inline{{Text: "say "}, {Text: "why", Strong: true}, {Text: " it is"}}},
+		// The two widths in the same string: "**" must win at its own
+		// opening marker rather than being read as two adjacent "*"s.
+		{"**bold** then *soft*", []Inline{
+			{Text: "bold", Strong: true}, {Text: " then "}, {Text: "soft", Emphasis: true},
+		}},
+		// An unpaired "**" stays literal, same as an unpaired "*".
+		{"unpaired ** asterisks", []Inline{{Text: "unpaired ** asterisks"}}},
+		// A marker pair with nothing between them is not a span with empty
+		// content — it is the same "nothing to emphasise" case as no closing
+		// marker at all, and both stay literal rather than manufacturing a
+		// zero-width run.
+		{"nothing between **** here", []Inline{{Text: "nothing between **** here"}}},
 	}
 	for _, c := range cases {
 		got := inlineRuns(c.in)
@@ -413,11 +549,14 @@ func TestGuideProseKeepsTheTwoRegistersApart(t *testing.T) {
 func runsSource(runs []Inline) string {
 	var b strings.Builder
 	for _, r := range runs {
-		if r.Emphasis {
+		switch {
+		case r.Strong:
+			b.WriteString("**" + r.Text + "**")
+		case r.Emphasis:
 			b.WriteString("*" + r.Text + "*")
-			continue
+		default:
+			b.WriteString(r.Text)
 		}
-		b.WriteString(r.Text)
 	}
 	return b.String()
 }

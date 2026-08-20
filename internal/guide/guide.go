@@ -85,15 +85,22 @@ var Skeleton = []string{
 	"What to check next, in more depth",
 }
 
-// Inline is a run of text, optionally emphasised.
+// Inline is a run of text, optionally emphasised or strong.
 //
-// Emphasis is carried through rather than flattened: the authored content uses
-// it once, in "it can't say *why* the application isn't keeping up", where the
-// stress is the point of the sentence. Runs are rendered as separate DOM nodes,
-// so no markup is ever interpolated into the page.
+// The two are carried separately rather than as one flag, because they mark
+// different things in the authored content: single-asterisk *emphasis* is a
+// stress word inside a sentence ("it can't say *why* the application isn't
+// keeping up"); double-asterisk **strong** marks a bold lead-in label that
+// carries structure — "**What it is.**" openers are how the loss cluster's
+// per-rule subsections (GUIDE-CONTENT-BATCH1.md, -BATCH2.md) and the
+// concepts pages' bulleted lead-ins (GUIDE-CONTENT-CONCEPTS.md) signal
+// answer-first structure, not sentence stress. A run is never both — see
+// inlineRuns. Rendered as separate DOM nodes in either case, so no markup is
+// ever interpolated into the page.
 type Inline struct {
 	Text     string `json:"text"`
 	Emphasis bool   `json:"emphasis,omitempty"`
+	Strong   bool   `json:"strong,omitempty"`
 }
 
 // Block is a paragraph or a bullet list.
@@ -483,11 +490,28 @@ func finishPage(p Page) (Page, error) {
 	return p, nil
 }
 
-// inlineRuns splits authored text into plain and emphasised runs.
+// inlineRuns splits authored text into plain, emphasised and strong runs.
 //
-// Only single-asterisk emphasis is recognised, which is all the authored content
-// uses. An unpaired asterisk is left as literal text rather than swallowed, so a
-// typo in the source shows up as itself instead of silently eating a sentence.
+// Two marker widths are recognised: **double-asterisk** for a strong run,
+// *single-asterisk* for an emphasised one, checked at each opening marker by
+// looking one character ahead — "**" wins over "*" wherever both could start
+// there, so a strong span is claimed by the strong rule before the emphasis
+// rule gets a chance to misread its two flanking "**" pairs as two separate,
+// empty single-asterisk spans. That misreading is exactly the bug this
+// two-width version replaces: the original single-width parser saw
+// "**Significant**" as "*" + "*Significant*" + "*", producing two empty
+// Emphasis runs around plain, unstyled text — the label lost its emphasis
+// silently, because the reconstructed text still happened to contain the
+// right characters even though the parse was wrong. See
+// assertEmphasisMatchesSource in guide_test.go, which checks the parse
+// structurally rather than by reassembling text, for exactly that reason.
+//
+// An unmatched opening marker, of either width, is left as literal text
+// rather than swallowed — a typo in the source shows up as itself instead of
+// silently eating the rest of the block. A marker pair with nothing between
+// them (an empty span, "****" or a lone "**") is treated the same way: there
+// is nothing to mark up, so manufacturing a zero-width run would just be a
+// quieter version of the bug this function exists to not have.
 func inlineRuns(text string) []Inline {
 	var out []Inline
 	rest := text
@@ -496,17 +520,27 @@ func inlineRuns(text string) []Inline {
 		if open < 0 {
 			break
 		}
-		close := strings.Index(rest[open+1:], "*")
-		if close < 0 {
+
+		marker := "*"
+		strong := strings.HasPrefix(rest[open:], "**")
+		if strong {
+			marker = "**"
+		}
+		searchFrom := open + len(marker)
+
+		closeRel := strings.Index(rest[searchFrom:], marker)
+		if closeRel <= 0 {
+			// No closing marker (-1), or the span between them is empty (0):
+			// either way there is nothing to emphasise here.
 			break
 		}
-		close += open + 1
+		closeStart := searchFrom + closeRel
 
 		if open > 0 {
 			out = append(out, Inline{Text: rest[:open]})
 		}
-		out = append(out, Inline{Text: rest[open+1 : close], Emphasis: true})
-		rest = rest[close+1:]
+		out = append(out, Inline{Text: rest[searchFrom:closeStart], Emphasis: !strong, Strong: strong})
+		rest = rest[closeStart+len(marker):]
 	}
 	if rest != "" {
 		out = append(out, Inline{Text: rest})

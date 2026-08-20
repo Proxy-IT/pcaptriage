@@ -624,6 +624,11 @@ h1, h2, h3 { letter-spacing: -0.01em; }
 .prose-list li { margin-bottom: .5rem; line-height: 1.6; }
 .prose-list li:last-child { margin-bottom: 0; }
 .guide-section em { font-style: italic; }
+/* Bold lead-in labels ("**What it is.**"), not browser-default bold — 600 is
+   this app's weight for emphasis everywhere else (.finding .next b, the
+   severity tags), and a guide page borrowing the browser's heavier default
+   would read as a different, unrelated kind of bold next to them. */
+.guide-section strong { font-weight: 600; }
 
 /* The first two sections are the answer; they are never collapsible, so there
    is no disclosure affordance on them at all. */

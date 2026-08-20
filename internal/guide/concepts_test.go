@@ -125,6 +125,20 @@ func TestConceptProseIsVerbatim(t *testing.T) {
 	if checked < 15 {
 		t.Errorf("only %d blocks checked; the parse is probably dropping content", checked)
 	}
+
+	// The structural half: every **strong** and *emphasis* span in the spec
+	// must have produced a run carrying the matching flag — see
+	// assertEmphasisMatchesSource in guide_test.go for why the substring
+	// check above cannot catch this on its own, and pageContent for why the
+	// document's own front matter ("**Structural note.**", "*concept*") is
+	// excluded rather than checked against runs that were never going to
+	// exist for it.
+	pageOnlySrc := flattenWhitespace(pageContent(ConceptsSource()))
+	var runs []Inline
+	for _, c := range concepts {
+		runs = append(runs, allRuns(c.Sections)...)
+	}
+	assertEmphasisMatchesSource(t, "concept pages", pageOnlySrc, runs)
 }
 
 // TestConceptProseKeepsTheTwoRegistersApart is TestGuideProseKeepsTheTwoRegistersApart's

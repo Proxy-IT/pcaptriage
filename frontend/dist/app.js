@@ -308,6 +308,10 @@
   // and that comes out of a capture.
   function appendRuns(parent, runs) {
     (runs || []).forEach(function (r) {
+      if (r.strong) {
+        parent.appendChild(el("strong", null, r.text));
+        return;
+      }
       if (r.emphasis) {
         parent.appendChild(el("em", null, r.text));
         return;
