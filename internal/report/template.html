@@ -25,6 +25,22 @@
     <strong>Partial build.</strong> {{.Doc.Tool.Build}} An empty findings list below means
     these checks found nothing, not that the capture is healthy.
   </p>
+  {{/* The badge legend. In the app both badges link to a page explaining
+       them; this document has no links and no guide, so the explanation has
+       to travel with it or the reader meets two vocabularies with no way to
+       resolve either.
+
+       Only when there are findings to badge. On a clean capture no badge
+       appears anywhere below, and a legend for absent labels is noise. */}}
+  {{if .Doc.Findings -}}
+  <p class="posture">
+    <strong>Two labels on every finding.</strong> The coloured one — significant, worth
+    noting, informational — is how much it matters. The plain one is how sure the tool is:
+    <em>confirmed</em> means the capture directly showed it, <em>inferred</em> means
+    something the check needed was missing and an approximation was used instead. An
+    inferred finding states what was substituted, directly under the label.
+  </p>
+  {{end -}}
 </header>
 
 {{/* ---- 1. Capture completeness banner (reduced; full reporting arrives with R15) ---- */}}
@@ -236,9 +252,17 @@
     <span class="tag tag-sev tag-sev-{{.Severity}}">{{.SeverityLabel}}</span>
     <span class="tag tag-{{.Quality}}">{{.Quality}}</span>
   </div>
+  {{/* Same treatment and same position as the app's card: the reason for the
+       downgrade, labelled, directly under the badge it explains. It matters
+       more here than in the app, not less — an export reader has no badge to
+       click and no guide to open, so this sentence is the whole explanation
+       they get. Only for inferred; a confirmed finding says nothing, because
+       the absence is the signal. */}}
+  {{if eq .Quality "inferred"}}{{with .QualityBasis -}}
+  <p class="basis basis-inferred"><b class="basis-label">Marked inferred because:</b> {{.}}</p>
+  {{end}}{{end -}}
   <p class="observation">{{.Observation}}</p>
   <p class="frames">Frames {{.Frames}}{{if .More}} <span class="of">{{.More}}</span>{{end}}</p>
   <p class="next"><b>Check next:</b> {{.CheckNext}}</p>
-  {{with .QualityBasis}}<p class="basis">{{.}}</p>{{end}}
 </article>
 {{end}}

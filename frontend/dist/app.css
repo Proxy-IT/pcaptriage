@@ -345,6 +345,29 @@ h1, h2, h3 { letter-spacing: -0.01em; }
 .finding .next b { font-weight: 600; }
 .finding .basis { font-size: .83rem; color: var(--ink-muted); }
 
+/* The reason the badge says "inferred", sitting directly under it.
+
+   Dashed left rule, echoing .tag-inferred's dashed border: it is the only
+   dashed edge on the card, so the block reads as belonging to that badge
+   rather than to the prose it sits above. Deliberately not coloured — the
+   badge it explains is colourless too, because evidence quality answers a
+   different question from severity and neither may borrow severity's colour
+   to look more urgent than it is.
+
+   Indented rather than full-bleed so it reads as an annotation on the head
+   above it, not as the finding's opening sentence. The observation still
+   leads the card's own what-was-observed sequence. */
+.finding .basis-inferred {
+  margin: .5rem 0 0;
+  padding: .35rem 0 .35rem .7rem;
+  border-left: 2px dashed var(--outline);
+  color: var(--ink-secondary);
+}
+.finding .basis-label {
+  font-weight: 600;
+  color: var(--ink-primary);
+}
+
 .tag {
   font-size: .68rem;
   letter-spacing: .04em;

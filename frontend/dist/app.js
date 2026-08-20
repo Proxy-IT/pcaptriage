@@ -278,6 +278,25 @@
     head.appendChild(tagLink("tag-" + (f.quality || "confirmed"), f.quality || "", "evidence-quality"));
     card.appendChild(head);
 
+    // Why the badge says "inferred", directly under the badge that says it.
+    //
+    // The text is unchanged — the rule wrote it and it is spec'd wording in
+    // RULES.md. What changes is that it is labelled and placed. It used to
+    // render as an unlabelled paragraph after "check next", where it read as
+    // a general caveat about the finding rather than as the reason for the
+    // downgrade, and nothing tied it to the badge at all.
+    //
+    // Only for inferred findings. A confirmed one renders nothing here, and
+    // deliberately says nothing: the absence is the signal, and "marked
+    // confirmed because" would turn a quiet default into a claim on every
+    // card.
+    if (f.quality === "inferred" && f.quality_basis) {
+      var basis = el("p", "basis basis-inferred");
+      basis.appendChild(el("b", "basis-label", "Marked inferred because:"));
+      basis.appendChild(document.createTextNode(" " + f.quality_basis));
+      card.appendChild(basis);
+    }
+
     card.appendChild(el("p", "observation", f.observation));
 
     var frames = el("p", "frames");
@@ -297,8 +316,6 @@
     next.appendChild(label);
     next.appendChild(document.createTextNode(" " + f.check_next));
     card.appendChild(next);
-
-    if (f.quality_basis) card.appendChild(el("p", "basis", f.quality_basis));
 
     // The link out to the explanation. Placed after "check next", so the card
     // still reads top to bottom on its own and the guide is an offer rather

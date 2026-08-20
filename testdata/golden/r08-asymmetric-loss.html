@@ -447,6 +447,24 @@ h2 .count { color: var(--ink-muted); font-weight: 400; text-transform: none; let
 .next b { font-weight: 600; }
 .basis { margin: .5rem 0 0; font-size: .82rem; color: var(--ink-muted); }
 
+/* The reason the badge says "inferred". Same treatment as the app's card, for
+   the same reason: a dashed left rule echoing .tag-inferred's dashed border,
+   so the block reads as belonging to that badge and not to the prose below
+   it. Uncoloured, because the badge it explains is uncoloured — severity owns
+   colour in this document too.
+
+   Carries more weight here than in the app. An export reader has no badge to
+   click and no guide to reach, so this is the only account of the downgrade
+   they will get. */
+.basis-inferred {
+  margin: .5rem 0 0;
+  padding: .35rem 0 .35rem .7rem;
+  border-left: 2px dashed var(--outline);
+  color: var(--ink-secondary);
+  font-size: .85rem;
+}
+.basis-label { font-weight: 600; color: var(--ink-primary); }
+
 .tag {
   font-size: .7rem;
   letter-spacing: .04em;
@@ -552,6 +570,9 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
   .figure, .finding, .tile, .note, .table-wrap { break-inside: avoid; border-color: #ccc; }
   section { break-before: auto; }
   .tag-confirmed { background: #fff; color: #000; border: 1px solid #000; }
+  /* The dashed rule is the only thing tying the basis block to its badge, so
+     it has to survive a print that drops background colour. */
+  .basis-inferred { border-left-color: #666; }
   a { text-decoration: none; color: inherit; }
 }
 </style>
@@ -575,7 +596,15 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
     <strong>Partial build.</strong> Partial build: 11 of the 15 v1 rules are implemented (R01 zero-window-stall, R02 syn-unanswered, R03 syn-rejected, R04 server-response-outlier, R05 rto-retransmission, R06 fast-retransmission, R07 out-of-order-not-loss, R08 asymmetric-loss, R09 reset-mid-transfer, R14 connection-churn, R15 capture-quality). Every other condition in the v1 rule set was not looked for at all. An empty findings list below means
     these checks found nothing, not that the capture is healthy.
   </p>
-</header>
+  
+  <p class="posture">
+    <strong>Two labels on every finding.</strong> The coloured one — significant, worth
+    noting, informational — is how much it matters. The plain one is how sure the tool is:
+    <em>confirmed</em> means the capture directly showed it, <em>inferred</em> means
+    something the check needed was missing and an approximation was used instead. An
+    inferred finding states what was substituted, directly under the label.
+  </p>
+  </header>
 
 
 <section>
@@ -648,10 +677,10 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
     <span class="tag tag-sev tag-sev-significant">Significant</span>
     <span class="tag tag-confirmed">confirmed</span>
   </div>
+  
   <p class="observation">22 segments retransmitted after timeout, costing 5.5s of transfer time. Retransmission rate on this path is 34.4% against a capture-wide median of 0%.</p>
   <p class="frames">Frames 157, 160, 163, 166, 169, 172, 175, 178 <span class="of">(8 shown of 22 occurrences)</span></p>
   <p class="next"><b>Check next:</b> sustained loss on the path between these hosts. This is more disruptive than the fast-retransmit pattern in R06 — the sender stalled waiting for a timer rather than recovering from duplicate ACKs.</p>
-  
 </article>
 
 <article class="finding top sev-worth-noting">
@@ -662,10 +691,10 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
     <span class="tag tag-sev tag-sev-worth-noting">Worth noting</span>
     <span class="tag tag-confirmed">confirmed</span>
   </div>
+  
   <p class="observation">34.4% of segments retransmitted client-to-server, against 1.1% server-to-client on the same connection. Loss is not symmetric.</p>
   <p class="frames">Frames 157, 160, 163, 166, 169, 172, 175, 178 <span class="of">(8 shown of 22 occurrences)</span></p>
   <p class="next"><b>Check next:</b> something specific to the forward path — asymmetric routing, a congested uplink, or a policer applied in one direction. Symmetric loss would point at the shared path instead.</p>
-  
 </article>
 
   
@@ -690,10 +719,10 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
     <span class="tag tag-sev tag-sev-significant">Significant</span>
     <span class="tag tag-confirmed">confirmed</span>
   </div>
+  
   <p class="observation">22 segments retransmitted after timeout, costing 5.5s of transfer time. Retransmission rate on this path is 34.4% against a capture-wide median of 0%.</p>
   <p class="frames">Frames 157, 160, 163, 166, 169, 172, 175, 178 <span class="of">(8 shown of 22 occurrences)</span></p>
   <p class="next"><b>Check next:</b> sustained loss on the path between these hosts. This is more disruptive than the fast-retransmit pattern in R06 — the sender stalled waiting for a timer rather than recovering from duplicate ACKs.</p>
-  
 </article>
 
   
@@ -711,10 +740,10 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
     <span class="tag tag-sev tag-sev-worth-noting">Worth noting</span>
     <span class="tag tag-confirmed">confirmed</span>
   </div>
+  
   <p class="observation">34.4% of segments retransmitted client-to-server, against 1.1% server-to-client on the same connection. Loss is not symmetric.</p>
   <p class="frames">Frames 157, 160, 163, 166, 169, 172, 175, 178 <span class="of">(8 shown of 22 occurrences)</span></p>
   <p class="next"><b>Check next:</b> something specific to the forward path — asymmetric routing, a congested uplink, or a policer applied in one direction. Symmetric loss would point at the shared path instead.</p>
-  
 </article>
 
   

@@ -447,6 +447,24 @@ h2 .count { color: var(--ink-muted); font-weight: 400; text-transform: none; let
 .next b { font-weight: 600; }
 .basis { margin: .5rem 0 0; font-size: .82rem; color: var(--ink-muted); }
 
+/* The reason the badge says "inferred". Same treatment as the app's card, for
+   the same reason: a dashed left rule echoing .tag-inferred's dashed border,
+   so the block reads as belonging to that badge and not to the prose below
+   it. Uncoloured, because the badge it explains is uncoloured — severity owns
+   colour in this document too.
+
+   Carries more weight here than in the app. An export reader has no badge to
+   click and no guide to reach, so this is the only account of the downgrade
+   they will get. */
+.basis-inferred {
+  margin: .5rem 0 0;
+  padding: .35rem 0 .35rem .7rem;
+  border-left: 2px dashed var(--outline);
+  color: var(--ink-secondary);
+  font-size: .85rem;
+}
+.basis-label { font-weight: 600; color: var(--ink-primary); }
+
 .tag {
   font-size: .7rem;
   letter-spacing: .04em;
@@ -552,6 +570,9 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
   .figure, .finding, .tile, .note, .table-wrap { break-inside: avoid; border-color: #ccc; }
   section { break-before: auto; }
   .tag-confirmed { background: #fff; color: #000; border: 1px solid #000; }
+  /* The dashed rule is the only thing tying the basis block to its badge, so
+     it has to survive a print that drops background colour. */
+  .basis-inferred { border-left-color: #666; }
   a { text-decoration: none; color: inherit; }
 }
 </style>
@@ -575,7 +596,15 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
     <strong>Partial build.</strong> Partial build: 11 of the 15 v1 rules are implemented (R01 zero-window-stall, R02 syn-unanswered, R03 syn-rejected, R04 server-response-outlier, R05 rto-retransmission, R06 fast-retransmission, R07 out-of-order-not-loss, R08 asymmetric-loss, R09 reset-mid-transfer, R14 connection-churn, R15 capture-quality). Every other condition in the v1 rule set was not looked for at all. An empty findings list below means
     these checks found nothing, not that the capture is healthy.
   </p>
-</header>
+  
+  <p class="posture">
+    <strong>Two labels on every finding.</strong> The coloured one — significant, worth
+    noting, informational — is how much it matters. The plain one is how sure the tool is:
+    <em>confirmed</em> means the capture directly showed it, <em>inferred</em> means
+    something the check needed was missing and an approximation was used instead. An
+    inferred finding states what was substituted, directly under the label.
+  </p>
+  </header>
 
 
 <section>
@@ -648,10 +677,10 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
     <span class="tag tag-sev tag-sev-significant">Significant</span>
     <span class="tag tag-confirmed">confirmed</span>
   </div>
+  
   <p class="observation">Responded in 2.6s at p95 (max 2.6s) while the other 8 servers in this capture are under 40ms at p95. Measured from last request byte to first response byte, with network round-trip time subtracted — so this is time spent on the server, not on the network.</p>
   <p class="frames">Frames 242, 275, 281, 290, 298, 301, 304, 307 <span class="of">(8 shown of 10 occurrences)</span></p>
   <p class="next"><b>Check next:</b> application or backend dependency latency on 10.4.4.1. The network path to this host looks comparable to its peers.</p>
-  
 </article>
 
 <article class="finding top sev-significant">
@@ -662,10 +691,10 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
     <span class="tag tag-sev tag-sev-significant">Significant</span>
     <span class="tag tag-confirmed">confirmed</span>
   </div>
+  
   <p class="observation">Responded in 1.5s at p95 (max 1.5s) while the other 8 servers in this capture are under 40ms at p95. Measured from last request byte to first response byte, with network round-trip time subtracted — so this is time spent on the server, not on the network.</p>
   <p class="frames">Frames 232, 263, 269, 272, 278, 284, 287, 293 <span class="of">(8 shown of 10 occurrences)</span></p>
   <p class="next"><b>Check next:</b> application or backend dependency latency on 10.4.4.2. The network path to this host looks comparable to its peers.</p>
-  
 </article>
 
 <article class="finding top sev-significant">
@@ -676,10 +705,10 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
     <span class="tag tag-sev tag-sev-significant">Significant</span>
     <span class="tag tag-confirmed">confirmed</span>
   </div>
+  
   <p class="observation">Advertised a zero receive window 4 times, stalling the sender for 4.2s total (longest single stall 2.9s).</p>
   <p class="frames">Frames 38, 224, 240, 252</p>
   <p class="next"><b>Check next:</b> the receiving application on 10.2.2.7 — a zero window means the application is not reading from its socket buffer fast enough. Look at CPU, blocked threads, or a downstream dependency on that host.</p>
-  
 </article>
 
 <article class="finding top sev-significant">
@@ -690,10 +719,10 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
     <span class="tag tag-sev tag-sev-significant">Significant</span>
     <span class="tag tag-confirmed">confirmed</span>
   </div>
+  
   <p class="observation">Advertised a zero receive window 2 times, stalling the sender for 600ms total (longest single stall 600ms).</p>
   <p class="frames">Frames 80, 183</p>
   <p class="next"><b>Check next:</b> the receiving application on 10.2.2.9 — a zero window means the application is not reading from its socket buffer fast enough. Look at CPU, blocked threads, or a downstream dependency on that host.</p>
-  
 </article>
 
 <article class="finding top sev-significant">
@@ -704,10 +733,10 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
     <span class="tag tag-sev tag-sev-significant">Significant</span>
     <span class="tag tag-confirmed">confirmed</span>
   </div>
+  
   <p class="observation">Advertised a zero receive window 4 times, stalling the sender for 1.5s total (longest single stall 800ms).</p>
   <p class="frames">Frames 52, 169, 231, 237</p>
   <p class="next"><b>Check next:</b> the receiving application on 10.2.2.8 — a zero window means the application is not reading from its socket buffer fast enough. Look at CPU, blocked threads, or a downstream dependency on that host.</p>
-  
 </article>
 
 <article class="finding top sev-informational">
@@ -718,10 +747,10 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
     <span class="tag tag-sev tag-sev-informational">Informational</span>
     <span class="tag tag-confirmed">confirmed</span>
   </div>
+  
   <p class="observation">1 connection terminated by RST while data was still in flight, averaging 1KB transferred before the reset. The remaining 12 connections in this capture closed normally with FIN.</p>
   <p class="frames">Frames 236</p>
   <p class="next"><b>Check next:</b> an application-side abort, a resource limit, or a stateful device on the path dropping the session. The TTL on these resets matches the peer&#39;s other traffic, so they appear to originate from the host rather than a middlebox.</p>
-  
 </article>
 
   
@@ -757,10 +786,10 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
     <span class="tag tag-sev tag-sev-significant">Significant</span>
     <span class="tag tag-confirmed">confirmed</span>
   </div>
+  
   <p class="observation">Advertised a zero receive window 4 times, stalling the sender for 4.2s total (longest single stall 2.9s).</p>
   <p class="frames">Frames 38, 224, 240, 252</p>
   <p class="next"><b>Check next:</b> the receiving application on 10.2.2.7 — a zero window means the application is not reading from its socket buffer fast enough. Look at CPU, blocked threads, or a downstream dependency on that host.</p>
-  
 </article>
 
 <article class="finding sev-significant">
@@ -771,10 +800,10 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
     <span class="tag tag-sev tag-sev-significant">Significant</span>
     <span class="tag tag-confirmed">confirmed</span>
   </div>
+  
   <p class="observation">Advertised a zero receive window 2 times, stalling the sender for 600ms total (longest single stall 600ms).</p>
   <p class="frames">Frames 80, 183</p>
   <p class="next"><b>Check next:</b> the receiving application on 10.2.2.9 — a zero window means the application is not reading from its socket buffer fast enough. Look at CPU, blocked threads, or a downstream dependency on that host.</p>
-  
 </article>
 
 <article class="finding sev-significant">
@@ -785,10 +814,10 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
     <span class="tag tag-sev tag-sev-significant">Significant</span>
     <span class="tag tag-confirmed">confirmed</span>
   </div>
+  
   <p class="observation">Advertised a zero receive window 4 times, stalling the sender for 1.5s total (longest single stall 800ms).</p>
   <p class="frames">Frames 52, 169, 231, 237</p>
   <p class="next"><b>Check next:</b> the receiving application on 10.2.2.8 — a zero window means the application is not reading from its socket buffer fast enough. Look at CPU, blocked threads, or a downstream dependency on that host.</p>
-  
 </article>
 
   
@@ -813,10 +842,10 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
     <span class="tag tag-sev tag-sev-significant">Significant</span>
     <span class="tag tag-confirmed">confirmed</span>
   </div>
+  
   <p class="observation">Responded in 2.6s at p95 (max 2.6s) while the other 8 servers in this capture are under 40ms at p95. Measured from last request byte to first response byte, with network round-trip time subtracted — so this is time spent on the server, not on the network.</p>
   <p class="frames">Frames 242, 275, 281, 290, 298, 301, 304, 307 <span class="of">(8 shown of 10 occurrences)</span></p>
   <p class="next"><b>Check next:</b> application or backend dependency latency on 10.4.4.1. The network path to this host looks comparable to its peers.</p>
-  
 </article>
 
 <article class="finding sev-significant">
@@ -827,10 +856,10 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
     <span class="tag tag-sev tag-sev-significant">Significant</span>
     <span class="tag tag-confirmed">confirmed</span>
   </div>
+  
   <p class="observation">Responded in 1.5s at p95 (max 1.5s) while the other 8 servers in this capture are under 40ms at p95. Measured from last request byte to first response byte, with network round-trip time subtracted — so this is time spent on the server, not on the network.</p>
   <p class="frames">Frames 232, 263, 269, 272, 278, 284, 287, 293 <span class="of">(8 shown of 10 occurrences)</span></p>
   <p class="next"><b>Check next:</b> application or backend dependency latency on 10.4.4.2. The network path to this host looks comparable to its peers.</p>
-  
 </article>
 
   
@@ -848,10 +877,10 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
     <span class="tag tag-sev tag-sev-informational">Informational</span>
     <span class="tag tag-confirmed">confirmed</span>
   </div>
+  
   <p class="observation">1 connection terminated by RST while data was still in flight, averaging 1KB transferred before the reset. The remaining 12 connections in this capture closed normally with FIN.</p>
   <p class="frames">Frames 236</p>
   <p class="next"><b>Check next:</b> an application-side abort, a resource limit, or a stateful device on the path dropping the session. The TTL on these resets matches the peer&#39;s other traffic, so they appear to originate from the host rather than a middlebox.</p>
-  
 </article>
 
   
