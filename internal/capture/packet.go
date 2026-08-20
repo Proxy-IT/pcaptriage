@@ -77,11 +77,23 @@ type Packet struct {
 	DataOffset    int
 	PayloadLength int
 
-	// TCP options. Only window scale is consumed by the v1 rules; the option
-	// walker still has to traverse the rest correctly to find it.
+	// TCP options. The option walker has to traverse every option correctly
+	// regardless of how few are kept, so retaining another one costs nothing
+	// beyond the field.
 	//
 	// OptWindowScale is -1 when the option was absent.
 	OptWindowScale int8
+
+	// OptMSS is the maximum segment size the sender advertised, or 0 when the
+	// option was absent. Only meaningful on SYN segments.
+	//
+	// Kept so offload artifacts can be judged against what the connection
+	// itself negotiated rather than against an assumed link MTU. A capture
+	// taken on an endpoint shows segments the NIC later split, so apparent
+	// segment size is not wire segment size — and the only trustworthy
+	// statement about "too large" is one made relative to the maximum the two
+	// ends agreed on in view of the capture.
+	OptMSS uint16
 
 	// DecodeErr is set when the frame was read but could not be decoded. The
 	// packet is then not usable beyond its framing fields.
@@ -141,5 +153,6 @@ func (p *Packet) reset() {
 	p.DataOffset = 0
 	p.PayloadLength = 0
 	p.OptWindowScale = -1
+	p.OptMSS = 0
 	p.DecodeErr = nil
 }

@@ -124,6 +124,32 @@ P4's severity work is where a floor would be calibrated if one is ever wanted;
 `MinorObservations` (always zero today) is the seam left for it. Don't introduce
 a floor casually as a side effect of badge work — it's a §9-relevant decision.
 
+## Three fixtures carry unrealistically large segments
+
+**Found 2026-08-20 while measuring for Batch 3's R13 gate. Real, not blocking.**
+
+`r09-reset-mid-transfer` (16,000-byte segments), `r09-clean-close` (8,000) and
+`r09-uniform-reset` (6,000) send payloads far larger than any Ethernet link
+carries. They were authored for byte volume — "a substantial download" — with
+segment size chosen for convenience rather than realism.
+
+Nothing currently misreports because of it: those flows use plain `Handshake`,
+which advertises no MSS, and the offload detection added for R13 compares
+against the negotiated maximum and declines to speak without one. So they
+produce no false offload notice.
+
+It is still worth fixing, for a reason beyond tidiness: **a real capture
+containing 16KB segments on Ethernet is a capture showing TSO artifacts.**
+These fixtures are, unintentionally, modelling exactly the condition R13
+degrades for — so anything derived from segment size in them is measuring
+something no wire ever carried.
+
+The fix is to give them realistic segments and a handshake that negotiates an
+MSS, then regenerate. Not free: R09's own figures — bytes in flight at the
+reset, the "averaging 1KB transferred" style wording — are computed from those
+sizes, so its three goldens and any test asserting those numbers move with
+them. Worth doing when R09 is next touched rather than as isolated churn.
+
 ## Filter affordances on titles — two known inconsistencies
 
 **Noted 2026-08-20 during the filterability session. Ruled leave-as-is;

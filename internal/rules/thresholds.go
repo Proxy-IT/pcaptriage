@@ -63,6 +63,50 @@ var Thresholds = struct {
 	// translates to a predictable memory ceiling.
 	R04FlowExchangeBuffer int
 
+	// R10PeerRatio flags a host whose network round-trip time exceeds the
+	// capture-wide median by this multiple.
+	// [RULES.md] "exceeding the capture-wide median by ≥4×"
+	R10PeerRatio float64
+
+	// R10MinFlows is how many flows to a host are needed before its latency is
+	// assessed.
+	// [chosen] RULES.md states no minimum. Three is the smallest number that
+	// can show whether latency is steady or variable at all — the distinction
+	// the finding reports, and the one that separates distance from
+	// congestion. Two samples have a spread but no shape.
+	R10MinFlows int
+
+	// R10MinPeerHosts is how many other assessed hosts constitute a population
+	// to compare against.
+	// [chosen] Mirrors R04MinPeerGroup for the same reason: two is the
+	// smallest number that permits a comparison, and below it the finding
+	// would be a claim about a host with nothing to be elevated relative to.
+	R10MinPeerHosts int
+
+	// R10SteadyDispersion separates "steady" latency from "variable" in the
+	// R10 wording. It is the ratio of the spread between a host's slowest and
+	// fastest observed round trip to its median.
+	// [chosen] RULES.md's example calls 22 connections "consistent rather than
+	// intermittent" without giving a figure. 0.5 means the spread has to stay
+	// inside half the median before the finding will call latency steady,
+	// which keeps the stronger claim — distance rather than congestion — the
+	// one that needs the tighter evidence.
+	R10SteadyDispersion float64
+
+	// R13MinLargeRetransmits is how many retransmissions of over-threshold
+	// segments a flow needs before the blackhole pattern is reported.
+	// [chosen] RULES.md says "repeated" without a figure. Three is enough to
+	// separate a pattern from a coincidence, and matches the retry count a
+	// sender typically reaches before giving up on a segment.
+	R13MinLargeRetransmits int
+
+	// R13MinSmallDelivered is how many smaller segments must have been
+	// acknowledged on the same flow for the contrast to mean anything.
+	// [chosen] The signal is "large fails while small succeeds", so the small
+	// side needs enough successes to be a control rather than an anecdote.
+	// Three mirrors the large side.
+	R13MinSmallDelivered int
+
 	// SeveritySignificantFloor and SeverityWorthNotingFloor split the
 	// significance score into the three words a card shows.
 	//
@@ -210,6 +254,14 @@ var Thresholds = struct {
 	R04MinPeerGroup:           2,
 	R04NetworkComparableRatio: 4.0,
 	R04FlowExchangeBuffer:     32,
+
+	R10PeerRatio:        4.0,
+	R10MinFlows:         3,
+	R10MinPeerHosts:     2,
+	R10SteadyDispersion: 0.5,
+
+	R13MinLargeRetransmits: 3,
+	R13MinSmallDelivered:   3,
 
 	SeveritySignificantFloor: 40,
 	SeverityWorthNotingFloor: 15,

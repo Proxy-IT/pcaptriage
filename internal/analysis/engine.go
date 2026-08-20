@@ -95,6 +95,14 @@ type CaptureInfo struct {
 	OneWayFlows    int
 	TCPHosts       int
 
+	// OffloadFlows is how many flows carried a segment larger than their own
+	// negotiated maximum, with the largest such segment and the maximum it
+	// exceeded. Zero when no flow negotiated an MSS, which is not the same as
+	// "no offload" and is why the note only speaks when the figures exist.
+	OffloadFlows      int
+	OffloadMaxSegment int
+	OffloadMSS        uint16
+
 	FlowCap       int
 	FlowsEvicted  uint64
 	PeakLiveFlows int
@@ -161,6 +169,12 @@ func Run(path string, opts Options) (*Result, error) {
 		partialFlows   int
 		midstreamFlows int
 		oneWayFlows    int
+		// Offload artifacts, counted per flow that shows them and remembered
+		// at their largest, so the note can say how far past the negotiated
+		// maximum the capture went rather than only that it did.
+		offloadFlows   int
+		offloadMaxSeg  int
+		offloadMSSSeen uint16
 	)
 
 	flows := flow.NewStore(maxFlows, len(detectors), func(st *flow.State) {
@@ -174,6 +188,13 @@ func Run(path string, opts Options) (*Result, error) {
 		}
 		if st.OneWay() {
 			oneWayFlows++
+		}
+		if st.OffloadArtifact() {
+			offloadFlows++
+			if st.MaxSegmentSeen > offloadMaxSeg {
+				offloadMaxSeg = st.MaxSegmentSeen
+				offloadMSSSeen = st.NegotiatedMSS
+			}
 		}
 		for i, d := range detectors {
 			d.OnFlowEnd(st.Detector(i), st)
@@ -283,6 +304,9 @@ func Run(path string, opts Options) (*Result, error) {
 	info.FlowsEvicted = fstats.Evicted
 	info.PeakLiveFlows = fstats.PeakLive
 	info.TCPHosts = len(hosts)
+	info.OffloadFlows = offloadFlows
+	info.OffloadMaxSegment = offloadMaxSeg
+	info.OffloadMSS = offloadMSSSeen
 
 	// Drop counters live in an Interface Statistics Block, which a capture tool
 	// writes when it closes the file — so they are only complete now, once the
@@ -305,7 +329,7 @@ func Run(path string, opts Options) (*Result, error) {
 		InterfaceDrops:   info.InterfaceDrops,
 		PacketsDropped:   info.PacketsDropped,
 		DropRatio:        info.DropRatio,
-		Quality:          dropQuality(&info),
+		Quality:          captureQuality(&info),
 	}
 
 	// R15 owns the notes built from the fields above — the drop note, and the

@@ -156,6 +156,21 @@ type State struct {
 	MinACKRTTValid bool
 	rtt            [2]rttRing
 
+	// NegotiatedMSS is the smaller of the two maximum segment sizes the ends
+	// advertised, or 0 when neither SYN was captured or neither carried the
+	// option. The smaller governs: each end is stating the largest segment it
+	// is willing to receive, so the sender is bound by its peer's figure.
+	NegotiatedMSS uint16
+	// MaxSegmentSeen is the largest payload observed on this flow.
+	//
+	// The pair is what makes an offload artifact statable: a segment larger
+	// than the maximum the connection itself negotiated cannot have crossed
+	// the wire in that shape, so the capture is showing pre-segmentation
+	// frames. Judged against the negotiation rather than an assumed MTU
+	// because the negotiation is a fact this capture observed, and the MTU is
+	// not.
+	MaxSegmentSeen int
+
 	SawRST   bool
 	RSTTime  time.Time
 	RSTFrame uint64
@@ -168,6 +183,39 @@ type State struct {
 	// the rule's position in the detector list. Rules own the contents; the
 	// flow store only knows to hand them back on close.
 	detectors []any
+}
+
+// observeMSS records an advertised maximum segment size, keeping the smaller
+// of the two ends' figures.
+//
+// Each SYN states the largest segment its sender is willing to receive, so a
+// sender is bound by its peer's number and the effective maximum for the flow
+// is the minimum of the pair. Taking the minimum also means a flow where only
+// one SYN was captured still has a usable figure, which is the common case on
+// a capture that started slightly late.
+func (s *State) observeMSS(mss uint16) {
+	if mss == 0 {
+		return
+	}
+	if s.NegotiatedMSS == 0 || mss < s.NegotiatedMSS {
+		s.NegotiatedMSS = mss
+	}
+}
+
+// OffloadArtifact reports that this flow carried a segment larger than the
+// maximum its own handshake negotiated.
+//
+// That cannot happen on the wire: the peer said it would not accept more, so
+// a larger frame in the capture is one the sending host's NIC had not yet
+// split. Everything derived from apparent segment size is unreliable on such
+// a flow.
+//
+// False when no MSS was observed. Without the negotiation there is nothing to
+// compare against, and guessing at a link MTU would turn a fact about this
+// connection into an assumption about its network — so the check declines to
+// speak rather than speaking on a guess.
+func (s *State) OffloadArtifact() bool {
+	return s.NegotiatedMSS > 0 && s.MaxSegmentSeen > int(s.NegotiatedMSS)
 }
 
 // Completeness reports the capture completeness state of the flow.
@@ -270,6 +318,7 @@ func (s *State) Observe(p *capture.Packet, dir Direction) {
 		if p.OptWindowScale >= 0 {
 			s.WindowScale[dir] = p.OptWindowScale
 		}
+		s.observeMSS(p.OptMSS)
 		// The side that sends a bare SYN is the client, so the server sends
 		// the other way.
 		s.setServer(dir.Other(), BasisObserved)
@@ -287,6 +336,7 @@ func (s *State) Observe(p *capture.Packet, dir Direction) {
 		if p.OptWindowScale >= 0 {
 			s.WindowScale[dir] = p.OptWindowScale
 		}
+		s.observeMSS(p.OptMSS)
 		// The side that answers with SYN/ACK is the server.
 		s.setServer(dir, BasisObserved)
 		if s.sawSYN[dir.Other()] && !s.HandshakeRTTValid {
@@ -304,6 +354,10 @@ func (s *State) Observe(p *capture.Packet, dir Direction) {
 		s.SawRST = true
 		s.RSTTime = p.Time
 		s.RSTFrame = p.Frame
+	}
+
+	if p.PayloadLength > s.MaxSegmentSeen {
+		s.MaxSegmentSeen = p.PayloadLength
 	}
 
 	// Server identification for midstream flows: whichever side sends data

@@ -93,6 +93,20 @@ func (r *CaptureQualityRule) Emit(pop *Population, out *findings.Store) {
 		})
 	}
 
+	// Segments larger than the connection negotiated. Conditional, unlike the
+	// drop note: "no oversized segments were seen" carries none of the
+	// ambiguity "the file cannot record drops" does, so there is nothing to
+	// say when the condition is absent.
+	if pop.Quality.OffloadArtifacts {
+		out.AddNote(findings.Note{
+			Kind:   "unavailable",
+			RuleID: "R15",
+			Text: "Partly assessed: anything that depends on segment size. " +
+				pop.Quality.OffloadBasis +
+				" Loss and retransmission analysis still ran; size-based conclusions on these flows are the ones to treat carefully.",
+		})
+	}
+
 	// Flows discarded mid-run because the concurrency cap was reached: those
 	// were analysed only up to the point they were dropped. Not one of
 	// RULES.md's R15 conditions — it is a tool limit, not a capture-file

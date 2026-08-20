@@ -81,6 +81,24 @@ func (s *Sampler) Percentile(p float64) float64 {
 	return NearestRank(sorted, p)
 }
 
+// Min returns the smallest retained value.
+//
+// Paired with Max so a caller can describe the spread of a sample without
+// reaching for percentiles, which is what a check reporting whether a
+// measurement was steady or variable actually needs.
+func (s *Sampler) Min() float64 {
+	if len(s.values) == 0 {
+		return 0
+	}
+	m := s.values[0]
+	for _, v := range s.values[1:] {
+		if v < m {
+			m = v
+		}
+	}
+	return m
+}
+
 // Max returns the largest retained value.
 func (s *Sampler) Max() float64 {
 	if len(s.values) == 0 {

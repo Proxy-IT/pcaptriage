@@ -43,22 +43,40 @@ func summariseDrops(info *CaptureInfo, drops []capture.InterfaceDrops, availabil
 	info.DropsSignificant = total > 0 && info.DropRatio >= rules.Thresholds.R15KernelDropRatio
 }
 
-// dropQuality builds the gating flags rules consult.
+// captureQuality builds the gating flags rules consult.
 //
-// The basis sentence is written here, once, so that every rule that degrades
-// for this reason gives the same account of why.
-func dropQuality(info *CaptureInfo) rules.CaptureQuality {
-	if !info.DropsSignificant {
-		return rules.CaptureQuality{}
-	}
-	return rules.CaptureQuality{
-		KernelDropsSignificant: true,
-		KernelDropBasis: fmt.Sprintf(
+// Each basis sentence is written here, once, so that every rule degrading for
+// a given reason gives the same account of why. The flags are independent: a
+// capture can have both conditions, one, or neither, and a rule consults only
+// the ones that bear on what it measures.
+func captureQuality(info *CaptureInfo) rules.CaptureQuality {
+	var q rules.CaptureQuality
+
+	if info.DropsSignificant {
+		q.KernelDropsSignificant = true
+		q.KernelDropBasis = fmt.Sprintf(
 			"The capture host itself dropped %s of %s packets (%s of the traffic it saw), so some apparent loss may be capture loss rather than loss on the network.",
 			formatCount(info.PacketsDropped),
 			formatCount(info.PacketsRead+info.PacketsDropped),
-			formatPercent(info.DropRatio)),
+			formatPercent(info.DropRatio))
 	}
+
+	// Segments larger than the connection carrying them negotiated cannot
+	// have crossed the wire in that shape, so this capture was taken before
+	// the sending interface split them. Stated relative to the negotiation
+	// rather than to an assumed link size: the negotiation is a fact this
+	// capture observed, and the link's maximum is not.
+	if info.OffloadFlows > 0 && info.OffloadMaxSegment > 0 && info.OffloadMSS > 0 {
+		q.OffloadArtifacts = true
+		q.OffloadBasis = fmt.Sprintf(
+			"Segments of up to %s bytes were recorded on %s of %s flows, larger than the %d-byte maximum those connections negotiated, so this capture was taken before the sending interface split them. Apparent segment size is therefore not the size that travelled.",
+			formatCount(uint64(info.OffloadMaxSegment)),
+			formatCount(uint64(info.OffloadFlows)),
+			formatCount(uint64(info.TCPFlows)),
+			info.OffloadMSS)
+	}
+
+	return q
 }
 
 // formatPercent renders a ratio with enough precision to stay honest at small

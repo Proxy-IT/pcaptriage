@@ -309,6 +309,9 @@ func parseTCPOptions(b []byte, p *Packet) {
 		if length < 2 || i+length > len(b) {
 			return
 		}
+		if kind == 2 && length == 4 {
+			p.OptMSS = binary.BigEndian.Uint16(b[i+2 : i+4])
+		}
 		if kind == 3 && length == 3 {
 			shift := b[i+2]
 			// RFC 7323 caps the shift at 14; larger values must be treated as 14.

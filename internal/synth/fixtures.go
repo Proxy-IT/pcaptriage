@@ -47,6 +47,21 @@ func Fixtures() []Fixture {
 			Build:   buildR04Positive,
 		},
 		{
+			Name:    "r10-distant-host",
+			Purpose: "R10 positive: one host at 180ms against twelve at 8ms, with latency steady across its connections — the path-length signature.",
+			Build:   buildR10Positive,
+		},
+		{
+			Name:    "r10-variable-latency",
+			Purpose: "R10 positive, congestion shape: the same elevated median with round trips swinging from 60ms to 400ms, so the finding must say variable rather than steady.",
+			Build:   buildR10Variable,
+		},
+		{
+			Name:    "r10-uniformly-distant",
+			Purpose: "R10 negative: every host is 170-190ms away, so nothing is an outlier — the trap an absolute latency threshold would fall into.",
+			Build:   buildR10Negative,
+		},
+		{
 			Name:    "r04-midstream",
 			Purpose: "R04 inferred: the same slow server measured only by flows that were already open, so RTT comes from the minimum observed ACK round trip and the finding degrades.",
 			Build:   buildR04Midstream,

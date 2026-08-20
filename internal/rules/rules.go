@@ -81,6 +81,19 @@ type CaptureQuality struct {
 	// KernelDropBasis is the sentence a degraded finding states as its reason.
 	// Empty when KernelDropsSignificant is false.
 	KernelDropBasis string
+
+	// OffloadArtifacts reports that the capture contains segments larger than
+	// the connections carrying them negotiated, which means the capture was
+	// taken before the sending NIC split them.
+	//
+	// R13 must consult this: its whole second signal is "large segments fail
+	// while small ones succeed", and on an offloaded capture apparent segment
+	// size is not wire segment size, so the sizes the signal rests on are not
+	// the sizes that travelled.
+	OffloadArtifacts bool
+	// OffloadBasis is the sentence a degraded finding states as its reason.
+	// Empty when OffloadArtifacts is false.
+	OffloadBasis string
 }
 
 // Population is the capture-wide context a rule compares its subjects against.
@@ -164,6 +177,7 @@ func Default() []Detector {
 		NewAsymmetricLoss(loss),
 		NewResetMidTransfer(),
 		NewConnectionChurn(),
+		NewRTTOutlier(),
 	}
 }
 
