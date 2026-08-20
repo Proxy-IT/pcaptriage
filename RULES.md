@@ -758,3 +758,36 @@ speak where it observed nothing.
 | `R10SteadyDispersion` | 0.5 | [chosen] — the spread between a host's slowest and fastest round trip, over its median, below which latency is called steady. The specification says "consistent rather than intermittent" without a figure. Set so the stronger claim (distance rather than congestion) needs the tighter evidence. |
 | `R13MinLargeRetransmits` | 3 | [chosen] — the specification says "repeated" without a figure. Three separates a pattern from a coincidence. |
 | `R13MinSmallDelivered` | 3 | [chosen] — the small side is the control in "large fails while small succeeds", so it needs enough successes to be a control rather than an anecdote. |
+
+### Batch 3 — R13's ICMP sentence, a spec-vs-build divergence
+
+**Added 2026-08-20. Resolves when the ICMP surface lands; not a permanent
+wording change.**
+
+R13's specified wording includes:
+
+> No ICMP fragmentation-needed messages were seen, which is consistent with
+> ICMP being filtered somewhere on the path.
+
+This build does not decode ICMP at all — the decoder stops at any protocol
+that is not TCP — so that sentence would imply a search that never ran. An
+absence reported by something that never looked is not evidence of absence,
+and the reader would take it as one.
+
+**The build says instead:**
+
+> This build does not examine ICMP, so whether the network reported the size
+> limit back to the sender is unknown.
+
+The specification's two variants — "saw ICMP" versus "silent pattern only" —
+therefore collapse to one until ICMP decoding exists. When it does, both
+variants become expressible and the specified wording is the correct one:
+having looked and found nothing genuinely is consistent with ICMP being
+filtered, which is exactly what makes the sentence worth saying.
+
+The same reasoning governs the observation's size phrasing. The specification
+writes "Segments above 1400 bytes were retransmitted ... while segments below
+that size were delivered normally", which names one boundary. The build names
+both observed sizes instead — the size that failed and the size that
+succeeded — because where the real limit sits between them is precisely what
+the capture cannot say.

@@ -479,6 +479,49 @@ that is correct (it was for R03) or whether there is a real cost being
 overlooked (there was for R09). Check it during implementation, not after the
 severity table comes out flat.
 
+**Now a three-time occurrence, and the third has a different mechanism.**
+
+R13 hit the same wall in Batch 3 by a route the checklist above does not
+catch. It *has* an honest seconds denominator — a hung transfer stalls for a
+measurable time — and it was assessed as fine at Checkpoint 0 on exactly that
+basis. It was not fine. With `ScopeFlow` (0.8) and no peer group (deviation
+1.0), `7 × Impact × 0.8 × 1.0` **tops out at 28.0**, below the significant
+floor of 40. Measured:
+
+| stall | significance |
+|---|---|
+| 3s | 12.3 informational |
+| 30s | 22.3 worth noting |
+| 600s | 28.0 worth noting |
+
+A ten-minute hang scored the same as a two-minute one, and neither could reach
+significant at any duration. The denominator was present and working; the
+other two factors pinned the ceiling below the floor.
+
+**The checklist is therefore wrong as written, and is corrected here: check
+all four factors, not just the denominator.** For each rule ask what its
+plausible range is on every axis —
+
+- **impact** — is there a seconds-denominated cost, and does it scale with the
+  condition's size?
+- **scope** — can this condition ever affect more than one flow, and does the
+  rule notice when it does?
+- **deviation** — is there a population to compare against, or is this pinned
+  at 1.0 forever?
+- **base weight** — and then, given the achievable product of the other three,
+  what severity band can this rule actually reach?
+
+The last question is the one that would have caught R13: multiply the
+best-case factors together and compare against the floors. A rule that cannot
+reach the band its condition deserves is misconfigured regardless of how
+sensible each factor looks alone.
+
+**Part 4 item:** R03 and R09's accepted ceilings were reasoned about on the
+impact axis only, using the "confirms what the application already told the
+user" argument. That argument is sound for R03 and does not obviously extend
+to R09, and neither was checked against scope and deviation. Re-examine both
+once all fifteen rules exist and the full severity table can be read at once.
+
 ## Tests that pass while asserting nothing
 
 **Noted 2026-08-20, during the evidence-quality session. Not queued — recorded
