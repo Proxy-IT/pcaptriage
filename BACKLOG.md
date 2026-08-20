@@ -124,6 +124,76 @@ P4's severity work is where a floor would be calibrated if one is ever wanted;
 `MinorObservations` (always zero today) is the seam left for it. Don't introduce
 a floor casually as a side effect of badge work — it's a §9-relevant decision.
 
+## Filter affordances on titles — two known inconsistencies
+
+**Noted 2026-08-20 during the filterability session. Ruled leave-as-is;
+recorded so they are not rediscovered, and to be revisited once all fifteen
+rules exist.**
+
+Clicking an endpoint in a finding's title scopes the view to it. Which
+endpoints are clickable falls out of how each rule authors its title, and two
+consequences follow:
+
+1. **Flow findings make only one of their two endpoints clickable.** R01's
+   title names `10.2.2.7:5432` while its subject is the flow
+   `10.1.1.5:44210 <-> 10.2.2.7:5432`. Both are subjects and both *match* a
+   filter correctly; only the named one can be clicked. R05 and R08 differ
+   again — their titles name both hosts but without ports, so both are
+   clickable as bare hosts.
+2. **The same visual token means different things on different cards.** R01's
+   title carries `host:port` and R09's carries a bare `host` (its subject is
+   `10.2.2.9:5432` but the authored title drops the port). Clicking them
+   produces filters of different granularity from what looks like the same
+   kind of thing.
+
+Left alone deliberately. Titles are authored per-rule in RULES.md and the
+wording is spec — R09 dropping the port is a wording decision, not an
+oversight. Making every subject endpoint clickable would mean either composing
+titles mechanically, losing the authored wording, or adding clickable tokens
+outside the title, which is chrome the brief explicitly resists.
+
+The second one is the one to watch: an affordance whose meaning varies by card
+erodes trust quietly rather than failing visibly. It does not warrant
+restructuring while four rules are unbuilt and Part 3's typed input is about to
+make any endpoint filterable regardless of what a title happens to name.
+**Revisit when all fifteen rules exist and the full set of title shapes is
+visible** — Batch 3 will add more, and the right fix (if any) depends on the
+whole set rather than on today's ten.
+
+## Typed filter input — time windows, and why they are not built
+
+**Specified in the filterability session's Part 3b. Host, port and
+conversation terms are built; time windows are not.**
+
+The intended behaviour: `after 63s`, `before 66s`, `63s-66s`, in
+capture-relative seconds matching Wireshark's default time column, composing
+with host and port terms as an intersection. A finding matches when **any of
+its cited frames** falls inside the window.
+
+What blocks it is that the data is not there to do it correctly. A finding's
+cited frames and its retained packet rows are different sets: R04 cites eight
+representative frames and retains header snapshots for two of them. The GUI's
+only source of frame times is that packet evidence, so a window filter built on
+it would match on two frames and silently ignore six — a reader narrowing to
+the window containing the other six would watch a genuine finding disappear.
+That is a false negative inside a filter, which is the failure mode this tool's
+whole posture is against.
+
+Doing it properly means carrying cited-frame times out to the GUI. The
+`Evidence` collector already holds a time per retained occurrence, so a
+`FrameTimes()` accessor mirroring `Frames()` is straightforward — but only four
+of the ten built rules produce their frame list through `Evidence.Frames()`.
+The other six assemble it locally, and each would need its times threaded
+alongside. That is engine work across every rule, in a session whose governing
+constraint is that filtering is presentation-only, so it was stopped rather
+than half-done: partial support that works for four rules and silently
+under-matches for six is worse than none.
+
+Cheap and worth doing when picked up: the new field belongs on the GUI binding's
+`AnalysisResult`, not on `report.Finding`. The evidence array is already
+GUI-only, so adding times there leaves the JSON and HTML goldens byte-identical
+and keeps a presentation concern out of the report schema.
+
 ## Filtered export — designed, deliberately not built
 
 **Specified in the filterability session and deferred there. Blocked on a GUI

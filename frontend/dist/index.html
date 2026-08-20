@@ -126,8 +126,29 @@
         <h2 id="results-title">Top findings</h2>
         <p id="results-file" class="results-file"></p>
       </div>
-      <button type="button" id="btn-another" class="btn">Open another capture</button>
+      <span class="results-actions">
+        <!-- Always present, never conditional. A control that only sometimes
+             exists is a control nobody learns, so this sits beside the
+             findings header whether or not a filter is active — quiet enough
+             not to compete with the results, permanent enough to be found
+             twice. -->
+        <button type="button" id="btn-filter" class="linkish" aria-expanded="false"
+                aria-controls="filter-input-row">Filter</button>
+        <button type="button" id="btn-another" class="btn">Open another capture</button>
+      </span>
     </header>
+
+    <!-- One field, plain input. No BPF and no display-filter grammar: the
+         target user is someone who does not know Wireshark, and requiring its
+         syntax to operate the tool that exists because they don't know it
+         would defeat the premise. See BRIEF section 8. -->
+    <div id="filter-input-row" class="filter-input-row" hidden>
+      <label class="filter-input-label" for="filter-input">Show only findings involving</label>
+      <input id="filter-input" class="filter-input" type="text" autocomplete="off" spellcheck="false"
+             placeholder="10.41.2.16, :5432, or 10.41.2.16 10.39.158.2">
+      <button type="button" id="filter-apply" class="btn">Apply</button>
+      <p id="filter-input-hint" class="filter-input-hint" hidden></p>
+    </div>
 
     <p id="results-posture" class="posture posture-inline"></p>
 

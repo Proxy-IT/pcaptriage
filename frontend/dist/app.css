@@ -196,6 +196,51 @@ body {
 .chip-x:hover { color: var(--sev-significant); }
 .chip-x:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
 
+/* ---------------- typed filter input ---------------- */
+
+.results-actions { display: flex; align-items: center; gap: 1rem; flex: none; }
+
+/* Opens under the findings header rather than in the sticky chrome above.
+   The chip bar is the standing admission that a filter is active; this is a
+   transient composing surface, and putting it in the chrome would make the
+   filter look permanent even before anything is applied. */
+.filter-input-row {
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+  flex-wrap: wrap;
+  margin: .9rem 0 0;
+  padding: .75rem .9rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius-card);
+}
+.filter-input-label { font-size: .85rem; color: var(--ink-secondary); flex: none; }
+.filter-input {
+  font: inherit;
+  font-family: var(--mono);
+  font-size: .85rem;
+  flex: 1 1 18rem;
+  min-width: 0;
+  padding: .35rem .5rem;
+  color: var(--ink-primary);
+  background: var(--page);
+  border: 1px solid var(--outline);
+  border-radius: var(--radius-tag);
+}
+.filter-input:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+/* The unreadable-token hint. Full width beneath the field so it sits under
+   what it is about, and neutral rather than red: a typo is not a fault, and
+   colouring it like one would put more weight on a mistyped address than the
+   severity badges carry. */
+.filter-input-hint {
+  flex: 1 0 100%;
+  margin: .1rem 0 0;
+  font-size: .82rem;
+  color: var(--ink-secondary);
+}
+
 /* ---------------- filtered-empty ---------------- */
 
 /* The load-bearing screen. Its whole job is to be unmistakable for the clean

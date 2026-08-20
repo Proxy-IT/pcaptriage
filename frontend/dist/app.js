@@ -938,7 +938,11 @@
   // it rather than ask the backend for anything.
   var currentResult = null;
 
+  // termKey identifies a term. Three shapes: a host, a host:port, and a bare
+  // :port meaning that port on any host — the last reachable only by typing,
+  // since a card names a host with its port and never a port alone.
   function termKey(t) {
+    if (!t.host) return ":" + t.port;
     return t.port ? t.host + ":" + t.port : t.host;
   }
 
@@ -999,7 +1003,10 @@
     var eps = findingEndpoints(f);
     return terms.every(function (t) {
       return eps.some(function (e) {
-        if (e.host !== t.host) return false;
+        // A term with no host is a bare :port — that port on whichever host
+        // is using it, which is how a reader asks "what is wrong with the
+        // database" when they know the port and not the address.
+        if (t.host && e.host !== t.host) return false;
         return t.port ? e.port === t.port : true;
       });
     });
@@ -1011,7 +1018,7 @@
   }
 
   function addFilterTerm(term) {
-    if (!term || !term.host) return;
+    if (!term || (!term.host && !term.port)) return;
     var key = termKey(term);
     // Already filtering on it: nothing to do. Re-clicking does not toggle off
     // — removal is the chip's job, so there is one way in and one way out
@@ -1031,6 +1038,85 @@
   function clearFilter() {
     filterTerms = [];
     repaintFindings();
+  }
+
+  // parseFilterInput turns typed text into terms.
+  //
+  // Whitespace-separated, and every token is one of the forms a reader can
+  // read off a finding card: a host, a host:port, or a bare :port. There are
+  // no operators and no grammar — BRIEF section 8 rejects BPF and display
+  // filters on the grounds that requiring Wireshark's syntax to operate the
+  // tool that exists because the reader does not know Wireshark defeats the
+  // premise, and that reasoning is the premise of this field too.
+  //
+  // Returns the terms it understood and the tokens it did not, so the caller
+  // can apply one and explain the other. A token that cannot be read is never
+  // silently dropped.
+  function parseFilterInput(text) {
+    var terms = [];
+    var rejected = [];
+    (text || "").trim().split(/\s+/).forEach(function (tok) {
+      if (!tok) return;
+      // A bare :port — every endpoint on that port, whichever host.
+      if (tok.charAt(0) === ":") {
+        var p = tok.slice(1);
+        if (/^\d{1,5}$/.test(p)) { terms.push({ host: null, port: p }); return; }
+        rejected.push(tok);
+        return;
+      }
+      var e = parseEndpoint(tok);
+      if (!e || !e.host || !looksLikeHost(e.host)) { rejected.push(tok); return; }
+      if (e.port !== null && !/^\d{1,5}$/.test(e.port)) { rejected.push(tok); return; }
+      terms.push({ host: e.host, port: e.port });
+    });
+    return { terms: terms, rejected: rejected };
+  }
+
+  // looksLikeHost is a shape check, not a validator.
+  //
+  // Its job is to reject prose so the reader gets told rather than filtered to
+  // nothing — a typed word that is not an address should produce a hint, not a
+  // silent empty screen. It deliberately does not verify that an address is
+  // well-formed or present in the capture: an address absent from the capture
+  // is a legitimate filter, and the filtered-empty state exists to say so.
+  function looksLikeHost(h) {
+    if (/^\d{1,3}(\.\d{1,3}){3}$/.test(h)) return true;
+    // IPv6: hex groups and colons, with at least one colon.
+    return h.indexOf(":") >= 0 && /^[0-9a-fA-F:]+$/.test(h);
+  }
+
+  // applyTypedFilter is the typed path into exactly the same state clicking
+  // uses — same terms, same addFilterTerm, same repaint. There is one filter
+  // mechanism with two entrances, rather than two mechanisms that would
+  // eventually disagree about what a term means.
+  function applyTypedFilter() {
+    var input = $("filter-input");
+    var parsed = parseFilterInput(input.value);
+    var hint = $("filter-input-hint");
+
+    if (parsed.rejected.length > 0) {
+      hint.textContent = "Could not read " + parsed.rejected.join(", ") +
+        " — try 10.41.2.16, :5432, or 10.41.2.16 10.39.158.2";
+      hint.hidden = false;
+      // The terms that did parse are still applied. Refusing the whole line
+      // because one token was mistyped would throw away work the reader has
+      // already done, and the hint says exactly which token was dropped.
+    } else {
+      hint.textContent = "";
+      hint.hidden = true;
+    }
+
+    parsed.terms.forEach(addFilterTerm);
+    if (parsed.terms.length > 0) input.value = "";
+  }
+
+  function toggleFilterInput() {
+    var row = $("filter-input-row");
+    var btn = $("btn-filter");
+    var open = row.hidden;
+    row.hidden = !open;
+    btn.setAttribute("aria-expanded", open ? "true" : "false");
+    if (open) $("filter-input").focus();
   }
 
   // renderFindingList paints the ranked findings, folding the informational
@@ -1267,6 +1353,12 @@
     // presenting itself as empty.
     infoExpanded = false;
     filterTerms = [];
+    // The field and its hint go too. A stale "could not read foo" over a
+    // capture that was never asked about foo is a message with no referent.
+    $("filter-input").value = "";
+    $("filter-input-hint").hidden = true;
+    $("filter-input-row").hidden = true;
+    $("btn-filter").setAttribute("aria-expanded", "false");
 
     resetProgress(path.replace(/^.*[\\/]/, ""));
     show("loading");
@@ -1332,6 +1424,15 @@
     // on screen to act on.
     $("filter-clear").addEventListener("click", clearFilter);
     $("filtered-empty-clear").addEventListener("click", clearFilter);
+
+    // The typed entrance. Enter applies, because a text field that needs a
+    // separate button click to do anything is a field people type into and
+    // then wonder about.
+    $("btn-filter").addEventListener("click", toggleFilterInput);
+    $("filter-apply").addEventListener("click", applyTypedFilter);
+    $("filter-input").addEventListener("keydown", function (e) {
+      if (e.key === "Enter") { e.preventDefault(); applyTypedFilter(); }
+    });
 
     // Drag feedback only. The path itself arrives from the Go side, because a
     // webview's drop event exposes file contents but not a usable filesystem
