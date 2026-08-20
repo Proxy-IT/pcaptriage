@@ -34,6 +34,10 @@ func TestEmbeddedContentMatchesTheSpec(t *testing.T) {
 		{"GUIDE-CONTENT.md", "GUIDE-CONTENT.md", Source()},
 		{"GUIDE-CONTENT-BATCH1.md", "GUIDE-CONTENT-BATCH1.md", Batch1Source()},
 		{"GUIDE-CONTENT-BATCH2.md", "GUIDE-CONTENT-BATCH2.md", Batch2Source()},
+		// Concepts is a different type from Page and never appears in Pages(),
+		// but the embed-and-compare mechanism this test checks does not care
+		// what the content parses into — it is the same property regardless.
+		{"GUIDE-CONTENT-CONCEPTS.md", "GUIDE-CONTENT-CONCEPTS.md", ConceptsSource()},
 	}
 	for _, c := range cases {
 		want, err := os.ReadFile(repoFile(t, c.specFile))

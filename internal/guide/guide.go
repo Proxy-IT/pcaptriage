@@ -297,11 +297,24 @@ func parsePage(chunk string) (Page, error) {
 	}
 
 	page := Page{RuleIDs: ruleIDs, Title: title}
+	page.Sections = parseSectionBody(lines[bodyStart:])
+	return finishPage(page)
+}
+
+// parseSectionBody parses the section/block content shared by every guide
+// page — headings, paragraphs and bullets parse identically whether the page
+// is about a rule or a concept. Only how a page's identity is established
+// before this runs (extractRuleIDs vs a plain title line) and what gets
+// validated after (finishPage vs finishConcept) differ between the two, which
+// is exactly the split a concepts mechanism should not blur: this function
+// stays ignorant of which kind of page called it.
+func parseSectionBody(lines []string) []Section {
+	var sections []Section
 
 	var cur *Section
 	flush := func() {
 		if cur != nil {
-			page.Sections = append(page.Sections, *cur)
+			sections = append(sections, *cur)
 			cur = nil
 		}
 	}
@@ -330,7 +343,7 @@ func parsePage(chunk string) (Page, error) {
 		}
 	}
 
-	for _, raw := range lines[bodyStart:] {
+	for _, raw := range lines {
 		line := strings.TrimRight(raw, " \t")
 
 		switch {
@@ -348,10 +361,11 @@ func parsePage(chunk string) (Page, error) {
 		case strings.HasPrefix(line, "## "):
 			// A stray heading at this level would mean the chunk boundary
 			// (split on "\n## Guide page:") missed something; end the page
-			// defensively rather than swallow it as prose.
+			// defensively rather than swallow it as prose. The caller's
+			// validation is what turns a truncated result into a loud error.
 			closeBlocks()
 			flush()
-			return finishPage(page)
+			return sections
 
 		case strings.TrimSpace(line) == "", strings.TrimSpace(line) == "---":
 			// Blank lines end an open paragraph. "---" is the authored
@@ -393,7 +407,7 @@ func parsePage(chunk string) (Page, error) {
 
 	closeBlocks()
 	flush()
-	return finishPage(page)
+	return sections
 }
 
 // extractRuleIDs finds rule ID tokens in a heading line.

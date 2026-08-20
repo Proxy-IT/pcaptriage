@@ -387,6 +387,35 @@
       .catch(function (err) { fail(String(err && err.message ? err.message : err)); });
   }
 
+  // openConcept shows a concept page — the guide's other section. Reached
+  // from the index today; from a badge once Part 2 wires that in.
+  //
+  // No finding parameter, unlike openGuide: a concept page is never landed on
+  // with a specific finding's context — arrival is always index-style, and
+  // stays that way even from a badge (session brief Part 2). No anchor or
+  // landing-section logic either, since concept pages carry no anchors —
+  // reusing view-guide's markup, not its scrolling behaviour.
+  function openConcept(slug) {
+    window.go.gui.App.GuideConcept(slug)
+      .then(function (page) {
+        $("guide-rule-id").textContent = "Concept";
+        $("guide-title").textContent = page.title;
+        $("guide-context").hidden = true;
+
+        var body = $("guide-body");
+        body.textContent = "";
+        (page.sections || []).forEach(function (s) {
+          var sec = el("section", "guide-section");
+          sec.appendChild(el("h3", null, s.heading));
+          renderBlocks(sec, s.blocks);
+          body.appendChild(sec);
+        });
+
+        show("guide");
+      })
+      .catch(function (err) { fail(String(err && err.message ? err.message : err)); });
+  }
+
   // renderCheckList fills a list element with one row per guide page.
   //
   // The home screen's "what this build looks for" and the guide index are the
@@ -449,11 +478,37 @@
     });
   }
 
+  // renderConceptList fills a list element with one row per concept page —
+  // the guide index's second section.
+  //
+  // Not renderCheckList reused with an optional-fields branch: a concept has
+  // no rule_id, no built/has_page gate (a concept that parsed exists — there
+  // is no "not built yet" state for prose), and never groups members. Two
+  // small functions cost less than teaching one function two unrelated row
+  // shapes would, the same judgment the Go side makes about Concept vs Page.
+  function renderConceptList(list, entries, fromView, fromLabel) {
+    list.textContent = "";
+    (entries || []).forEach(function (e) {
+      var li = el("li", "index-entry");
+      var btn = el("button", "index-link");
+      btn.type = "button";
+      btn.appendChild(el("span", "check-name", e.title));
+      btn.appendChild(el("span", "check-summary", e.summary));
+      btn.addEventListener("click", function () {
+        rememberReturn(fromView, fromLabel);
+        openConcept(e.slug);
+      });
+      li.appendChild(btn);
+      list.appendChild(li);
+    });
+  }
+
   function openGuideIndex() {
     window.go.gui.App.Guide()
       .then(function (idx) {
         renderCheckList($("guide-index-list"), idx.entries, "guide-index", "All checks");
         $("guide-index-planned").textContent = idx.planned_note || "";
+        renderConceptList($("guide-concepts-list"), idx.concepts, "guide-index", "All checks");
         show("guide-index");
       })
       .catch(function (err) { fail(String(err && err.message ? err.message : err)); });

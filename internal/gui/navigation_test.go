@@ -429,6 +429,67 @@ func TestEveryBuiltRuleLinkActuallyNavigates(t *testing.T) {
 	}
 }
 
+// TestEveryConceptIsReachableFromTheIndex is TestEveryBuiltRuleLinkActuallyNavigates's
+// counterpart for the guide's other section: every concept the index lists
+// resolves through GuideConcept, and the two id spaces — rule IDs, concept
+// slugs — never bleed into each other's list.
+//
+// This is Part 1's half of the concept bijection the session brief asks for.
+// The other half — reachable from a badge link — has nothing to check yet;
+// badges do not exist until Part 2, and this test will gain that check
+// alongside them rather than assert it early against a link that is not
+// there.
+func TestEveryConceptIsReachableFromTheIndex(t *testing.T) {
+	app := New("test")
+
+	idx, err := app.Guide()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(idx.Concepts) == 0 {
+		t.Fatal("the guide index lists no concepts; either none parsed or the index never populated Concepts")
+	}
+
+	for _, c := range idx.Concepts {
+		page, err := app.GuideConcept(c.Slug)
+		if err != nil {
+			t.Errorf("concept %q is listed in the index but does not resolve: %v", c.Slug, err)
+			continue
+		}
+		if page.Title != c.Title {
+			t.Errorf("GuideConcept(%q).Title = %q, index entry says %q", c.Slug, page.Title, c.Title)
+		}
+	}
+
+	// The structural guarantee Part 1 exists for: a concept never shows up
+	// where a rule entry would, and a rule never shows up in Concepts. The two
+	// id spaces do not collide by construction (rule IDs match R\d\d, slugs do
+	// not), but "must not appear in the rule bijection mapping" is a claim
+	// about the two lists, not about string shapes, so it is checked as one.
+	ruleIDs := map[string]bool{}
+	for _, e := range idx.Entries {
+		ruleIDs[e.RuleID] = true
+		for _, m := range e.Members {
+			ruleIDs[m.RuleID] = true
+		}
+	}
+	for _, c := range idx.Concepts {
+		if ruleIDs[c.Slug] {
+			t.Errorf("concept slug %q collides with a rule ID in Entries", c.Slug)
+		}
+	}
+	conceptSlugs := map[string]bool{}
+	for _, c := range idx.Concepts {
+		conceptSlugs[c.Slug] = true
+	}
+	for _, e := range idx.Entries {
+		if conceptSlugs[e.RuleID] {
+			t.Errorf("rule entry %q collides with a concept slug in Concepts", e.RuleID)
+		}
+	}
+}
+
 // TestHomeChecksListIsTheSameComponentAsTheGuideIndex is the reuse the brief
 // requires, asserted rather than assumed.
 //

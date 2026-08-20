@@ -59,7 +59,10 @@ type GuideEntryMember struct {
 	Summary string `json:"summary"`
 }
 
-// GuideIndex is the answer to "what does this tool check?".
+// GuideIndex is the answer to "what does this tool check?" — and, in
+// Concepts, to the two questions every finding asks the reader to answer
+// about it, which are not checks and must not read as one more row in
+// Entries.
 type GuideIndex struct {
 	Entries []GuideEntry `json:"entries"`
 	// PlannedCount is how many of the planned v1 checks are not built.
@@ -67,6 +70,24 @@ type GuideIndex struct {
 	// PlannedNote states the shortfall in words, since a list of two entries
 	// would otherwise imply the tool checks two things and that is all there is.
 	PlannedNote string `json:"planned_note"`
+	// Concepts is the guide's second, separate section: background that
+	// applies across every finding rather than documenting one check. Kept
+	// apart from Entries deliberately — a concept has no rule ID, is not
+	// registry-derived, and does not count toward PlannedCount or the
+	// built/planned totals the home screen states. See internal/guide.Concept.
+	Concepts []ConceptEntry `json:"concepts"`
+}
+
+// ConceptEntry is one row in the guide index's Concepts section.
+//
+// Deliberately smaller than GuideEntry: a concept has no rule ID, no built/
+// planned distinction (a concept that parsed exists; there is no "not built
+// yet" state for prose), and never groups several of anything into one row,
+// so it carries none of the fields those situations need.
+type ConceptEntry struct {
+	Slug    string `json:"slug"`
+	Title   string `json:"title"`
+	Summary string `json:"summary"`
 }
 
 // Guide returns the index, built from the rule registry.
@@ -152,6 +173,22 @@ func (a *App) Guide() (GuideIndex, error) {
 			"%d further checks are planned and not built yet. Nothing they would cover has been "+
 				"examined in any capture this build has read.", planned)
 	}
+
+	// A second, unrelated loop rather than folded into the one above: concepts
+	// do not come from the rule registry, so there is nothing about them to
+	// walk metas for. Built from guide.Concepts() the same way Entries is
+	// built from guide.Pages() — the index cannot claim a concept the guide
+	// content does not have, or omit one it does.
+	concepts, err := guide.Concepts()
+	if err != nil {
+		return GuideIndex{}, fmt.Errorf("the concepts content could not be read: %w", err)
+	}
+	for _, c := range concepts {
+		idx.Concepts = append(idx.Concepts, ConceptEntry{
+			Slug: c.Slug, Title: c.Title, Summary: c.Summary(),
+		})
+	}
+
 	return idx, nil
 }
 
@@ -166,6 +203,19 @@ func (a *App) GuidePage(ruleID string) (guide.Page, error) {
 		return guide.Page{}, fmt.Errorf("there is no guide page for %s", ruleID)
 	}
 	return p, nil
+}
+
+// GuideConcept returns the concept page identified by slug — the parallel
+// lookup to GuidePage, for the guide's other section. A separate method
+// rather than GuidePage accepting either kind of identifier: the two id
+// spaces (rule IDs, concept slugs) are unrelated, and a caller should not be
+// able to pass one where the other belongs without the compiler noticing.
+func (a *App) GuideConcept(slug string) (guide.Concept, error) {
+	c, ok := guide.LookupConcept(slug)
+	if !ok {
+		return guide.Concept{}, fmt.Errorf("there is no concept page for %s", slug)
+	}
+	return c, nil
 }
 
 // AboutInfo is the About page's content.

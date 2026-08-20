@@ -656,6 +656,20 @@ h1, h2, h3 { letter-spacing: -0.01em; }
 
 /* ---------------- guide index ---------------- */
 
+/* The one visual marker separating the concepts section from the checks
+   above it — same eyebrow treatment as .checks-preview h2 and .about-block
+   h3, reused rather than re-invented, for a heading whose job is exactly
+   theirs: label a labelled sub-section without competing with the page's own
+   h2. */
+.index-section-head {
+  margin: 2rem 0 .6rem;
+  font-size: .78rem;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--ink-muted);
+  font-weight: 600;
+}
+
 .index-list { list-style: none; margin: 0; padding: 0; display: grid; gap: .6rem; }
 .index-entry { margin: 0; }
 .index-link {

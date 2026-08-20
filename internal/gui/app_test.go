@@ -608,6 +608,21 @@ func TestWritePreview(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// Same idea as pages above, keyed by slug instead of rule ID: the concepts
+	// section needs its own lookup table or every concept link in the preview
+	// silently fails the way GuidePage's did before this map existed.
+	concepts := map[string]guide.Concept{}
+	for _, e := range idx.Concepts {
+		c, ok := guide.LookupConcept(e.Slug)
+		if !ok {
+			continue
+		}
+		concepts[e.Slug] = c
+	}
+	conceptsJSON, err := json.Marshal(concepts)
+	if err != nil {
+		t.Fatal(err)
+	}
 	aboutJSON, err := json.Marshal(app.About())
 	if err != nil {
 		t.Fatal(err)
@@ -655,6 +670,7 @@ func TestWritePreview(t *testing.T) {
 // for testdata/fixtures/mixed-findings.pcap, captured at preview build time.
 window.__preview = { info: ` + string(infoJSON) + `, result: ` + string(resultJSON) + `,
                      guideIndex: ` + string(indexJSON) + `, guidePages: ` + string(pagesJSON) + `,
+                     guideConcepts: ` + string(conceptsJSON) + `,
                      about: ` + string(aboutJSON) + `, prefs: ` + string(prefsJSON) + ` };
 window.__opened = [];
 window.__saved = [];
@@ -664,6 +680,10 @@ window.go = { gui: { App: {
   GuidePage:  function (id) {
     var p = window.__preview.guidePages[id];
     return p ? Promise.resolve(p) : Promise.reject(new Error("no guide page for " + id));
+  },
+  GuideConcept: function (slug) {
+    var c = window.__preview.guideConcepts[slug];
+    return c ? Promise.resolve(c) : Promise.reject(new Error("no concept page for " + slug));
   },
   About:      function () { return Promise.resolve(window.__preview.about); },
   Preferences: function () { return Promise.resolve(window.__preview.prefs); },
