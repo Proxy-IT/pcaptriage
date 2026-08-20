@@ -124,7 +124,49 @@ P4's severity work is where a floor would be calibrated if one is ever wanted;
 `MinorObservations` (always zero today) is the seam left for it. Don't introduce
 a floor casually as a side effect of badge work — it's a §9-relevant decision.
 
-## Three fixtures carry unrealistically large segments
+## Fixture realism is a separate review axis from fixture correctness
+
+**Three instances by the end of Batch 3, two mechanisms. Recorded because a
+fixture that passes its assertion can still misrepresent the condition it
+names, and nothing in the suite is looking for that.**
+
+A synthesized fixture drifts toward whatever makes its assertion pass, not
+toward what the wire actually looks like. Every simplification is individually
+reasonable at the time; the drift only shows up when something else forces a
+second look. All three instances below were found while doing something else
+entirely.
+
+- **R13's positive had no peer flows.** One connection failing on size, in a
+  file containing nothing else. It exercised the detection perfectly and
+  demonstrated nothing, because a single flow failing on size is ambiguous —
+  the comparison that makes the finding diagnostic had no population to draw
+  on. Found only when the scoring ceiling forced a peer comparison.
+- **R13's positive backed off at 300ms.** Real TCP RTO starts near a second
+  and doubles, so the fixture was modelling a blackhole that resolved in three
+  seconds — faster than any real one. The condition's entire cost is the time
+  a transfer spends going nowhere, and the fixture had quietly made that cost
+  small. Found while fixing the first instance.
+- **Three R09 fixtures send 6–16KB segments on synthetic Ethernet** (detail
+  below). Found while measuring segment sizes for R13's offload gate.
+
+The common shape: **the fixture tests the detection while stripping away the
+context that makes the condition meaningful.** Correctness and realism are
+different questions, and the suite only asks the first.
+
+**What catches this and what does not.** The tshark oracle catches
+protocol-level disagreement — it will say if a segment is not a
+retransmission, or a handshake is malformed. It has nothing to say about
+timing plausibility, topology, or whether a capture contains the traffic that
+would surround the condition in the wild. Those are the ones that got through.
+
+**Checklist item when writing a fixture:** having made it trigger the rule,
+ask separately whether a real capture of this condition would look like this.
+Would it arrive alone in the file, or beside working traffic? Are the
+intervals ones a real stack produces? Are the sizes ones a real link carries?
+A fixture that answers no to any of these still passes its test and still
+misrepresents what the rule is for.
+
+### The R09 instance, in detail
 
 **Found 2026-08-20 while measuring for Batch 3's R13 gate. Real, not blocking.**
 
