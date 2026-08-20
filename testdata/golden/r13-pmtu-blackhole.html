@@ -585,7 +585,7 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
   <div class="file">testdata/fixtures/r13-pmtu-blackhole</div>
   <div class="stamp">
     pcaptriage test · ruleset 1.0.0-partial · schema 4
-    · capture 2024-03-14T09:00:00Z to 2024-03-14T09:00:05.256Z (UTC)
+    · capture 2024-03-14T09:00:00Z to 2024-03-14T09:00:15.056Z (UTC)
   </div>
   <p class="posture">
     <strong>Advisory, not diagnostic.</strong> Each finding states what was observed, why it
@@ -619,18 +619,18 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
   <div class="tiles">
     <div class="tile">
       <div class="tile-label">Packets read</div>
-      <div class="tile-value">28</div>
-      <div class="tile-context">28 TCP · 0 other · 0 undecodable</div>
+      <div class="tile-value">112</div>
+      <div class="tile-context">112 TCP · 0 other · 0 undecodable</div>
     </div>
     <div class="tile">
       <div class="tile-label">TCP flows</div>
-      <div class="tile-value">1</div>
-      <div class="tile-context">across 2 hosts</div>
+      <div class="tile-value">7</div>
+      <div class="tile-context">across 8 hosts</div>
     </div>
     <div class="tile">
       <div class="tile-label">Began before capture</div>
       <div class="tile-value">0%</div>
-      <div class="tile-context">0 of 1 flow midstream</div>
+      <div class="tile-context">0 of 7 flows midstream</div>
     </div>
     <div class="tile">
       <div class="tile-label">Snaplen</div>
@@ -646,7 +646,7 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
     <div class="legend">
       
       <span class="key"><span class="swatch fill-strong"></span>Complete
-        <span class="num">1 (100%)</span></span>
+        <span class="num">7 (100%)</span></span>
       
       <span class="key"><span class="swatch fill-mid"></span>Partial
         <span class="num">0 (0%)</span></span>
@@ -669,32 +669,32 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
   <h2>Top findings <span class="count">all 2, most significant first</span></h2>
   
     
-<article class="finding top sev-worth-noting">
+<article class="finding top sev-significant">
   <div class="finding-head">
     <span class="rank">#1</span>
-    <h3>Timeout-driven retransmissions — 10.1.1.5 → 10.9.9.4</h3>
-    <span class="tag tag-rule">R05</span>
-    <span class="tag tag-sev tag-sev-worth-noting">Worth noting</span>
-    <span class="tag tag-confirmed">confirmed</span>
-  </div>
-  
-  <p class="observation">4 segments retransmitted after timeout, costing 1.8s of transfer time. Retry intervals doubled each attempt, indicating the sender received no acknowledgement at all rather than recovering quickly. Retransmission rate on this path is 36.4% against a capture-wide median of 0%.</p>
-  <p class="frames">Frames 20, 21, 23, 24</p>
-  <p class="next"><b>Check next:</b> sustained loss on the path between these hosts. This is more disruptive than the fast-retransmit pattern in R06 — the sender stalled waiting for a timer rather than recovering from duplicate ACKs.</p>
-</article>
-
-<article class="finding top sev-informational">
-  <div class="finding-head">
-    <span class="rank">#2</span>
     <h3>Large packets failing while small packets succeed — 10.1.1.5 ↔ 10.9.9.4</h3>
     <span class="tag tag-rule">R13</span>
-    <span class="tag tag-sev tag-sev-informational">Informational</span>
+    <span class="tag tag-sev tag-sev-significant">Significant</span>
     <span class="tag tag-confirmed">confirmed</span>
   </div>
   
-  <p class="observation">Segments of 1400 bytes were retransmitted repeatedly and never acknowledged, while segments up to 300 bytes were delivered normally on the same connection. 2 segments failed this way across 6 transmissions. This build does not examine ICMP, so whether the network reported the size limit back to the sender is unknown.</p>
-  <p class="frames">Frames 19, 22 <span class="of">(2 shown of 6 occurrences)</span></p>
+  <p class="observation">Segments of 1400 bytes were retransmitted repeatedly and never acknowledged, while segments up to 300 bytes were delivered normally on the same connection. 2 segments failed this way across 6 transmissions. Other connections in this capture that delivered data carried segments of 1400 bytes, so the limit appears to be on this path rather than on the sender. This build does not examine ICMP, so whether the network reported the size limit back to the sender is unknown.</p>
+  <p class="frames">Frames 39, 106 <span class="of">(2 shown of 6 occurrences)</span></p>
   <p class="next"><b>Check next:</b> MTU along the path between 10.1.1.5 and 10.9.9.4, particularly any tunnel or VPN segment. This pattern often presents as &#34;the connection works but transfers hang&#34;.</p>
+</article>
+
+<article class="finding top sev-significant">
+  <div class="finding-head">
+    <span class="rank">#2</span>
+    <h3>Timeout-driven retransmissions — 10.1.1.5 → 10.9.9.4</h3>
+    <span class="tag tag-rule">R05</span>
+    <span class="tag tag-sev tag-sev-significant">Significant</span>
+    <span class="tag tag-confirmed">confirmed</span>
+  </div>
+  
+  <p class="observation">4 segments retransmitted after timeout, costing 6.0s of transfer time. Retry intervals doubled each attempt, indicating the sender received no acknowledgement at all rather than recovering quickly. Retransmission rate on this path is 36.4% against a capture-wide median of 0%.</p>
+  <p class="frames">Frames 85, 105, 107, 108</p>
+  <p class="next"><b>Check next:</b> sustained loss on the path between these hosts. This is more disruptive than the fast-retransmit pattern in R06 — the sender stalled waiting for a timer rather than recovering from duplicate ACKs.</p>
 </article>
 
   
@@ -711,17 +711,17 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
     
 
     
-<article class="finding sev-worth-noting">
+<article class="finding sev-significant">
   <div class="finding-head">
-    <span class="rank">#1</span>
+    <span class="rank">#2</span>
     <h3>Timeout-driven retransmissions — 10.1.1.5 → 10.9.9.4</h3>
     <span class="tag tag-rule">R05</span>
-    <span class="tag tag-sev tag-sev-worth-noting">Worth noting</span>
+    <span class="tag tag-sev tag-sev-significant">Significant</span>
     <span class="tag tag-confirmed">confirmed</span>
   </div>
   
-  <p class="observation">4 segments retransmitted after timeout, costing 1.8s of transfer time. Retry intervals doubled each attempt, indicating the sender received no acknowledgement at all rather than recovering quickly. Retransmission rate on this path is 36.4% against a capture-wide median of 0%.</p>
-  <p class="frames">Frames 20, 21, 23, 24</p>
+  <p class="observation">4 segments retransmitted after timeout, costing 6.0s of transfer time. Retry intervals doubled each attempt, indicating the sender received no acknowledgement at all rather than recovering quickly. Retransmission rate on this path is 36.4% against a capture-wide median of 0%.</p>
+  <p class="frames">Frames 85, 105, 107, 108</p>
   <p class="next"><b>Check next:</b> sustained loss on the path between these hosts. This is more disruptive than the fast-retransmit pattern in R06 — the sender stalled waiting for a timer rather than recovering from duplicate ACKs.</p>
 </article>
 
@@ -732,17 +732,17 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
     
 
     
-<article class="finding sev-informational">
+<article class="finding sev-significant">
   <div class="finding-head">
-    <span class="rank">#2</span>
+    <span class="rank">#1</span>
     <h3>Large packets failing while small packets succeed — 10.1.1.5 ↔ 10.9.9.4</h3>
     <span class="tag tag-rule">R13</span>
-    <span class="tag tag-sev tag-sev-informational">Informational</span>
+    <span class="tag tag-sev tag-sev-significant">Significant</span>
     <span class="tag tag-confirmed">confirmed</span>
   </div>
   
-  <p class="observation">Segments of 1400 bytes were retransmitted repeatedly and never acknowledged, while segments up to 300 bytes were delivered normally on the same connection. 2 segments failed this way across 6 transmissions. This build does not examine ICMP, so whether the network reported the size limit back to the sender is unknown.</p>
-  <p class="frames">Frames 19, 22 <span class="of">(2 shown of 6 occurrences)</span></p>
+  <p class="observation">Segments of 1400 bytes were retransmitted repeatedly and never acknowledged, while segments up to 300 bytes were delivered normally on the same connection. 2 segments failed this way across 6 transmissions. Other connections in this capture that delivered data carried segments of 1400 bytes, so the limit appears to be on this path rather than on the sender. This build does not examine ICMP, so whether the network reported the size limit back to the sender is unknown.</p>
+  <p class="frames">Frames 39, 106 <span class="of">(2 shown of 6 occurrences)</span></p>
   <p class="next"><b>Check next:</b> MTU along the path between 10.1.1.5 and 10.9.9.4, particularly any tunnel or VPN segment. This pattern often presents as &#34;the connection works but transfers hang&#34;.</p>
 </article>
 
@@ -769,7 +769,7 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
           <td>flow</td>
           <td class="mono">R05, R13</td>
           <td class="num">10</td>
-          <td class="mono">19, 20, 21, 22, 23, 24</td>
+          <td class="mono">39, 85, 105, 106, 107, 108</td>
         </tr>
       
       </tbody>

@@ -9,6 +9,7 @@ import (
 	"github.com/Proxy-IT/pcaptriage/internal/findings"
 	"github.com/Proxy-IT/pcaptriage/internal/flow"
 	"github.com/Proxy-IT/pcaptriage/internal/scoring"
+	"github.com/Proxy-IT/pcaptriage/internal/stats"
 )
 
 // pmtuOutstanding bounds the unacknowledged segments tracked per direction.
@@ -37,6 +38,16 @@ const pmtuOutstanding = 32
 // looked for.
 type PMTUBlackhole struct {
 	flows []pmtuResult
+	// deliveredSizes is the largest payload each flow got acknowledged, for
+	// every flow that delivered anything at all.
+	//
+	// This is the population a failing flow is compared against, and the
+	// filter is deliberate: a flow that delivered nothing has not shown what
+	// the path can carry, and letting it contribute a zero would drag the
+	// median down and hide the very finding this rule exists to make. A
+	// capture full of broken connections must not be able to make a broken
+	// connection look ordinary.
+	deliveredSizes []float64
 }
 
 type pmtuSeg struct {
@@ -72,14 +83,13 @@ type pmtuResult struct {
 	failedSize int
 	// smallestFailed is the smallest payload that failed, which bounds where
 	// the path's real limit sits.
-	smallestFailed  int
-	deliveredSize   int
-	deliveredCount  int
-	retransmits     int
-	distinctStuck   int
-	stallSeconds    float64
-	evidence        findings.Evidence
-	offloadDegraded bool
+	smallestFailed int
+	deliveredSize  int
+	deliveredCount int
+	retransmits    int
+	distinctStuck  int
+	stallSeconds   float64
+	evidence       findings.Evidence
 }
 
 // NewPMTUBlackhole returns the R13 detector.
@@ -172,6 +182,15 @@ func (r *PMTUBlackhole) OnFlowEnd(fs any, fl *flow.State) {
 
 	for d := range s.dir {
 		dd := &s.dir[d]
+		// Every direction that delivered anything contributes to the
+		// population, including this flow's own. A flow that carries small
+		// segments and fails on large ones is evidence about what small
+		// segments cost, and excluding it would bias the comparison in the
+		// finding's favour.
+		if dd.maxDeliveredSize > 0 {
+			r.deliveredSizes = append(r.deliveredSizes, float64(dd.maxDeliveredSize))
+		}
+
 		// Anything still outstanding at the end was never acknowledged.
 		for _, seg := range dd.outstanding {
 			if seg.sends > 1 {
@@ -257,6 +276,14 @@ func (r *PMTUBlackhole) Emit(pop *Population, out *findings.Store) {
 		return r.flows[i].sender.String() < r.flows[j].sender.String()
 	})
 
+	// What the rest of the capture manages. Enough contributors are needed for
+	// this to be a population rather than an anecdote — below that the rule
+	// still reports the pattern, but without the comparison, because a flow
+	// that fails on size with nothing to be compared against has not been
+	// shown to be unusual.
+	populationSize := stats.Median(r.deliveredSizes)
+	peerGroup := len(r.deliveredSizes) >= Thresholds.R13MinPeerFlows && populationSize > 0
+
 	for _, f := range r.flows {
 		// Both observed sizes, never a boundary between them. The capture
 		// shows that 1400 failed and 300 succeeded; where the real limit sits
@@ -273,6 +300,21 @@ func (r *PMTUBlackhole) Emit(pop *Population, out *findings.Store) {
 			sizePhrase, f.deliveredSize,
 			f.distinctStuck, pluralInt(f.distinctStuck),
 			f.retransmits, pluralInt(f.retransmits))
+
+		// The comparison, and what it is against. Naming the filter matters:
+		// "other flows" would leave the reader to assume it meant every flow,
+		// when it means the ones that actually delivered something — the only
+		// ones that have demonstrated what a working path carries.
+		ratio := 1.0
+		if peerGroup && f.deliveredSize > 0 {
+			ratio = populationSize / float64(f.deliveredSize)
+			if ratio > 1.05 {
+				obs += fmt.Sprintf(
+					" Other connections in this capture that delivered data carried segments of "+
+						"%d bytes, so the limit appears to be on this path rather than on the sender.",
+					int(populationSize))
+			}
+		}
 
 		// This build does not decode ICMP, so it cannot say whether the
 		// network reported the size limit back to the sender. Saying "no such
@@ -303,6 +345,9 @@ func (r *PMTUBlackhole) Emit(pop *Population, out *findings.Store) {
 			"transmissions":           f.retransmits,
 			"delivered_segments":      f.deliveredCount,
 			"stall_seconds":           round3(f.stallSeconds),
+			"peer_delivered_bytes":    int(populationSize),
+			"peer_flows":              len(r.deliveredSizes),
+			"deficit_ratio":           round3(ratio),
 		}
 
 		fd := &findings.Finding{
@@ -325,11 +370,29 @@ func (r *PMTUBlackhole) Emit(pop *Population, out *findings.Store) {
 			Quality:      quality,
 			QualityBasis: basis,
 			Metrics:      metrics,
+			// Value carries a ratio and PopulationMedian is 1.0, which is a
+			// different use of these fields from R04's — worth stating rather
+			// than leaving to be rediscovered as an apparent bug.
+			//
+			// Deviation assumes higher is worse. R13's anomaly is a shortfall:
+			// this path carries *less* than its peers, so the raw metric moves
+			// the wrong way and comparing it directly would score a badly
+			// broken flow as unremarkable. The metric is therefore the ratio
+			// itself — how many times larger the size other flows deliver is
+			// than the size this one manages — against a median of 1.0, which
+			// is what a flow keeping up with its peers scores.
+			//
+			// With no peer group the ratio stays 1.0 and deviation is neutral,
+			// so the finding falls back to what it scored before any
+			// comparison existed. The comparison can only add signal where one
+			// genuinely exists; it can never manufacture one.
 			Significance: scoring.Significance(scoring.Inputs{
-				BaseWeight:    r.Meta().BaseWeight,
-				ImpactSeconds: f.stallSeconds,
-				Scope:         scoring.ScopeFlow,
-				PeerGroup:     false,
+				BaseWeight:       r.Meta().BaseWeight,
+				ImpactSeconds:    f.stallSeconds,
+				Scope:            scoring.ScopeFlow,
+				Value:            ratio,
+				PopulationMedian: 1.0,
+				PeerGroup:        peerGroup,
 			}),
 		}
 		out.Add(fd)

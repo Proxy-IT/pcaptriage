@@ -100,6 +100,14 @@ var Thresholds = struct {
 	// sender typically reaches before giving up on a segment.
 	R13MinLargeRetransmits int
 
+	// R13MinPeerFlows is how many flows must have delivered something before
+	// their sizes constitute a population to compare a failing flow against.
+	// [chosen] Mirrors R04MinPeerGroup and R10MinPeerHosts: two is the
+	// smallest number that permits a comparison at all, and the failing flow
+	// contributes its own delivered size, so this is genuinely "this one and
+	// at least one other".
+	R13MinPeerFlows int
+
 	// R13MinSmallDelivered is how many smaller segments must have been
 	// acknowledged on the same flow for the contrast to mean anything.
 	// [chosen] The signal is "large fails while small succeeds", so the small
@@ -262,6 +270,7 @@ var Thresholds = struct {
 
 	R13MinLargeRetransmits: 3,
 	R13MinSmallDelivered:   3,
+	R13MinPeerFlows:        2,
 
 	SeveritySignificantFloor: 40,
 	SeverityWorthNotingFloor: 15,

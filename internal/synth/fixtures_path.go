@@ -176,22 +176,52 @@ func buildR13Positive() *Builder {
 	}
 
 	// Now the client tries to send something large. Three attempts each, none
-	// acknowledged, spread over the retransmission backoff a real sender uses.
+	// acknowledged, spaced by the retransmission backoff a real sender uses:
+	// roughly a second, then doubling. That timing is the point rather than a
+	// detail — the cost of this condition is the time the transfer spends
+	// going nowhere, and a sender backing off is what makes a blackhole hang
+	// for tens of seconds rather than milliseconds.
 	largeSeq := c.ClientNextSeq()
 	for attempt := 0; attempt < 3; attempt++ {
 		c.ClientSegmentAt(t, largeSeq, 1400)
-		t += time.Duration(300*(1<<attempt)) * ms
+		t += time.Duration(1<<attempt) * s
 	}
 	// A second large segment behind it, equally stuck.
 	for attempt := 0; attempt < 3; attempt++ {
 		c.ClientSegmentAt(t, largeSeq+1400, 1400)
-		t += time.Duration(300*(1<<attempt)) * ms
+		t += time.Duration(1<<attempt) * s
 	}
 
 	// The server keeps acknowledging only what it received, which is
 	// everything up to the first large segment — the stalled-transfer shape.
 	c.ServerAck(t+50*ms, 65535)
 	c.FinClose(t+400*ms, 8*ms)
+
+	// Connections to other hosts that carry large segments perfectly well.
+	//
+	// These are the population the failing flow is measured against, and they
+	// are what make the finding say something: one connection failing on size
+	// is ambiguous, while one failing where six others on different paths
+	// succeed at 1400 bytes points at that path. A real capture of this
+	// problem arrives with working connections beside it — a file containing
+	// only the broken one is not the shape the condition occurs in.
+	for i := 0; i < 6; i++ {
+		p := b.NewConn(ConnOpts{
+			Client:    fmt.Sprintf("10.1.1.5:%d", 53000+i),
+			Server:    fmt.Sprintf("10.8.8.%d:443", 10+i),
+			ClientISN: uint32(400000 + i*1000),
+			ServerISN: uint32(900000 + i*1000),
+		})
+		start := 200*ms + time.Duration(i)*300*ms
+		p.HandshakeWithOptions(start, 10*ms, 1460, true)
+		pt := start + 30*ms
+		for n := 0; n < 4; n++ {
+			p.ClientData(pt, 1400)
+			p.ServerAck(pt+12*ms, 65535)
+			pt += 90 * ms
+		}
+		p.FinClose(pt+40*ms, 5*ms)
+	}
 
 	return b
 }

@@ -791,3 +791,57 @@ that size were delivered normally", which names one boundary. The build names
 both observed sizes instead — the size that failed and the size that
 succeeded — because where the real limit sits between them is precisely what
 the capture cannot say.
+
+### Batch 3 — R13's peer comparison, and a second use of the deviation field
+
+**Added 2026-08-20, after the Part 1b review.**
+
+R13 as first built could not reach `significant` at any stall duration. With
+`ScopeFlow` (0.8) and no peer group (deviation 1.0), `7 × Impact × 0.8 × 1.0`
+tops out at **28.0** against a floor of 40 — so a ten-minute hang and a
+two-minute one scored alike, and neither could reach the band the condition
+deserves. The impact denominator was present and correct; the other two
+factors pinned the ceiling below the floor. See the BACKLOG entry on
+invariant significance, where this is the third occurrence and the one that
+corrected the checklist.
+
+**The comparison added:** how many times larger the segment size other flows
+deliver is than the size this flow manages.
+
+    ratio = median(largest delivered size, across flows that delivered anything)
+            ÷ largest delivered size on this flow
+
+| stall | before | after (peers 1400 vs flow 300) |
+|---|---|---|
+| 3s | 12.3 informational | 37.0 worth noting |
+| 10s | 17.3 worth noting | **51.8 significant** |
+| 30s | 22.3 worth noting | **66.9 significant** |
+| ceiling | **28.0** | **84.0** |
+
+It stays proportionate rather than simply moving everything up. A milder
+deficit — peers at 1400, this flow managing 900 — needs 120s to reach
+significant. Several flows to the same host raise the scope band and reach it
+from 3s. **With no peer group the ratio stays 1.0 and the finding scores
+exactly what it did before any comparison existed**, which is the property
+that makes the change safe: it can add signal where a comparison exists and
+can never manufacture one where it does not.
+
+**The population is filtered to flows that delivered something.** A flow that
+delivered nothing has not demonstrated what the path carries, and letting it
+contribute would drag the median down — a capture full of broken connections
+could otherwise make a broken connection look ordinary. The finding states the
+filter in its own wording ("Other connections in this capture that delivered
+data carried segments of N bytes") rather than saying "other flows" and
+leaving the reader to assume it meant all of them.
+
+**A departure worth naming: R13 uses `Value` and `PopulationMedian`
+differently from R04.** `Deviation` assumes higher is worse. R13's anomaly is
+a *shortfall* — this path carries less than its peers — so the raw metric
+moves the wrong way, and comparing it directly would score a badly broken flow
+as unremarkable. R13 therefore passes the ratio itself as `Value` against a
+`PopulationMedian` of 1.0, which is what a flow keeping up with its peers
+scores.
+
+If a third rule ever needs this shape, that is the signal to give the scoring
+model an explicit direction rather than encoding the inversion per rule. Two
+is not yet that signal.
