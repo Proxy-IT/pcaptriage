@@ -499,6 +499,62 @@ func TestEveryBadgeLinkActuallyNavigates(t *testing.T) {
 	}
 }
 
+// TestGuideIndexLeadsWithConcepts pins the order of the index's two sections.
+//
+// Concepts come first because they are what a reader needs in order to read a
+// check's entry at all: someone meeting "inferred" for the first time halfway
+// down the checks list has already scrolled past the page that explains it.
+// That is the same answer-first reasoning the guide pages themselves follow,
+// applied one level up.
+//
+// Pinned rather than left to whichever order the markup happens to be in.
+// The order is a decision now, and a decision that nothing enforces is one
+// the next edit reverses without noticing — the sections are two independent
+// blocks of markup, so swapping them back is a clean, reviewable-looking diff
+// that no other test would object to.
+func TestGuideIndexLeadsWithConcepts(t *testing.T) {
+	html := readFrontend(t, "index.html")
+
+	view := regexp.MustCompile(`(?s)<main id="view-guide-index".*?</main>`).FindString(html)
+	if view == "" {
+		t.Fatal("the guide index view is not in index.html")
+	}
+
+	concepts := strings.Index(view, `id="guide-concepts-list"`)
+	checks := strings.Index(view, `id="guide-index-list"`)
+	if concepts < 0 {
+		t.Fatal("the guide index has no concepts list")
+	}
+	if checks < 0 {
+		t.Fatal("the guide index has no checks list")
+	}
+	if concepts > checks {
+		t.Error("the checks list comes before the concepts list; concepts explain the vocabulary " +
+			"every check entry uses, so a reader who meets \"inferred\" for the first time in the " +
+			"checks list has already scrolled past the page that defines it")
+	}
+
+	// Each section names itself. The checks list used to be the page's first
+	// and only section and so needed no heading of its own; second, without
+	// one, the Concepts heading would read as covering everything below it.
+	for _, head := range []string{"Concepts", "Checks"} {
+		if !regexp.MustCompile(`<h3 class="index-section-head">` + head + `</h3>`).MatchString(view) {
+			t.Errorf("the guide index has no %q section heading; with two sections on the page, "+
+				"an unlabelled one reads as belonging to the labelled one above it", head)
+		}
+	}
+	// And the headings must run in the same order as the lists they head, or
+	// the labels are attached to the wrong content.
+	hConcepts := strings.Index(view, `<h3 class="index-section-head">Concepts</h3>`)
+	hChecks := strings.Index(view, `<h3 class="index-section-head">Checks</h3>`)
+	if hConcepts > hChecks {
+		t.Error("the section headings are in the opposite order to their lists")
+	}
+	if hConcepts > concepts || hChecks > checks {
+		t.Error("a section heading falls after the list it labels")
+	}
+}
+
 // TestBadgeLinksStayBadges is the styling half of Part 2, and it exists
 // because making the badges buttons broke the red badge's own box on the
 // first attempt.

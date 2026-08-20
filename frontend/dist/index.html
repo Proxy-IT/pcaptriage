@@ -180,19 +180,29 @@
     <header class="results-head">
       <div>
         <h2>What this tool checks</h2>
-        <p class="results-file">One entry per check. Each links to a fuller explanation.</p>
       </div>
     </header>
 
-    <ul id="guide-index-list" class="index-list"></ul>
-    <p id="guide-index-planned" class="caveat"></p>
+    <!-- Concepts first, and checks second, for the reason the guide pages
+         themselves lead with their summary: these two ideas are what a reader
+         needs in order to read a check's entry at all. A reader who meets
+         "inferred" for the first time halfway down the checks list has already
+         passed the page that explains it.
 
-    <!-- A peer section, not a special case folded into the list above: these
-         two pages have no rule ID and are not part of what "11 of 15 built"
-         counts. See internal/guide.Concept. -->
+         Still a peer section, not a special case folded into the checks list:
+         these two pages have no rule ID and are not part of what "11 of 15
+         built" counts. See internal/guide.Concept. -->
     <h3 class="index-section-head">Concepts</h3>
     <p class="results-file">Two ideas every finding uses, explained once rather than repeated on every check.</p>
     <ul id="guide-concepts-list" class="index-list"></ul>
+
+    <!-- The checks list carries its own heading now that it is no longer the
+         page's first and only section — without one, the Concepts heading
+         above would read as covering everything below it. -->
+    <h3 class="index-section-head">Checks</h3>
+    <p class="results-file">One entry per check. Each links to a fuller explanation.</p>
+    <ul id="guide-index-list" class="index-list"></ul>
+    <p id="guide-index-planned" class="caveat"></p>
   </div>
 </main>
 
