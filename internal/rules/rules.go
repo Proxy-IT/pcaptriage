@@ -198,6 +198,8 @@ func Default() []Detector {
 		NewConnectionChurn(),
 		NewRTTOutlier(),
 		NewPMTUBlackhole(),
+		NewDNSFailure(),
+		NewTLSHandshakeFailure(),
 	}
 }
 
@@ -235,6 +237,22 @@ func BuildDisclosure() string {
 	names := make([]string, 0, len(metas))
 	for _, m := range metas {
 		names = append(names, m.ID+" "+m.Name)
+	}
+	if len(metas) >= TotalV1Rules {
+		// The rule set is complete. This sentence has to carry the same
+		// caution the partial one did without the crutch of an obvious gap to
+		// point at: "all fifteen built" is a fact about the tool, and a reader
+		// who takes it as a fact about their capture has been misled by it.
+		//
+		// So it states what the fifteen are and then says plainly that a
+		// condition outside them is a condition nobody looked for. A complete
+		// rule set is not complete coverage, and this is the only place the
+		// report can say so.
+		return fmt.Sprintf(
+			"Complete v1 rule set: all %d rules are implemented (%s). These fifteen conditions are "+
+				"what this tool looks for; anything outside them was not examined, so a quiet result "+
+				"means these checks found nothing rather than that the capture is healthy.",
+			TotalV1Rules, strings.Join(names, ", "))
 	}
 	return fmt.Sprintf(
 		"Partial build: %d of the %d v1 rules are implemented (%s). Every other condition in the v1 rule set was not looked for at all.",

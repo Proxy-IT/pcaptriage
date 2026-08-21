@@ -1,0 +1,365 @@
+{
+  "schema_version": "4",
+  "schema_note": "This format is internal to pcaptriage and may change in any release. It is not a stability contract; do not build tooling that depends on its shape.",
+  "tool": {
+    "name": "pcaptriage",
+    "version": "test",
+    "ruleset_version": "1.0.0-partial",
+    "build": "Complete v1 rule set: all 15 rules are implemented (R01 zero-window-stall, R02 syn-unanswered, R03 syn-rejected, R04 server-response-outlier, R05 rto-retransmission, R06 fast-retransmission, R07 out-of-order-not-loss, R08 asymmetric-loss, R09 reset-mid-transfer, R10 rtt-outlier, R11 dns-failure, R12 tls-handshake-failure, R13 pmtu-blackhole, R14 connection-churn, R15 capture-quality). These fifteen conditions are what this tool looks for; anything outside them was not examined, so a quiet result means these checks found nothing rather than that the capture is healthy."
+  },
+  "invocation": {
+    "args": [
+      "testdata/fixtures/r12-tls-failing"
+    ],
+    "input": "testdata/fixtures/r12-tls-failing",
+    "max_flows": 0
+  },
+  "capture": {
+    "path": "testdata/fixtures/r12-tls-failing",
+    "format": "normalised",
+    "link_type": "Ethernet",
+    "snaplen": 262144,
+    "packets_read": 470,
+    "packets_tcp": 470,
+    "packets_non_tcp": 0,
+    "packets_undecoded": 0,
+    "first_packet_time": "2024-03-14T09:00:00.1Z",
+    "last_packet_time": "2024-03-14T09:01:05.91Z",
+    "duration_seconds": 65.81,
+    "timezone": "UTC",
+    "tcp_flows": 49,
+    "tcp_hosts": 11,
+    "flows_complete": 49,
+    "flows_partial": 0,
+    "flows_midstream": 0,
+    "flows_one_way": 0,
+    "flow_cap": 16384,
+    "flows_evicted": 0,
+    "peak_live_flows": 49
+  },
+  "coverage": {
+    "clean": false,
+    "statement": "No significant problems found in what was checked",
+    "qualifier": "That is not the same as the capture being problem-free. 15 of 15 planned checks are built, and what they do not cover has not been examined. What each check looked at, and what could not be assessed on this capture, is below.",
+    "not_checked": [
+      {
+        "rule_id": "R15",
+        "text": "Not assessed: whether the capture host dropped packets before writing them. The classic pcap format has no field to record it, so this file cannot say either way. Packets dropped by the capturing machine look the same as packets lost on the network. If that distinction matters here, re-capturing in pcapng format would record the count."
+      }
+    ],
+    "unbuilt_checks": 0,
+    "coverage_strong": false,
+    "coverage_weak_reason": "some checks could not run on this capture",
+    "minor_observations": 0
+  },
+  "checks": [
+    {
+      "id": "R01",
+      "name": "zero-window-stall",
+      "base_weight": 9,
+      "status": "ran",
+      "summary": "A receiver advertised a zero window having previously advertised non-zero, blocking the sender until a window update arrived."
+    },
+    {
+      "id": "R02",
+      "name": "syn-unanswered",
+      "base_weight": 9,
+      "status": "ran",
+      "summary": "A connection attempt received no answer at all — no acceptance and no refusal — despite the client retrying."
+    },
+    {
+      "id": "R03",
+      "name": "syn-rejected",
+      "base_weight": 4,
+      "status": "ran",
+      "summary": "A connection attempt was answered with a refusal rather than an acceptance — the host is reachable, and nothing is listening on that port."
+    },
+    {
+      "id": "R04",
+      "name": "server-response-outlier",
+      "base_weight": 8,
+      "status": "ran",
+      "summary": "A server:port took materially longer to begin responding than its peers in the same capture, with network round-trip time subtracted."
+    },
+    {
+      "id": "R05",
+      "name": "rto-retransmission",
+      "base_weight": 7,
+      "status": "ran",
+      "summary": "Segments were retransmitted after a timer-shaped quiet gap with no duplicate ACKs asking for them — the sender stalled waiting for a timeout."
+    },
+    {
+      "id": "R06",
+      "name": "fast-retransmission",
+      "base_weight": 4,
+      "status": "ran",
+      "summary": "Segments were retransmitted after three or more duplicate ACKs — packet loss the connection recovered from quickly."
+    },
+    {
+      "id": "R07",
+      "name": "out-of-order-not-loss",
+      "base_weight": 5,
+      "status": "ran",
+      "summary": "Segments arrived out of sequence within milliseconds and in original transmission order by IP ID — reordering on the path, not packet loss."
+    },
+    {
+      "id": "R08",
+      "name": "asymmetric-loss",
+      "base_weight": 8,
+      "status": "ran",
+      "summary": "Retransmission rate on one flow was at least five times higher in one direction than the other, with at least 20 retransmissions — loss is not symmetric."
+    },
+    {
+      "id": "R09",
+      "name": "reset-mid-transfer",
+      "base_weight": 7,
+      "status": "ran",
+      "summary": "A connection was terminated by reset while data was still moving, rather than closed cleanly once both sides were done."
+    },
+    {
+      "id": "R10",
+      "name": "rtt-outlier",
+      "base_weight": 6,
+      "status": "ran",
+      "summary": "Round trips to one host took far longer than to every other host in the same capture, which usually reflects distance or a congested link rather than anything wrong with the host."
+    },
+    {
+      "id": "R11",
+      "name": "dns-failure",
+      "base_weight": 8,
+      "status": "ran",
+      "summary": "Name lookups went unanswered, came back as errors, or took a long time. A lookup happens before the connection it enables, so a slow one delays everything behind it and is often mistaken for application slowness."
+    },
+    {
+      "id": "R12",
+      "name": "tls-handshake-failure",
+      "base_weight": 6,
+      "status": "ran",
+      "summary": "Encrypted connections failed to negotiate, took an unusually long time to set up, or presented a certificate close to expiry. A negotiation happens before any application data moves, so a failure here is not the application's fault."
+    },
+    {
+      "id": "R13",
+      "name": "pmtu-blackhole",
+      "base_weight": 7,
+      "status": "ran",
+      "summary": "Large segments were retransmitted repeatedly and never acknowledged while smaller ones on the same connection were delivered, which is the signature of a size limit on the path that nothing is reporting back to the sender."
+    },
+    {
+      "id": "R14",
+      "name": "connection-churn",
+      "base_weight": 5,
+      "status": "ran",
+      "summary": "The same client opened and closed many short-lived connections to one server:port instead of reusing them, paying the handshake cost each time."
+    },
+    {
+      "id": "R15",
+      "name": "capture-quality",
+      "base_weight": 0,
+      "status": "ran",
+      "summary": "Reports what the capture itself may limit: flows already open when the capture began, connections seen in one direction only, and packets the capture host dropped before writing them."
+    }
+  ],
+  "findings": [
+    {
+      "rank": 1,
+      "rule_id": "R12",
+      "rule": "tls-handshake-failure",
+      "subject": "10.2.2.7:443",
+      "scope_kind": "endpoint",
+      "subject_label": "10.2.2.7:443",
+      "title": "TLS handshakes failing — 10.2.2.7:443",
+      "observation": "23 handshakes terminated by fatal alert (handshake_failure) before completion and 6 took longer than 1.0s to negotiate. Successful handshakes to this server took 1.4s at the median against a capture median of 90ms. The presented certificate expires 4 days after the capture ended.",
+      "check_next": "certificate validity and cipher suite compatibility between these clients and the server. A certificate expiry is worth resolving regardless of whether it caused these particular failures.",
+      "frames": [
+        7,
+        15,
+        188,
+        199,
+        210,
+        221,
+        232,
+        243
+      ],
+      "first_frame": 7,
+      "worst_frame": 188,
+      "total_count": 29,
+      "quality": "confirmed",
+      "severity": "significant",
+      "severity_label": "Significant",
+      "metrics": {
+        "certificates_inspected": 29,
+        "certificates_not_visible": 0,
+        "clients_affected": 6,
+        "failed": 23,
+        "failure_rate": 0.793,
+        "handshakes": 29,
+        "slow": 6,
+        "wasted_work_s": 34.6
+      }
+    },
+    {
+      "rank": 2,
+      "rule_id": "R04",
+      "rule": "server-response-outlier",
+      "subject": "10.2.2.7:443",
+      "scope_kind": "endpoint",
+      "subject_label": "10.2.2.7:443",
+      "title": "One server much slower to respond than its peers — 10.2.2.7:443",
+      "observation": "Responded in 840ms at p95 (max 840ms) while the other 4 servers in this capture are under 20ms at p95. Measured from last request byte to first response byte, with network round-trip time subtracted — so this is time spent on the server, not on the network.",
+      "check_next": "application or backend dependency latency on 10.2.2.7. The network path to this host looks comparable to its peers.",
+      "frames": [
+        5,
+        189,
+        192,
+        200,
+        211,
+        222,
+        233,
+        244
+      ],
+      "first_frame": 5,
+      "worst_frame": 189,
+      "total_count": 35,
+      "quality": "confirmed",
+      "severity": "worth-noting",
+      "severity_label": "Worth noting",
+      "metrics": {
+        "assessed_servers": 5,
+        "contributing_flows": 29,
+        "exchanges": 35,
+        "max_ms": 840,
+        "network_rtt_ms": 20,
+        "outlier_servers": 1,
+        "p50_ms": 10,
+        "p95_ms": 840,
+        "p95_ratio_to_population_median": 56,
+        "peer_group": true,
+        "peer_max_p95_ms": 15,
+        "peer_servers": 4,
+        "percentiles_decimated": false,
+        "population_median_p50_ms": 15,
+        "population_median_p95_ms": 15,
+        "population_median_rtt_ms": 20
+      }
+    },
+    {
+      "rank": 3,
+      "rule_id": "R12",
+      "rule": "tls-handshake-failure",
+      "subject": "10.2.2.20:443",
+      "scope_kind": "endpoint",
+      "subject_label": "10.2.2.20:443",
+      "title": "TLS handshakes failing — 10.2.2.20:443",
+      "observation": "Successful handshakes to this server took 90ms at the median against a capture median of 90ms. The presented certificate expires 4 days after the capture ended.",
+      "check_next": "certificate validity and cipher suite compatibility between these clients and the server. A certificate expiry is worth resolving regardless of whether it caused these particular failures.",
+      "frames": [],
+      "first_frame": 0,
+      "worst_frame": 0,
+      "total_count": 0,
+      "quality": "confirmed",
+      "severity": "informational",
+      "severity_label": "Informational",
+      "metrics": {
+        "certificates_inspected": 5,
+        "certificates_not_visible": 0,
+        "clients_affected": 0,
+        "failed": 0,
+        "failure_rate": 0,
+        "handshakes": 5,
+        "slow": 0,
+        "wasted_work_s": 0
+      }
+    },
+    {
+      "rank": 4,
+      "rule_id": "R12",
+      "rule": "tls-handshake-failure",
+      "subject": "10.2.2.21:443",
+      "scope_kind": "endpoint",
+      "subject_label": "10.2.2.21:443",
+      "title": "TLS handshakes failing — 10.2.2.21:443",
+      "observation": "Successful handshakes to this server took 90ms at the median against a capture median of 90ms. The presented certificate expires 4 days after the capture ended.",
+      "check_next": "certificate validity and cipher suite compatibility between these clients and the server. A certificate expiry is worth resolving regardless of whether it caused these particular failures.",
+      "frames": [],
+      "first_frame": 0,
+      "worst_frame": 0,
+      "total_count": 0,
+      "quality": "confirmed",
+      "severity": "informational",
+      "severity_label": "Informational",
+      "metrics": {
+        "certificates_inspected": 5,
+        "certificates_not_visible": 0,
+        "clients_affected": 0,
+        "failed": 0,
+        "failure_rate": 0,
+        "handshakes": 5,
+        "slow": 0,
+        "wasted_work_s": 0
+      }
+    },
+    {
+      "rank": 5,
+      "rule_id": "R12",
+      "rule": "tls-handshake-failure",
+      "subject": "10.2.2.22:443",
+      "scope_kind": "endpoint",
+      "subject_label": "10.2.2.22:443",
+      "title": "TLS handshakes failing — 10.2.2.22:443",
+      "observation": "Successful handshakes to this server took 90ms at the median against a capture median of 90ms. The presented certificate expires 4 days after the capture ended.",
+      "check_next": "certificate validity and cipher suite compatibility between these clients and the server. A certificate expiry is worth resolving regardless of whether it caused these particular failures.",
+      "frames": [],
+      "first_frame": 0,
+      "worst_frame": 0,
+      "total_count": 0,
+      "quality": "confirmed",
+      "severity": "informational",
+      "severity_label": "Informational",
+      "metrics": {
+        "certificates_inspected": 5,
+        "certificates_not_visible": 0,
+        "clients_affected": 0,
+        "failed": 0,
+        "failure_rate": 0,
+        "handshakes": 5,
+        "slow": 0,
+        "wasted_work_s": 0
+      }
+    },
+    {
+      "rank": 6,
+      "rule_id": "R12",
+      "rule": "tls-handshake-failure",
+      "subject": "10.2.2.23:443",
+      "scope_kind": "endpoint",
+      "subject_label": "10.2.2.23:443",
+      "title": "TLS handshakes failing — 10.2.2.23:443",
+      "observation": "Successful handshakes to this server took 90ms at the median against a capture median of 90ms. The presented certificate expires 4 days after the capture ended.",
+      "check_next": "certificate validity and cipher suite compatibility between these clients and the server. A certificate expiry is worth resolving regardless of whether it caused these particular failures.",
+      "frames": [],
+      "first_frame": 0,
+      "worst_frame": 0,
+      "total_count": 0,
+      "quality": "confirmed",
+      "severity": "informational",
+      "severity_label": "Informational",
+      "metrics": {
+        "certificates_inspected": 5,
+        "certificates_not_visible": 0,
+        "clients_affected": 0,
+        "failed": 0,
+        "failure_rate": 0,
+        "handshakes": 5,
+        "slow": 0,
+        "wasted_work_s": 0
+      }
+    }
+  ],
+  "notes": [
+    {
+      "kind": "unavailable",
+      "rule_id": "R15",
+      "text": "Not assessed: whether the capture host dropped packets before writing them. The classic pcap format has no field to record it, so this file cannot say either way. Packets dropped by the capturing machine look the same as packets lost on the network. If that distinction matters here, re-capturing in pcapng format would record the count."
+    }
+  ]
+}

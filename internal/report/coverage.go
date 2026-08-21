@@ -122,6 +122,20 @@ func buildCoverage(res *analysis.Result) Coverage {
 	c.CoverageStrong = strength.Strong
 	c.CoverageWeakReason = strength.Reason
 
+	// A third condition, and it only became reachable when the rule set was
+	// completed. Until then UnbuiltChecks was always non-zero, so green was
+	// unreachable by construction and nothing else needed to gate it.
+	//
+	// With all fifteen rules built, a capture containing nothing for them to
+	// examine now satisfies both existing conditions — no gaps, no unbuilt
+	// checks — and would be presented as strongly covered. It is the opposite:
+	// the checks did not find nothing, they had nothing to look at. The
+	// wording already says so, and colour must not contradict the words.
+	if c.Clean && res.Capture.TCPFlows == 0 && res.Capture.DNSMessages == 0 {
+		c.CoverageStrong = false
+		c.CoverageWeakReason = "the capture contained no conversations for the checks to examine"
+	}
+
 	c.Statement, c.Qualifier = cleanWording(res)
 	return c
 }
@@ -135,11 +149,25 @@ func buildCoverage(res *analysis.Result) Coverage {
 // would be the tool taking credit for work it never did.
 func cleanWording(res *analysis.Result) (statement, qualifier string) {
 	if res.Capture.TCPFlows == 0 {
-		return "No TCP traffic to examine",
+		// A capture with no TCP is not automatically a capture with nothing in
+		// it. That was true while every rule read TCP; R11 reads DNS over UDP,
+		// so a file of name lookups now has something the tool genuinely
+		// examined and must not be told otherwise.
+		if res.Capture.DNSMessages > 0 {
+			return "No problems found in what was checked",
+				fmt.Sprintf(
+					"This capture holds %s packets and no TCP conversations, so only the name-lookup "+
+						"checks had anything to read — %s DNS message%s. Everything else this build looks "+
+						"for needs TCP and had nothing to examine here.",
+					formatCount(res.Capture.PacketsRead),
+					formatCount(res.Capture.DNSMessages), plural(int(res.Capture.DNSMessages)))
+		}
+		return "No traffic this build examines",
 			fmt.Sprintf(
-				"This capture holds %s packets, but none of them form a TCP conversation. "+
-					"Every check in this build looks at TCP, so none of them had anything to examine — "+
-					"this is not a result about the traffic, it is the absence of anything to assess.",
+				"This capture holds %s packets, but none of them form a TCP conversation and none are "+
+					"name lookups. Every check in this build reads one or the other, so none of them had "+
+					"anything to examine — this is not a result about the traffic, it is the absence of "+
+					"anything to assess.",
 				formatCount(res.Capture.PacketsRead))
 	}
 

@@ -47,6 +47,36 @@ func Fixtures() []Fixture {
 			Build:   buildR04Positive,
 		},
 		{
+			Name:    "r11-dns-failing",
+			Purpose: "R11 positive: one resolver leaving 18 queries unanswered and returning 6 SERVFAIL, against a second resolver in the same capture answering everything in 8ms.",
+			Build:   buildR11Positive,
+		},
+		{
+			Name:    "r11-dns-healthy",
+			Purpose: "R11 negative: two resolvers, every lookup answered correctly in 40ms - unremarkable rather than fast, which is what an absolute threshold would misread.",
+			Build:   buildR11Negative,
+		},
+		{
+			Name:    "r11-dns-encrypted",
+			Purpose: "R11 unavailable: DNS over TLS on port 853 alongside cleartext lookups, so the rule must say what it could not read rather than reporting the encrypted resolver as clean.",
+			Build:   buildR11Encrypted,
+		},
+		{
+			Name:    "r12-tls-failing",
+			Purpose: "R12 positive: 23 handshakes to one server ending in a fatal alert and 6 completing at 1.4s, against four servers negotiating in 90ms, with a certificate 4 days from expiry.",
+			Build:   buildR12Positive,
+		},
+		{
+			Name:    "r12-tls-healthy",
+			Purpose: "R12 negative: three servers, every negotiation completing promptly with a certificate valid well beyond the capture.",
+			Build:   buildR12Negative,
+		},
+		{
+			Name:    "r12-tls13-opaque",
+			Purpose: "R12 unavailable: TLS 1.3 negotiations that all succeed, where the certificate is encrypted and never visible - so an absence of certificate findings must not read as approval.",
+			Build:   buildR12Encrypted,
+		},
+		{
 			Name:    "r13-pmtu-blackhole",
 			Purpose: "R13 positive: 1400-byte segments retransmitted three times each and never acknowledged, while 300-byte segments on the same flow are delivered throughout.",
 			Build:   buildR13Positive,

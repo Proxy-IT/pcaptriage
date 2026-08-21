@@ -5,7 +5,7 @@
     "name": "pcaptriage",
     "version": "test",
     "ruleset_version": "1.0.0-partial",
-    "build": "Partial build: 13 of the 15 v1 rules are implemented (R01 zero-window-stall, R02 syn-unanswered, R03 syn-rejected, R04 server-response-outlier, R05 rto-retransmission, R06 fast-retransmission, R07 out-of-order-not-loss, R08 asymmetric-loss, R09 reset-mid-transfer, R10 rtt-outlier, R13 pmtu-blackhole, R14 connection-churn, R15 capture-quality). Every other condition in the v1 rule set was not looked for at all."
+    "build": "Complete v1 rule set: all 15 rules are implemented (R01 zero-window-stall, R02 syn-unanswered, R03 syn-rejected, R04 server-response-outlier, R05 rto-retransmission, R06 fast-retransmission, R07 out-of-order-not-loss, R08 asymmetric-loss, R09 reset-mid-transfer, R10 rtt-outlier, R11 dns-failure, R12 tls-handshake-failure, R13 pmtu-blackhole, R14 connection-churn, R15 capture-quality). These fifteen conditions are what this tool looks for; anything outside them was not examined, so a quiet result means these checks found nothing rather than that the capture is healthy."
   },
   "invocation": {
     "args": [
@@ -40,7 +40,7 @@
   "coverage": {
     "clean": false,
     "statement": "No significant problems found in what was checked",
-    "qualifier": "That is not the same as the capture being problem-free. 13 of 15 planned checks are built, and what they do not cover has not been examined. What each check looked at, and what could not be assessed on this capture, is below.",
+    "qualifier": "That is not the same as the capture being problem-free. 15 of 15 planned checks are built, and what they do not cover has not been examined. What each check looked at, and what could not be assessed on this capture, is below.",
     "not_checked": [
       {
         "rule_id": "R04",
@@ -67,7 +67,7 @@
         "text": "Not assessed: whether the capture host dropped packets before writing them. The classic pcap format has no field to record it, so this file cannot say either way. Packets dropped by the capturing machine look the same as packets lost on the network. If that distinction matters here, re-capturing in pcapng format would record the count."
       }
     ],
-    "unbuilt_checks": 2,
+    "unbuilt_checks": 0,
     "coverage_strong": false,
     "coverage_weak_reason": "some checks could not run on this capture",
     "minor_observations": 0
@@ -142,6 +142,20 @@
       "base_weight": 6,
       "status": "ran",
       "summary": "Round trips to one host took far longer than to every other host in the same capture, which usually reflects distance or a congested link rather than anything wrong with the host."
+    },
+    {
+      "id": "R11",
+      "name": "dns-failure",
+      "base_weight": 8,
+      "status": "ran",
+      "summary": "Name lookups went unanswered, came back as errors, or took a long time. A lookup happens before the connection it enables, so a slow one delays everything behind it and is often mistaken for application slowness."
+    },
+    {
+      "id": "R12",
+      "name": "tls-handshake-failure",
+      "base_weight": 6,
+      "status": "ran",
+      "summary": "Encrypted connections failed to negotiate, took an unusually long time to set up, or presented a certificate close to expiry. A negotiation happens before any application data moves, so a failure here is not the application's fault."
     },
     {
       "id": "R13",

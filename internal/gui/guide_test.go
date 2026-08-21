@@ -208,8 +208,28 @@ func TestGuideIndexIsRegistryDriven(t *testing.T) {
 	if want := rules.TotalV1Rules - len(metas); idx.PlannedCount != want {
 		t.Errorf("PlannedCount = %d, want %d (registry-derived)", idx.PlannedCount, want)
 	}
-	if idx.PlannedNote == "" {
-		t.Error("the index does not disclose the unbuilt checks, so a short entry list would read as the whole tool")
+	// The zero case, decided when the rule set completed: **no note at all.**
+	//
+	// The sentence existed to stop a short list reading as the whole tool.
+	// With every rule built the list *is* the whole tool, so the disclaimer
+	// has nothing left to disclaim — and "0 further checks are planned" would
+	// be a sentence whose only content is its own irrelevance.
+	//
+	// The caution that does still apply — that fifteen conditions are not
+	// everything that can go wrong on a network — did not disappear with it.
+	// It moved to where it belongs: BuildDisclosure says so on every report,
+	// in the same breath as naming the fifteen.
+	switch idx.PlannedCount {
+	case 0:
+		if idx.PlannedNote != "" {
+			t.Errorf("the rule set is complete but the index still carries a planned-checks note: %q",
+				idx.PlannedNote)
+		}
+	default:
+		if idx.PlannedNote == "" {
+			t.Error("the index does not disclose the unbuilt checks, so a short entry list would " +
+				"read as the whole tool")
+		}
 	}
 }
 

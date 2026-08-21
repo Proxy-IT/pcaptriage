@@ -1,0 +1,769 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>pcap triage — r12-tls-healthy</title>
+<style>/* Design tokens — the single source of the palette, type base and radii for
+   both rendering surfaces: the desktop app's stylesheet and the exported HTML
+   report's. A finding must look like itself whether it is read in the app or
+   in a report emailed to a vendor, and before this file existed that held only
+   by review.
+
+   This copy — internal/report/tokens.css — is canonical and is embedded into
+   every exported report ahead of the report styles. frontend/dist/tokens.css
+   is a byte-identical copy served to the webview, because Go's embed cannot
+   reach across package directories; a test compares the two byte for byte, so
+   editing one without the other fails the build rather than drifting silently.
+   Neither consumer stylesheet may declare a custom property of its own, and
+   neither may reference a token this file does not declare — both enforced by
+   TestTokensAreTheSingleSourceOfThePalette.
+
+   Every text-on-background pair below is measured against WCAG AA, in both
+   themes, by TestPaletteMeetsContrastThresholds, which reads these
+   declarations rather than a copy of them. A value edited here to look better
+   and left failing breaks the build.
+
+   ---- theming ---------------------------------------------------------------
+
+   Every name below is what a colour is *for*, not what hue it happens to be —
+   that is what lets a theme swap the value underneath without touching a
+   consumer sheet, and it is why there is no token simply named for cyan or
+   teal: a name like that has already assumed the background it sits on, and
+   would be wrong the moment that background changed.
+   TestTokensAreTheSingleSourceOfThePalette bans exactly that shape of name.
+
+   Tokens fall into two groups:
+
+   - Theme-invariant: the top bar (--bar-*, always ink — dark mode does not
+     make it darker, because it is already the one dark surface, on every
+     screen, unconditionally), the chart ramp (--step-*, light-only, see
+     below), type and radii. Declared once, under :root, and never redeclared.
+   - Themed: everything a light or dark surface actually needs to differ on —
+     the neutrals, the identity accent, and severity. Declared under :root for
+     light (the default), then redeclared twice for dark: once gated on the OS
+     preference, once on an explicit choice. TestDarkOverridesAgreeWithEachOther
+     keeps the two from drifting apart.
+
+   The two dark selectors:
+
+     @media (prefers-color-scheme: dark) {
+       :root:not([data-theme="light"]) { ... }
+     }
+     :root[data-theme="dark"] { ... }
+
+   map onto the three-value theme preference (light/dark/system) exactly:
+   system sets no data-theme attribute at all, so only the OS-driven media
+   query can apply; light sets data-theme="light", which the :not() excludes
+   from the media query, so the base :root values stand regardless of the OS;
+   dark sets data-theme="dark", which applies unconditionally. No JavaScript
+   is needed for the system case — the browser's own media query does it.
+
+   The exported report is the one consumer that must never go dark, on
+   principle (BRIEF §3/4: a document that gets printed and attached to a
+   ticket has no "dark mode" to speak of) as well as by construction (a report
+   opened in a dark-mode browser must not silently render differently from the
+   same report opened in a light one — that would make the artifact
+   non-reproducible). template.html stamps data-theme="light" on its root
+   element for exactly this reason: it excludes the report from the media
+   query the same way an explicit light choice would in the app, so the report
+   is light regardless of what theme produced it or what browser opens it. */
+
+:root {
+  /* ---- neutrals ----------------------------------------------------------
+     Cool rather than the warm off-whites this file started with. The identity
+     is a blue-green one and a warm page under it read as two unrelated
+     decisions sharing a screen.
+
+     --ink-primary and --ink-secondary replace what were --ink and --ink-2 — a
+     bare ordinal, not a role, failing the same naming discipline a hue name
+     would: it says nothing about what the second ink is *for* until you
+     already know the first one exists. --page, --surface,
+     --ink-muted, --rule, --border and --wash keep their names: each already
+     says its own role (page background, card background, dimmest text,
+     divider line, hairline overlay, tinted panel) without needing the file
+     that declares them to explain it. --outline replaces what was the
+     chart-axis token for the same reason: it names where that token was first
+     needed (a chart's axis line) rather than what it is now used for
+     throughout both sheets — a muted structural border wherever one is
+     needed, chart or not. */
+  --page:          #f4f7f9;
+  --surface:       #fbfcfd;
+  --ink-primary:   #15212e;
+  --ink-secondary: #414e5a;
+  --ink-muted:     #5f7183;
+  --rule:          #dce4e9;
+  --outline:       #b9c4cc;
+  --border:        rgba(21, 33, 46, 0.10);
+  --wash:          #f3f9fb;
+
+  /* ---- identity accent ---------------------------------------------------
+     What the reader sees in content: links, rule IDs, the drop zone, the
+     posture note's border. Deliberately a low-chroma teal (C*ab 26) rather
+     than the saturated blue it replaces (C*ab 56) — inside a findings view
+     the accent must not pull the eye before the significant badge does
+     (C*ab 71), and the honest way to guarantee that is to spend less colour
+     on it, not to argue about it. */
+  --accent:        #0e6d84;
+  --accent-strong: #0a5364;
+  --accent-wash:   #e4f1f5;
+  --accent-veil:   rgba(14, 109, 132, 0.10);
+  --focus:         #0a5364;
+  --focus-glow:    rgba(10, 83, 100, 0.26);
+  /* Text that sits on a filled accent, not on a page. */
+  --on-accent:     #ffffff;
+
+  /* ---- top bar -----------------------------------------------------------
+     The one dark surface in the interface, and the only place cyan appears:
+     it has no contrast to spend on a light background. Everything below the
+     bar stays quiet, because guide pages are long-form prose and findings
+     views are dense.
+
+     Theme-invariant (see the theming note above): the bar does not get darker
+     in dark mode because it is already the dark surface. It is declared once,
+     here, and never redeclared under either dark selector.
+
+     --bar-surface-raised carries the active state's pill. It is deliberately
+     a low-contrast lift (1.26:1) and is decorative — the active state is
+     carried by the cyan, the weight, and aria-current, so the pill is never
+     the only signal and does not owe 3:1. */
+  --bar-surface:        #15212e;
+  --bar-surface-raised: #24333f;
+  --bar-ink:            #c8d4df;
+  --bar-ink-strong:     #f2f6f9;
+  --bar-ink-muted:      #93a5b6;
+  --bar-accent:         #4fd1d9;
+  --bar-rule:           #2c3b4b;
+  --bar-focus:          #7be2e8;
+
+  /* One blue hue, stepped, for charts. Ordinal, not categorical: the steps
+     carry "more observed state" rather than identity. Charts never borrow
+     the severity scale below — a red bar would assert a verdict the figure
+     has no basis for. Kept blue and kept apart from --accent: a chart is
+     data, an accent is chrome, and a reader should not have to wonder
+     whether a teal bar means something.
+
+     Theme-invariant: charts render only in the exported report, which is
+     always light (see the theming note above), so there is no dark case for
+     this ramp to cover. */
+  --step-550:  #1c5cab;
+  --step-450:  #2a78d6;
+  --step-400:  #3987e5;
+  --step-250:  #86b6ef;
+
+  /* Severity accents. Reserved for severity and nothing else: they are a
+     status scale, never a palette to draw other things from. Unchanged by the
+     identity work — they are semantically committed, and the accent moved out
+     of their way rather than the other way round.
+
+     Contrast against --surface, measured: red 6.40:1, amber 5.28:1,
+     neutral 7.73:1 — all clear of 4.5:1 for text. Colour is never the only
+     carrier; the word rides beside it in every case. */
+  --sev-significant:        #b42318;
+  --sev-significant-wash:   #fdf3f2;
+  --sev-worth-noting:       #b54708;
+  --sev-worth-noting-wash:  #fdf6ee;
+  --sev-informational:      #52514e;
+  --sev-informational-wash: #f6f6f4;
+
+  /* Reserved for a clean result whose coverage is strong enough to justify
+     it. Currently unreachable — see the coverage-strength condition. */
+  --ok:      #146c43;
+  --ok-wash: #f0f8f3;
+
+  --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --mono: ui-monospace, SFMono-Regular, "Cascadia Mono", Menlo, Consolas, monospace;
+
+  /* Base type. Component sizes are stated locally — the two surfaces are a
+     document and an application and legitimately space themselves differently —
+     but the base they scale from is shared. Theme-invariant: text does not
+     need to get bigger or looser-leaded because the background got darker. */
+  --text-base: 15px;
+  --leading:   1.55;
+
+  /* Corner radii by visual family: cards, buttons and tables; notes and
+     banners; tags and code chips. Theme-invariant, for the same reason as
+     type: shape is not a colour decision. */
+  --radius-card: 6px;
+  --radius-note: 4px;
+  --radius-tag:  3px;
+}
+
+/* ---- dark theme ------------------------------------------------------------
+
+   Only the themed subset above is redeclared here — the neutrals, the
+   identity accent, and severity. Everything theme-invariant (the bar, the
+   chart ramp, type, radii) is untouched: it already applies, unchanged, from
+   :root.
+
+   Neutrals reuse the bar's own values rather than inventing a second dark
+   family: --page is --bar-surface, --surface is --bar-surface-raised,
+   --ink-primary is --bar-ink-strong, --ink-secondary is --bar-ink,
+   --ink-muted is --bar-ink-muted. In dark mode the whole app becomes the
+   bar's ink, which is why the bar stops reading as a separate dark strip
+   sitting on a light page and instead reads as continuous with it — the same
+   surface the rest of the screen is now made of.
+
+   The identity accent is deliberately not --bar-accent. Cyan is reserved for
+   "you are here, in the bar" (Part 1) — reusing it for links and rule IDs in
+   dark content would blur that signal into decoration. --accent keeps the
+   light accent's hue (H 230° vs cyan's 204°) and raises lightness and chroma
+   until it clears AA against the dark neutrals: a brighter, distinctly
+   less-cyan teal, so the bar's active state stays the one thing in the app
+   that colour means.
+
+   --accent-strong took a second pass. Built the same way as --accent — same
+   hue, lightness and chroma raised together until AA cleared — it measured
+   C*ab 27 at L* 67, and in a rendered findings view (measured in-browser: the
+   two uses that cover real body-text area, "Show the packets" and "What does
+   R04 mean?", repeated once per card) it out-pulled the significant badge
+   1.48x to 1 — an accent beating severity to the eye, which is the one
+   outcome Part 1 was built to prevent.
+   So it stayed a light-mode-style "strong" rather than a naive dark-mode-
+   style one: --accent-strong is already lower-chroma than --accent in light
+   (C*ab 21 vs 26 — "strong" there means darker, not more saturated), and the
+   dark value follows that same relationship instead of reading "strong" as
+   "brighter and more saturated," which is what produced the imbalance.
+   Re-measured after the drop, same fixture, same browser: the badge pulls
+   1.20x the accent's weight, not the other way round — worse than light's
+   near-parity 1.04x, but the badge, not the accent, is again what the eye
+   lands on first.
+
+   Severity is re-derived, not just lightened: each level keeps its light-
+   theme hue and is raised in lightness and chroma until it clears 4.5:1
+   against --surface, and the relative "heat" ordering the light theme has —
+   significant redder and more saturated than worth-noting, both far more
+   saturated than the near-neutral informational — holds in the new values.
+   TestSeverityOrderingReadsHotter checks the hue and chroma relationship
+   directly, in both themes, rather than trusting the values by eye.
+   TestSeverityIsPerceptuallyDistinctFromNeutral covers the other half of the
+   same rule: the green --ok stays far enough in chroma from the neutral
+   family that "no colour" (the default, gappy-coverage state) and "green"
+   (the opt-in, strong-coverage state) cannot be mistaken for each other —
+   the same guarantee TestCleanBannerIsNeutralWhenCoverageIsGappy and
+   TestExportGappyCleanExportRendersNeutral hold at the markup level, checked
+   here at the level the eye actually reads. */
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --page:          #15212e;
+    --surface:       #24333f;
+    --ink-primary:   #f2f6f9;
+    --ink-secondary: #c8d4df;
+    --ink-muted:     #93a5b6;
+    --rule:          #2c3b4b;
+    --outline:       #3d4f5f;
+    --border:        rgba(242, 246, 249, 0.12);
+    --wash:          #1c2a37;
+
+    --accent:        #57aec3;
+    --accent-strong: #84a8b5;
+    --accent-wash:   #22394a;
+    --accent-veil:   rgba(87, 174, 195, 0.10);
+    --focus:         #84a8b5;
+    --focus-glow:    rgba(132, 168, 181, 0.26);
+    --on-accent:     #15212e;
+
+    --sev-significant:        #ff7a6c;
+    --sev-significant-wash:   #3a241f;
+    --sev-worth-noting:       #ffab5c;
+    --sev-worth-noting-wash:  #3a2c1c;
+    --sev-informational:      #aab8c4;
+    --sev-informational-wash: #212e39;
+    --ok:      #5fd39a;
+    --ok-wash: #16302a;
+  }
+}
+
+:root[data-theme="dark"] {
+  --page:          #15212e;
+  --surface:       #24333f;
+  --ink-primary:   #f2f6f9;
+  --ink-secondary: #c8d4df;
+  --ink-muted:     #93a5b6;
+  --rule:          #2c3b4b;
+  --outline:       #3d4f5f;
+  --border:        rgba(242, 246, 249, 0.12);
+  --wash:          #1c2a37;
+
+  --accent:        #57aec3;
+  --accent-strong: #84a8b5;
+  --accent-wash:   #22394a;
+  --accent-veil:   rgba(87, 174, 195, 0.10);
+  --focus:         #84a8b5;
+  --focus-glow:    rgba(132, 168, 181, 0.26);
+  --on-accent:     #15212e;
+
+  --sev-significant:        #ff7a6c;
+  --sev-significant-wash:   #3a241f;
+  --sev-worth-noting:       #ffab5c;
+  --sev-worth-noting-wash:  #3a2c1c;
+  --sev-informational:      #aab8c4;
+  --sev-informational-wash: #212e39;
+  --ok:      #5fd39a;
+  --ok-wash: #16302a;
+}
+
+/* Inlined into every report, after tokens.css — every colour, font stack and
+   radius here comes from those tokens, declared nowhere else. Nothing here may
+   reference an external font, stylesheet, or image: the report has to open
+   with no network access.
+
+   Deliberately light-only. This is a document that gets printed and attached to
+   a ticket, and a dark variant is not something BRIEF.md section 3 or 4 asks
+   for — see template.html's data-theme="light", which is what makes that true
+   regardless of the reader's own theme, not just this sheet's own restraint.
+
+   The four non-chart accents (the posture note, the top-finding marker, an
+   unavailable note, the clean-result banner) use --accent, the same identity
+   teal the app uses for the same roles — not --step-450, the chart-only blue
+   ramp, which the export used to borrow for these before Part 1 gave the app
+   its own accent to reach for instead. --step-* stays exactly where it was
+   for actual chart fills (.fill-strong/-mid/-soft): a chart is data, an
+   accent is chrome, and the export should not have to guess which a reader
+   is looking at any more than the app does. */
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  padding: 2rem 1.5rem 4rem;
+  background: var(--page);
+  color: var(--ink-primary);
+  font-family: var(--font);
+  font-size: var(--text-base);
+  line-height: var(--leading);
+  -webkit-text-size-adjust: 100%;
+}
+
+.wrap { max-width: 68rem; margin: 0 auto; }
+
+/* ---------- masthead ---------- */
+
+.masthead { border-bottom: 1px solid var(--rule); padding-bottom: 1.25rem; margin-bottom: 1.5rem; }
+.masthead h1 { font-size: 1.5rem; margin: 0 0 .35rem; letter-spacing: -0.01em; }
+.masthead .file { font-family: var(--mono); font-size: .85rem; color: var(--ink-secondary); word-break: break-all; }
+.masthead .stamp { font-size: .8rem; color: var(--ink-muted); margin-top: .5rem; }
+
+.posture {
+  margin: 1rem 0 0;
+  padding: .7rem .9rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius-note);
+  font-size: .875rem;
+  color: var(--ink-secondary);
+}
+.posture strong { color: var(--ink-primary); }
+
+/* ---------- sections ---------- */
+
+section { margin: 2.5rem 0 0; }
+h2 {
+  font-size: 1.05rem;
+  margin: 0 0 .3rem;
+  letter-spacing: .02em;
+  text-transform: uppercase;
+  color: var(--ink-secondary);
+}
+h2 .count { color: var(--ink-muted); font-weight: 400; text-transform: none; letter-spacing: 0; }
+.section-note { margin: 0 0 1rem; font-size: .875rem; color: var(--ink-muted); max-width: 46rem; }
+.rule-head { font-size: .95rem; margin: 1.75rem 0 .2rem; }
+
+/* ---------- stat tiles ---------- */
+
+.tiles { display: flex; flex-wrap: wrap; gap: .75rem; margin: 0 0 1.25rem; }
+.tile {
+  flex: 1 1 10rem;
+  min-width: 9rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  padding: .7rem .85rem;
+}
+.tile-label { font-size: .75rem; color: var(--ink-muted); }
+/* Proportional figures: tabular-nums makes a standalone value look loose. */
+.tile-value { font-size: 1.5rem; font-weight: 600; letter-spacing: -0.02em; margin-top: .1rem; }
+.tile-context { font-size: .78rem; color: var(--ink-secondary); margin-top: .15rem; }
+
+/* ---------- charts ---------- */
+
+.figure {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  padding: 1rem 1.1rem 1.1rem;
+  margin: 0 0 1.25rem;
+  overflow-x: auto;
+}
+.figure h3 { font-size: .85rem; margin: 0 0 .75rem; color: var(--ink-secondary); font-weight: 600; }
+.chart { display: block; max-width: 100%; height: auto; }
+/* The part-to-whole bar carries no text, so stretching it to the container is
+   free; the bar charts stay at their natural size, where scaling would blow the
+   axis labels up past body text. */
+.chart-stack { width: 100%; border-radius: 4px; }
+
+.chart .lbl { font-size: 12px; fill: var(--ink-secondary); font-family: var(--font); }
+.chart .val { font-size: 12px; fill: var(--ink-primary); font-family: var(--font); font-variant-numeric: tabular-nums; }
+.chart .axis { stroke: var(--outline); stroke-width: 1; }
+.chart .threshold { stroke: var(--ink-secondary); stroke-width: 1; stroke-dasharray: 3 3; }
+
+/* Each ramp step is declared twice: `fill` paints the SVG mark, `background`
+   paints the legend swatch that carries the same identity in HTML. One class
+   for both keeps a swatch from ever disagreeing with the mark it stands for. */
+.fill-strong { fill: var(--step-550); background: var(--step-550); }
+.fill-mid    { fill: var(--step-400); background: var(--step-400); }
+.fill-soft   { fill: var(--step-250); background: var(--step-250); }
+
+.legend { display: flex; flex-wrap: wrap; gap: 1rem; margin-top: .75rem; font-size: .8rem; color: var(--ink-secondary); }
+.legend .key { display: inline-flex; align-items: center; gap: .4rem; }
+.swatch { width: 11px; height: 11px; border-radius: 2px; flex: none; }
+.legend .num { font-variant-numeric: tabular-nums; color: var(--ink-primary); }
+.caption { margin: .7rem 0 0; font-size: .8rem; color: var(--ink-muted); }
+
+/* ---------- findings ---------- */
+
+.finding {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  padding: .95rem 1.1rem;
+  margin: 0 0 .75rem;
+}
+.finding.top { border-left: 3px solid var(--accent); }
+.finding-head { display: flex; align-items: baseline; gap: .6rem; flex-wrap: wrap; }
+.rank {
+  font-size: .75rem;
+  color: var(--ink-muted);
+  font-variant-numeric: tabular-nums;
+  flex: none;
+}
+.finding h3 { font-size: 1rem; margin: 0; flex: 1 1 18rem; letter-spacing: -0.005em; }
+.observation { margin: .5rem 0 0; }
+.frames { margin: .55rem 0 0; font-family: var(--mono); font-size: .82rem; color: var(--ink-secondary); }
+.frames .of { font-family: var(--font); color: var(--ink-muted); }
+.next { margin: .55rem 0 0; font-size: .93rem; }
+.next b { font-weight: 600; }
+.basis { margin: .5rem 0 0; font-size: .82rem; color: var(--ink-muted); }
+
+/* The reason the badge says "inferred". Same treatment as the app's card, for
+   the same reason: a dashed left rule echoing .tag-inferred's dashed border,
+   so the block reads as belonging to that badge and not to the prose below
+   it. Uncoloured, because the badge it explains is uncoloured — severity owns
+   colour in this document too.
+
+   Carries more weight here than in the app. An export reader has no badge to
+   click and no guide to reach, so this is the only account of the downgrade
+   they will get. */
+.basis-inferred {
+  margin: .5rem 0 0;
+  padding: .35rem 0 .35rem .7rem;
+  border-left: 2px dashed var(--outline);
+  color: var(--ink-secondary);
+  font-size: .85rem;
+}
+.basis-label { font-weight: 600; color: var(--ink-primary); }
+
+.tag {
+  font-size: .7rem;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  padding: .1rem .4rem;
+  border-radius: var(--radius-tag);
+  flex: none;
+  white-space: nowrap;
+}
+/* Evidence quality is colourless: it answers "how sure", not "how much it
+   matters". Severity owns colour on this card, so the two cannot be read as one
+   combined signal. */
+.tag-confirmed,
+.tag-inferred,
+.tag-unavailable {
+  background: transparent;
+  color: var(--ink-secondary);
+  border: 1px solid var(--outline);
+}
+.tag-inferred { border-style: dashed; }
+.tag-rule { background: transparent; color: var(--ink-muted); border: 1px solid var(--rule); font-family: var(--mono); }
+
+/* Severity. The palette and its contrast rationale live in tokens.css; the
+   word always accompanies the colour. */
+.tag-sev { border: 1px solid; font-weight: 600; }
+.tag-sev-significant   { color: var(--sev-significant); border-color: var(--sev-significant); background: var(--sev-significant-wash); }
+.tag-sev-worth-noting  { color: var(--sev-worth-noting); border-color: var(--sev-worth-noting); background: var(--sev-worth-noting-wash); }
+.tag-sev-informational { color: var(--ink-secondary); border-color: var(--outline); background: var(--sev-informational-wash); }
+
+.finding.sev-significant   { border-left-color: var(--sev-significant); }
+.finding.sev-worth-noting  { border-left-color: var(--sev-worth-noting); }
+.finding.sev-informational { border-left-color: var(--outline); }
+
+@media print {
+  /* Colour may not survive the printer, so the border weight carries the
+     distinction too. */
+  .tag-sev { border-width: 2px; }
+}
+
+/* ---------- tables ---------- */
+
+table { border-collapse: collapse; width: 100%; font-size: .87rem; }
+.table-wrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-card); }
+th, td { text-align: left; padding: .5rem .75rem; border-bottom: 1px solid var(--rule); vertical-align: top; }
+th { font-size: .75rem; text-transform: uppercase; letter-spacing: .03em; color: var(--ink-muted); font-weight: 600; }
+tr:last-child td { border-bottom: none; }
+td.num { font-variant-numeric: tabular-nums; }
+td.mono, .subject { font-family: var(--mono); font-size: .82rem; }
+
+/* ---------- notes ---------- */
+
+.note {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--outline);
+  border-radius: var(--radius-note);
+  padding: .7rem .9rem;
+  margin: 0 0 .6rem;
+  font-size: .9rem;
+}
+.note.unavailable { border-left-color: var(--accent); }
+.note .who { font-family: var(--mono); font-size: .78rem; color: var(--ink-muted); display: block; margin-bottom: .15rem; }
+
+.empty { color: var(--ink-muted); font-style: italic; }
+
+/* ---------- clean result ---------- */
+
+/* Neutral by default, same as the in-app clean screen. Green is opt-in and
+   only when the coverage supports it — an all-clear colour over a result with
+   unrun checks would contradict the words inside it. */
+.clean-banner {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius-card);
+  padding: 1rem 1.15rem;
+}
+.clean-banner.coverage-strong {
+  border-left-color: var(--ok);
+  background: var(--ok-wash);
+}
+.clean-banner.coverage-strong h3 { color: var(--ok); }
+.clean-banner h3 { font-size: 1.15rem; margin: 0; }
+.clean-banner p { margin: .45rem 0 0; color: var(--ink-secondary); font-size: .92rem; }
+
+.clean-minor {
+  margin: .75rem 0 0;
+  padding: .6rem .9rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--outline);
+  border-radius: var(--radius-note);
+  font-size: .87rem;
+  color: var(--ink-secondary);
+}
+
+footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule); font-size: .8rem; color: var(--ink-muted); }
+
+/* ---------- print ---------- */
+
+@media print {
+  body { background: #fff; padding: 0; font-size: 11pt; }
+  .figure, .finding, .tile, .note, .table-wrap { break-inside: avoid; border-color: #ccc; }
+  section { break-before: auto; }
+  .tag-confirmed { background: #fff; color: #000; border: 1px solid #000; }
+  /* The dashed rule is the only thing tying the basis block to its badge, so
+     it has to survive a print that drops background colour. */
+  .basis-inferred { border-left-color: #666; }
+  a { text-decoration: none; color: inherit; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="masthead">
+  <h1>pcap triage report</h1>
+  <div class="file">testdata/fixtures/r12-tls-healthy</div>
+  <div class="stamp">
+    pcaptriage test · ruleset 1.0.0-partial · schema 4
+    · capture 2024-03-14T09:00:00.1Z to 2024-03-14T09:00:04.52Z (UTC)
+  </div>
+  <p class="posture">
+    <strong>Advisory, not diagnostic.</strong> Each finding states what was observed, why it
+    stood out, which frames evidence it, and what to check next. None of them names a cause —
+    that conclusion is yours to draw from the frames.
+  </p>
+  <p class="posture">
+    <strong>Partial build.</strong> Complete v1 rule set: all 15 rules are implemented (R01 zero-window-stall, R02 syn-unanswered, R03 syn-rejected, R04 server-response-outlier, R05 rto-retransmission, R06 fast-retransmission, R07 out-of-order-not-loss, R08 asymmetric-loss, R09 reset-mid-transfer, R10 rtt-outlier, R11 dns-failure, R12 tls-handshake-failure, R13 pmtu-blackhole, R14 connection-churn, R15 capture-quality). These fifteen conditions are what this tool looks for; anything outside them was not examined, so a quiet result means these checks found nothing rather than that the capture is healthy. An empty findings list below means
+    these checks found nothing, not that the capture is healthy.
+  </p>
+  
+  </header>
+
+
+<section>
+  <h2>Capture completeness</h2>
+  <p class="section-note">
+    Reduced summary. The full capture-quality assessment — snaplen truncation, offload
+    artifacts, one-way flows, timestamp resolution and multi-interface merges — is R15,
+    which is not implemented in this build. Treat the figures below as what was read,
+    not as a verdict on whether the capture is adequate.
+  </p>
+
+  <div class="tiles">
+    <div class="tile">
+      <div class="tile-label">Packets read</div>
+      <div class="tile-value">198</div>
+      <div class="tile-context">198 TCP · 0 other · 0 undecodable</div>
+    </div>
+    <div class="tile">
+      <div class="tile-label">TCP flows</div>
+      <div class="tile-value">18</div>
+      <div class="tile-context">across 7 hosts</div>
+    </div>
+    <div class="tile">
+      <div class="tile-label">Began before capture</div>
+      <div class="tile-value">0%</div>
+      <div class="tile-context">0 of 18 flows midstream</div>
+    </div>
+    <div class="tile">
+      <div class="tile-label">Snaplen</div>
+      <div class="tile-value">262,144</div>
+      <div class="tile-context">bytes per frame, as declared by the file</div>
+    </div>
+  </div>
+
+  
+  <div class="figure">
+    <h3>Flows by capture completeness</h3>
+    <svg class="chart chart-stack" viewBox="0 0 680 22" width="680" height="22" role="img" aria-label="Flows by capture completeness"><title>Flows by capture completeness</title><path d="M0,0 H676 A4,4 0 0 1 680,4 V18 A4,4 0 0 1 676,22 H0 Z" class="fill-strong"/></svg>
+    <div class="legend">
+      
+      <span class="key"><span class="swatch fill-strong"></span>Complete
+        <span class="num">18 (100%)</span></span>
+      
+      <span class="key"><span class="swatch fill-mid"></span>Partial
+        <span class="num">0 (0%)</span></span>
+      
+      <span class="key"><span class="swatch fill-soft"></span>Midstream
+        <span class="num">0 (0%)</span></span>
+      
+    </div>
+    <p class="caption">
+      A midstream flow was already established when the capture began, so its window scale
+      factor is unknown and receive window sizing cannot be assessed for it. Zero-window
+      detection is unaffected and ran on every flow.
+    </p>
+  </div>
+  
+</section>
+
+
+<section>
+  <h2>Top findings <span class="count">none</span></h2>
+  
+    
+    
+    <div class="clean-banner">
+      <h3>No significant problems found in what was checked</h3>
+      <p>That is not the same as the capture being problem-free. 15 of 15 planned checks are built, and what they do not cover has not been examined. What each check looked at, and what could not be assessed on this capture, is below.</p>
+    </div>
+    
+    
+  
+</section>
+
+
+
+
+
+<section>
+  <h2>Subjects that produced findings <span class="count">0</span></h2>
+  <p class="section-note">
+    Bounded to the subjects that raised something. A table of every flow in the capture,
+    ranked by significance, needs per-flow state retained to the end of the run; flow state
+    is evictable by design, so that table is not available in this build.
+  </p>
+  
+  <p class="empty">No subjects produced findings.</p>
+  
+</section>
+
+
+<section>
+  <h2>Checks not performed, and why</h2>
+  <p class="section-note">
+    Rendered rather than dropped. A report that looks clean because half the checks never
+    ran will close a ticket on a fault that is still live. This is the same coverage the
+    application itself shows; the export carries it because a reader here has no other
+    way to know what was left unexamined.
+  </p>
+
+  
+    
+    <div class="note unavailable">
+      <span class="who">R15 · not assessed</span>
+      Not assessed: whether the capture host dropped packets before writing them. The classic pcap format has no field to record it, so this file cannot say either way. Packets dropped by the capturing machine look the same as packets lost on the network. If that distinction matters here, re-capturing in pcapng format would record the count.
+    </div>
+    
+  
+
+  
+
+  <h2 style="margin-top:2rem;">Checks that ran</h2>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Rule</th><th>Name</th><th>What it looks for</th></tr></thead>
+      <tbody>
+      
+        <tr><td class="mono">R01</td><td class="mono">zero-window-stall</td><td>A receiver advertised a zero window having previously advertised non-zero, blocking the sender until a window update arrived.</td></tr>
+      
+        <tr><td class="mono">R02</td><td class="mono">syn-unanswered</td><td>A connection attempt received no answer at all — no acceptance and no refusal — despite the client retrying.</td></tr>
+      
+        <tr><td class="mono">R03</td><td class="mono">syn-rejected</td><td>A connection attempt was answered with a refusal rather than an acceptance — the host is reachable, and nothing is listening on that port.</td></tr>
+      
+        <tr><td class="mono">R04</td><td class="mono">server-response-outlier</td><td>A server:port took materially longer to begin responding than its peers in the same capture, with network round-trip time subtracted.</td></tr>
+      
+        <tr><td class="mono">R05</td><td class="mono">rto-retransmission</td><td>Segments were retransmitted after a timer-shaped quiet gap with no duplicate ACKs asking for them — the sender stalled waiting for a timeout.</td></tr>
+      
+        <tr><td class="mono">R06</td><td class="mono">fast-retransmission</td><td>Segments were retransmitted after three or more duplicate ACKs — packet loss the connection recovered from quickly.</td></tr>
+      
+        <tr><td class="mono">R07</td><td class="mono">out-of-order-not-loss</td><td>Segments arrived out of sequence within milliseconds and in original transmission order by IP ID — reordering on the path, not packet loss.</td></tr>
+      
+        <tr><td class="mono">R08</td><td class="mono">asymmetric-loss</td><td>Retransmission rate on one flow was at least five times higher in one direction than the other, with at least 20 retransmissions — loss is not symmetric.</td></tr>
+      
+        <tr><td class="mono">R09</td><td class="mono">reset-mid-transfer</td><td>A connection was terminated by reset while data was still moving, rather than closed cleanly once both sides were done.</td></tr>
+      
+        <tr><td class="mono">R10</td><td class="mono">rtt-outlier</td><td>Round trips to one host took far longer than to every other host in the same capture, which usually reflects distance or a congested link rather than anything wrong with the host.</td></tr>
+      
+        <tr><td class="mono">R11</td><td class="mono">dns-failure</td><td>Name lookups went unanswered, came back as errors, or took a long time. A lookup happens before the connection it enables, so a slow one delays everything behind it and is often mistaken for application slowness.</td></tr>
+      
+        <tr><td class="mono">R12</td><td class="mono">tls-handshake-failure</td><td>Encrypted connections failed to negotiate, took an unusually long time to set up, or presented a certificate close to expiry. A negotiation happens before any application data moves, so a failure here is not the application&#39;s fault.</td></tr>
+      
+        <tr><td class="mono">R13</td><td class="mono">pmtu-blackhole</td><td>Large segments were retransmitted repeatedly and never acknowledged while smaller ones on the same connection were delivered, which is the signature of a size limit on the path that nothing is reporting back to the sender.</td></tr>
+      
+        <tr><td class="mono">R14</td><td class="mono">connection-churn</td><td>The same client opened and closed many short-lived connections to one server:port instead of reusing them, paying the handshake cost each time.</td></tr>
+      
+        <tr><td class="mono">R15</td><td class="mono">capture-quality</td><td>Reports what the capture itself may limit: flows already open when the capture began, connections seen in one direction only, and packets the capture host dropped before writing them.</td></tr>
+      
+      </tbody>
+    </table>
+  </div>
+  <p class="caption">
+    0 of the fifteen v1 rules are not implemented in this build
+    and were therefore not looked for at all. They are not listed above because listing them
+    as "skipped" would imply a decision was made per capture; none was.
+  </p>
+</section>
+
+<footer>
+  Generated offline. No network calls were made, no payload bytes appear in this report,
+  and the capture file was opened read-only.
+  Frame numbers refer to the capture as read by this tool and match Wireshark's numbering
+  for the same file.
+</footer>
+
+</div>
+</body>
+</html>
+
+

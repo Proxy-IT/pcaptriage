@@ -56,7 +56,13 @@ func TestCaptureWithNoTCPIsNotReportedAsClean(t *testing.T) {
 	if cov.Statement == "No significant problems found in what was checked" {
 		t.Error("a capture with no TCP was reported as having no problems found")
 	}
-	if !strings.Contains(cov.Statement, "No TCP traffic") {
+	// "No traffic this build examines", not "No TCP traffic".
+	//
+	// The wording was TCP-specific while every rule read TCP. R11 reads DNS
+	// over UDP, so a capture with no TCP is no longer automatically a capture
+	// with nothing in it — this one has neither, and the statement has to be
+	// about what the build examines rather than about one protocol.
+	if !strings.Contains(cov.Statement, "No traffic this build examines") {
 		t.Errorf("statement = %q", cov.Statement)
 	}
 	if !strings.Contains(cov.Qualifier, "anything to examine") {

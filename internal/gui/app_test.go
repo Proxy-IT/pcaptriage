@@ -391,8 +391,24 @@ func TestInfoComesFromTheRuleRegistry(t *testing.T) {
 	if len(i.ImplementedChecks) == 0 {
 		t.Fatal("no checks reported")
 	}
-	if i.TotalV1Rules <= len(i.ImplementedChecks) {
-		t.Error("the home screen would not disclose that the rule set is incomplete")
+	// The disclosure has two correct shapes now that the rule set is
+	// complete, and the test asserts whichever applies rather than assuming
+	// the one that held while rules were still landing.
+	//
+	// While incomplete: the total must exceed what is built, so the home
+	// screen can say so. Complete: the two must agree exactly, because
+	// "15 of 15" is what the screen derives its sentence from and a total
+	// that had drifted past the registry would understate the build silently.
+	switch {
+	case len(i.ImplementedChecks) < i.TotalV1Rules:
+		if i.TotalV1Rules <= len(i.ImplementedChecks) {
+			t.Error("the home screen would not disclose that the rule set is incomplete")
+		}
+	default:
+		if i.TotalV1Rules != len(i.ImplementedChecks) {
+			t.Errorf("the rule set is complete but the home screen reports %d of %d; the total and "+
+				"the registry have drifted apart", len(i.ImplementedChecks), i.TotalV1Rules)
+		}
 	}
 	for _, c := range i.ImplementedChecks {
 		if c.ID == "" || c.Name == "" || c.Summary == "" {

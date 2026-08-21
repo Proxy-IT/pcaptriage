@@ -104,6 +104,12 @@ type TCPSpec struct {
 	// PayloadLen is the number of payload bytes. The bytes themselves are
 	// zeros; no rule reads them and no report may contain them.
 	PayloadLen int
+
+	// Payload, when set, supplies the actual bytes instead of zeros, and its
+	// length overrides PayloadLen. Used only by fixtures that model an
+	// application protocol the rules read — R12's TLS records. Everything else
+	// leaves it nil, because no other rule looks at payload content.
+	Payload []byte
 }
 
 // DefaultTTL is the hop count fixtures use unless they say otherwise. 64 is
@@ -150,7 +156,14 @@ func (b *Builder) AddTCP(s TCPSpec) {
 	}
 	dataOffset := 20 + len(opts)
 
-	tcp := make([]byte, dataOffset+s.PayloadLen)
+	payloadLen := s.PayloadLen
+	if len(s.Payload) > 0 {
+		payloadLen = len(s.Payload)
+	}
+	tcp := make([]byte, dataOffset+payloadLen)
+	if len(s.Payload) > 0 {
+		copy(tcp[dataOffset:], s.Payload)
+	}
 	binary.BigEndian.PutUint16(tcp[0:2], src.Port())
 	binary.BigEndian.PutUint16(tcp[2:4], dst.Port())
 	binary.BigEndian.PutUint32(tcp[4:8], s.Seq)

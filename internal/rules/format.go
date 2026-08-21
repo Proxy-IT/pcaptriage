@@ -108,3 +108,33 @@ func finalisePackets(refs []findings.PacketRef, captureStart time.Time) []findin
 	}
 	return out
 }
+
+// formatSpan renders a long duration in the units a person would use for it.
+//
+// Separate from formatDuration rather than an extension of it. That one is
+// tuned for the sub-minute figures every loss and latency rule reports, where
+// "1.4s" is the useful precision; widening it would change the wording of
+// every existing rule. This one exists for certificate validity, which is
+// measured in days and reads as nonsense in seconds — "expires in 313134.1s"
+// is technically the same fact as "expires in 3 days" and communicates none
+// of it.
+func formatSpan(d time.Duration) string {
+	if d < 0 {
+		d = 0
+	}
+	switch {
+	case d >= 36*time.Hour:
+		// Rounded rather than truncated: a certificate 3.99 days from expiry
+		// reads as 4, which is what a person checking a calendar would say.
+		return fmt.Sprintf("%d days", int(d.Hours()/24+0.5))
+	case d >= 24*time.Hour:
+		return "1 day"
+	case d >= 2*time.Hour:
+		return fmt.Sprintf("%d hours", int(d.Hours()))
+	case d >= time.Hour:
+		return "1 hour"
+	case d >= 2*time.Minute:
+		return fmt.Sprintf("%d minutes", int(d.Minutes()))
+	}
+	return formatDuration(d)
+}

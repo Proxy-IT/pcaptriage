@@ -93,6 +93,45 @@ var Thresholds = struct {
 	// one that needs the tighter evidence.
 	R10SteadyDispersion float64
 
+	// R11UnansweredWindow is how long a query may go unanswered before it
+	// counts as having received no response.
+	// [RULES.md] "queries with no response within 2 s"
+	R11UnansweredWindow time.Duration
+
+	// R11SlowResponse is the response time above which a successful lookup is
+	// reported as slow.
+	// [RULES.md] "response times exceeding 500 ms"
+	R11SlowResponse time.Duration
+
+	// R11MinPeerResolvers is how many resolvers constitute a population to
+	// compare one against.
+	// [chosen] Mirrors R04MinPeerGroup. Below it the finding still reports what
+	// it saw, without the comparison — a capture with one resolver cannot
+	// establish that resolver is unusual, which is the model being honest
+	// rather than the model failing.
+	R11MinPeerResolvers int
+
+	// R11PendingCap bounds the outstanding queries tracked per resolver on the
+	// packet path.
+	// [chosen] Matches R04FlowExchangeBuffer's reasoning: packet-path state is
+	// evictable and capped by design, and a resolver with more than this many
+	// queries in flight and none of them answered has already demonstrated the
+	// pattern many times over.
+	R11PendingCap int
+
+	// R12SlowHandshake is the handshake duration above which a completed
+	// negotiation is reported as slow.
+	// [RULES.md] "handshake duration exceeding 1 s"
+	R12SlowHandshake time.Duration
+
+	// R12CertExpiryWindow is how close to expiry a certificate is flagged.
+	// [RULES.md] "flag expiry within 30 days or already elapsed"
+	R12CertExpiryWindow time.Duration
+
+	// R12MinPeerServers is how many TLS servers constitute a population.
+	// [chosen] Mirrors R11MinPeerResolvers, for the same reason.
+	R12MinPeerServers int
+
 	// R13MinLargeRetransmits is how many retransmissions of over-threshold
 	// segments a flow needs before the blackhole pattern is reported.
 	// [chosen] RULES.md says "repeated" without a figure. Three is enough to
@@ -267,6 +306,15 @@ var Thresholds = struct {
 	R10MinFlows:         3,
 	R10MinPeerHosts:     2,
 	R10SteadyDispersion: 0.5,
+
+	R11UnansweredWindow: 2 * time.Second,
+	R11SlowResponse:     500 * time.Millisecond,
+	R11MinPeerResolvers: 2,
+	R11PendingCap:       256,
+
+	R12SlowHandshake:    1 * time.Second,
+	R12CertExpiryWindow: 30 * 24 * time.Hour,
+	R12MinPeerServers:   2,
 
 	R13MinLargeRetransmits: 3,
 	R13MinSmallDelivered:   3,

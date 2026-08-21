@@ -95,6 +95,11 @@ type CaptureInfo struct {
 	OneWayFlows    int
 	TCPHosts       int
 
+	// DNSMessages is how many DNS messages were decoded. Non-TCP traffic the
+	// rules genuinely read, which is what stops a DNS-only capture being
+	// described as having nothing to examine.
+	DNSMessages uint64
+
 	// OffloadFlows is how many flows carried a segment larger than their own
 	// negotiated maximum, with the largest such segment and the maximum it
 	// exceeded. Zero when no flow negotiated an MSS, which is not the same as
@@ -278,6 +283,9 @@ func Run(path string, opts Options) (*Result, error) {
 		// R11's DNS is the case this exists for.
 		for _, o := range rawObservers {
 			o.OnRawPacket(&pkt)
+		}
+		if pkt.DNSPresent {
+			info.DNSMessages++
 		}
 
 		if pkt.Proto != capture.ProtoTCP {
