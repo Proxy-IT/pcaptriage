@@ -8,7 +8,11 @@ README's release section for what to bump when cutting a tag.
 
 ## Unreleased
 
-Changes on `main` since `v0.1.0-alpha`, for whenever the next tag is cut.
+Nothing yet.
+
+## v0.2.0-alpha — 2026-08-20
+
+Everything below is new since `v0.1.0-alpha`.
 
 ### The v1 rule set is complete
 

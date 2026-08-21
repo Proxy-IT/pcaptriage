@@ -536,7 +536,12 @@ For whoever implements this:
   will be recalibrated repeatedly against real captures.
 - Every rule needs a test capture, real or synthesised, that triggers it and one
   that should not trigger it. The false-positive traps above are the second set.
-- `--list-checks` enumerates all fifteen with their current thresholds.
+- All fifteen are enumerated in the app's guide index, each with its authored
+  one-line summary. Thresholds live in `internal/rules/thresholds.go`, marked
+  with their provenance — `[RULES.md]` where this document states the figure,
+  `[chosen]` where it does not. (An earlier draft of this line specified a
+  `--list-checks` flag; the guide index serves that purpose and the flag was
+  deliberately not built.)
 
 
 ---

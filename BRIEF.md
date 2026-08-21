@@ -168,10 +168,15 @@ and RTP jitter analysis, and per-protocol rule packs.
 
 ### Self-reporting capability
 
-The tool should be able to state its own coverage — an in-app checks screen (and
-a dev-CLI `--list-checks` equivalent, neither yet built; tracked as BACKLOG P10)
+The tool should be able to state its own coverage — an in-app checks screen
 enumerating every rule, and a report section listing the checks that ran, the
-checks that were skipped, and why. This is the same mechanism as the `unavailable` tagging in
+checks that were skipped, and why.
+
+**Built.** The guide index is the checks screen: every rule with its authored
+one-line summary, reachable from Help and from every finding card. A dev-CLI
+`--list-checks` was considered alongside it and deliberately not built — the
+CLI is a development harness with no end users, and the guide answers the
+question for the people who actually ask it. See BACKLOG P10. This is the same mechanism as the `unavailable` tagging in
 section 10, applied at the level of the tool rather than the individual finding,
 and it is what keeps the boundary honest as the rules grow.
 
