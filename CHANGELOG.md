@@ -8,7 +8,32 @@ README's release section for what to bump when cutting a tag.
 
 ## Unreleased
 
-Nothing yet.
+### Changed
+
+- **The product is now called PCAP Triage.** The binary, the repository, the
+  module path and the assembly identity all stay `pcaptriage` — only the
+  strings a human reads changed: the window title, the Help menu, the home
+  screen, the About page, and the Windows file properties. The JSON report's
+  `tool.name` deliberately still reads `pcaptriage`, because it identifies
+  which binary produced the file rather than naming the product.
+- **The placeholder icon is gone.** The app shipped with the stock Wails logo,
+  which is what Windows showed in Task Manager and on the SmartScreen prompt —
+  the moment someone decides whether to trust an unsigned download. It is now
+  the product mark, drawn separately at each size rather than resampled.
+- **The app bar and the exported report carry the mark.** The report is the
+  artifact that leaves the building, so it opens with the full lockup and a
+  hairline capture-strip rule beneath it.
+
+No rule, threshold, detection logic or output schema changed in any of this.
+The JSON goldens are byte-identical; only the HTML ones moved.
+
+### Fixed
+
+- **Golden files are stored with Unix line endings again.** They had been
+  committed with Windows ones since v0.2.0-alpha, which made every HTML golden
+  test fail on a fresh clone of the repository — the rendered output and the
+  stored file differed only by invisible characters. This affects contributors
+  running the test suite, not the application or anything it produces.
 
 ## v0.2.1-alpha — 2026-08-21
 

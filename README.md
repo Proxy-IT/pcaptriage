@@ -1,10 +1,10 @@
-# pcaptriage
+# PCAP Triage
 
 A second set of eyes for packet captures. It reads a `.pcap` or `.pcapng` file
 and points out what looks unusual in it, in plain English, ranked so the thing
 most worth your attention is at the top.
 
-![The pcaptriage home screen](docs/screenshot-home.png)
+![The PCAP Triage home screen](docs/screenshot-home.png)
 
 ## Who it's for
 
