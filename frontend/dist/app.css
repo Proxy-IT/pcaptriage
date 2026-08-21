@@ -88,17 +88,37 @@ body {
 /* A ring tuned for light backgrounds vanishes on ink. This one is picked
    against the bar, not against the page. */
 .topbar-back:focus-visible { outline: 2px solid var(--bar-focus); outline-offset: 1px; }
-/* The name is what gives way when the back control and the links compete for
-   a narrow window — the reader can see which app they are in from everything
-   else on screen, but not where the way back went. */
+.topbar-mark { display: inline-flex; flex: none; width: 24px; height: 24px; }
+.topbar-mark svg { width: 100%; height: 100%; display: block; }
+/* Two faces, because the lockup is two words set differently rather than one
+   string. Baseline alignment, not centre: the cap heights differ. */
+.topbar-name { display: inline-flex; align-items: baseline; gap: .3rem; }
+.topbar-name-pcap {
+  font-family: var(--mono);
+  font-weight: 500;
+  font-size: .72rem;
+  letter-spacing: 0.10em;
+  color: var(--bar-accent);
+}
+.topbar-name-triage {
+  font-weight: 700;
+  font-size: 1rem;
+  letter-spacing: -0.035em;
+  color: var(--bar-ink-strong);
+}
+/* The wordmark is what gives way when the back control and the links compete
+   for a narrow window — the reader can see which app they are in from
+   everything else on screen, but not where the way back went. The mark is a
+   sibling rather than a child, so it survives: at 24px it costs almost
+   nothing and it is the half of the lockup worth keeping.
+   
+   This block has to sit after the .topbar-name rule above, not before it. A
+   media query adds no specificity, so when .topbar-name gained its own
+   display value the later declaration won and this one stopped doing
+   anything. It previously worked only because .topbar-name declared no
+   display at all. */
 @media (max-width: 30rem) {
   .topbar-name { display: none; }
-}
-.topbar-name {
-  font-weight: 600;
-  font-size: .95rem;
-  letter-spacing: -0.01em;
-  color: var(--bar-ink-strong);
 }
 .topbar-tagline {
   font-size: .78rem;

@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta http-equiv="Content-Security-Policy"
       content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'">
-<title>pcaptriage</title>
+<title>PCAP Triage</title>
 <link rel="stylesheet" href="tokens.css">
 <link rel="stylesheet" href="app.css">
 </head>
@@ -35,7 +35,25 @@
          not, then hidden — and the half-covered state still looks clickable.
          Inside the bar it can never be overlaid by it. -->
     <button type="button" id="nav-back" class="topbar-back" hidden></button>
-    <span class="topbar-name">pcaptriage</span>
+    <!-- The solid build of the owl, not the line build: the bar renders it at
+         24px and on a 1x display line art at that size fills in. The kit's
+         background rect is dropped because the bar is already ink, and its
+         literal colours are swapped for the tokens they equal, so the mark
+         follows the palette if it ever moves. Inline SVG is markup, so the
+         token tests do not scan it -- using var() here is a choice, not a
+         requirement. -->
+    <span class="topbar-mark" aria-hidden="true">
+      <svg viewBox="0 0 64 64">
+        <path d="M32 57 C19 57 8 48 8 33 C8 25 11 19 16 15 L14 6 L23 12 C25.7 10.7 28.7 10 32 10 C35.3 10 38.3 10.7 41 12 L50 6 L48 15 C53 19 56 25 56 33 C56 48 45 57 32 57 Z" fill="var(--bar-ink-muted)"/>
+        <circle cx="21.5" cy="31" r="7" fill="var(--bar-surface)"/>
+        <circle cx="42.5" cy="31" r="7" fill="var(--bar-surface)"/>
+        <circle cx="21.5" cy="31" r="4.4" fill="var(--bar-accent)"/>
+        <circle cx="42.5" cy="31" r="4.4" fill="var(--bar-accent)"/>
+      </svg>
+    </span>
+    <span class="topbar-name">
+      <span class="topbar-name-pcap">PCAP</span><span class="topbar-name-triage">Triage</span>
+    </span>
     <span class="topbar-tagline">a second set of eyes for packet captures</span>
   </span>
   <span class="topbar-links">
