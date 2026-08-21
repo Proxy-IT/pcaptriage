@@ -168,7 +168,7 @@
       "name": "capture-quality",
       "base_weight": 0,
       "status": "ran",
-      "summary": "Reports what the capture itself may limit: flows already open when the capture began, connections seen in one direction only, packets the capture host dropped before writing them, and headers too damaged to be believed."
+      "summary": "Reports what the capture itself may limit: flows already open when the capture began, connections seen in one direction only, packets the capture host dropped before writing them, frames clipped by a snaplen, and headers too damaged to be believed."
     }
   ],
   "findings": [],
@@ -187,6 +187,11 @@
       "kind": "unavailable",
       "rule_id": "R14",
       "text": "Not assessed: connection reuse for 10.10.10.7:5432 (55 of 60 connections were already open when the capture began). Measuring how long a connection lasts needs its opening handshake, which is not in this capture for those flows."
+    },
+    {
+      "kind": "info",
+      "rule_id": "R15",
+      "text": "This file declares a capture size limit of 262,144 bytes per frame, and no frame reached it — nothing was clipped. Every packet was recorded in full."
     },
     {
       "kind": "unavailable",

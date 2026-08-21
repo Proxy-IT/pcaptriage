@@ -164,7 +164,7 @@
       "name": "capture-quality",
       "base_weight": 0,
       "status": "ran",
-      "summary": "Reports what the capture itself may limit: flows already open when the capture began, connections seen in one direction only, packets the capture host dropped before writing them, and headers too damaged to be believed."
+      "summary": "Reports what the capture itself may limit: flows already open when the capture began, connections seen in one direction only, packets the capture host dropped before writing them, frames clipped by a snaplen, and headers too damaged to be believed."
     }
   ],
   "findings": [],
@@ -183,6 +183,11 @@
       "kind": "unavailable",
       "rule_id": "R11",
       "text": "Not assessed: name lookups carried over an encrypted channel. 24 frames of DNS over TLS were seen to 1 host, and their contents cannot be read from a capture. Lookups sent that way were not checked for failures or slow responses. DNS over HTTPS cannot be distinguished from ordinary web traffic here at all, so this count is a floor rather than a total."
+    },
+    {
+      "kind": "info",
+      "rule_id": "R15",
+      "text": "This file declares a capture size limit of 262,144 bytes per frame, and no frame reached it — nothing was clipped. Every packet was recorded in full."
     },
     {
       "kind": "unavailable",

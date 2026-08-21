@@ -10,6 +10,14 @@ README's release section for what to bump when cutting a tag.
 
 ### Added
 
+- **Clipped captures are now reported.** When frames arrive shorter than they
+  were on the wire, the capture-quality check says how many and what limit the
+  file declares, so anything that reads inside a packet — name lookups,
+  encrypted handshakes — is known to have been working from a partial record.
+  A capture that declares no limit and clips nothing says that too, rather than
+  saying nothing. Detection is from the frames themselves: a file that declares
+  a limit but never reaches it is reported as untruncated, and a file declaring
+  no limit is never read as a limit of zero.
 - **Captures with damaged headers are now called out instead of analysed
   silently.** When enough frames declare a header length no sender could have
   written, the capture-quality check reports that the header bytes are not what

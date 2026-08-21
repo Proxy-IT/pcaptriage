@@ -160,7 +160,7 @@
       "name": "capture-quality",
       "base_weight": 0,
       "status": "ran",
-      "summary": "Reports what the capture itself may limit: flows already open when the capture began, connections seen in one direction only, packets the capture host dropped before writing them, and headers too damaged to be believed."
+      "summary": "Reports what the capture itself may limit: flows already open when the capture began, connections seen in one direction only, packets the capture host dropped before writing them, frames clipped by a snaplen, and headers too damaged to be believed."
     }
   ],
   "findings": [
@@ -390,6 +390,11 @@
       "kind": "unavailable",
       "rule_id": "R10",
       "text": "Not assessed: comparative network latency. 0 hosts had at least 3 flows with a usable round-trip measurement, and this check compares hosts against the others in the same capture, so fewer than 2 gives it nothing to compare."
+    },
+    {
+      "kind": "info",
+      "rule_id": "R15",
+      "text": "This file declares a capture size limit of 262,144 bytes per frame, and no frame reached it — nothing was clipped. Every packet was recorded in full."
     },
     {
       "kind": "unavailable",

@@ -17,13 +17,13 @@ func TestR15MetaDoesNotOverclaimCoverage(t *testing.T) {
 	if m.ID != "R15" || m.Name != "capture-quality" {
 		t.Fatalf("Meta = %+v", m)
 	}
-	for _, unbuilt := range []string{"snaplen", "TSO", "MTU", "timestamp resolution", "multi-interface"} {
+	for _, unbuilt := range []string{"TSO", "MTU", "timestamp resolution", "multi-interface"} {
 		if strings.Contains(strings.ToLower(m.Summary), strings.ToLower(unbuilt)) {
 			t.Errorf("Summary claims coverage of %q, which this build does not detect: %q", unbuilt, m.Summary)
 		}
 	}
 	// It must still say what it does cover, or the summary is content-free.
-	for _, built := range []string{"capture began", "one direction", "dropped", "headers"} {
+	for _, built := range []string{"capture began", "one direction", "dropped", "headers", "snaplen"} {
 		if !strings.Contains(m.Summary, built) {
 			t.Errorf("Summary omits the covered condition %q: %q", built, m.Summary)
 		}
@@ -93,15 +93,34 @@ func TestR15WritesOneNotePerCondition(t *testing.T) {
 		}
 	}
 
-	// A population with none of the conditions should produce only the drop
-	// note — always present — and nothing else.
-	clean := &Population{TCPFlows: 5, DropAvailability: capture.DropsReported}
+	// A population with none of the conditional conditions should produce
+	// exactly the two unconditional notes and nothing else.
+	//
+	// Both are unconditional for the same reason: "the host dropped nothing"
+	// and "nothing was clipped" are statements worth making, and are not the
+	// same as the file being unable to say. Everything else here is reported
+	// only when it applies.
+	clean := &Population{TCPFlows: 5, PacketsRead: 500, DropAvailability: capture.DropsReported}
 	store2 := findings.NewStore()
 	NewCaptureQualityRule().Emit(clean, store2)
 	store2.Seal()
-	if len(store2.Notes()) != 1 {
-		t.Errorf("a capture with no midstream, one-way or evicted flows produced %d notes, want 1 (drop only)",
-			len(store2.Notes()))
+
+	var sawCleanDrop, sawCleanSnaplen bool
+	for _, n := range store2.Notes() {
+		switch {
+		case strings.Contains(n.Text, "reported dropping no packets"):
+			sawCleanDrop = true
+		case strings.Contains(n.Text, "recorded in full"):
+			sawCleanSnaplen = true
+		default:
+			t.Errorf("unexpected note on a capture with no conditions: %q", n.Text)
+		}
+	}
+	if !sawCleanDrop {
+		t.Error("no clean-drop note on a capture whose host dropped nothing")
+	}
+	if !sawCleanSnaplen {
+		t.Error("no clean-snaplen note on a capture in which nothing was clipped")
 	}
 }
 
@@ -195,5 +214,65 @@ func TestR15MalformedHeaderNoteAbsentWhenHeadersAreSound(t *testing.T) {
 		if strings.Contains(n.Text, "header length no sender") {
 			t.Errorf("malformed-header note written for a capture with no malformed frames: %q", n.Text)
 		}
+	}
+}
+
+// TestR15SnaplenNoteDistinguishesUnlimitedFromZero is the trap the snaplen-0
+// fix created and this note could easily fall into.
+//
+// A classic pcap has to spell "no truncation limit" as zero, so a file
+// declaring zero is the least truncated kind of file there is. Reporting it as
+// a zero-byte capture limit would invert the meaning entirely — and would do
+// so on exactly the appliance exports that prompted the work.
+func TestR15SnaplenNoteDistinguishesUnlimitedFromZero(t *testing.T) {
+	cases := []struct {
+		name       string
+		pop        Population
+		wantKind   string
+		wantSubstr string
+		banned     []string
+	}{
+		{
+			name:       "no limit declared, nothing clipped",
+			pop:        Population{PacketsRead: 1000, SnaplenKnown: false},
+			wantKind:   "info",
+			wantSubstr: "declares no capture size limit",
+			// The whole point: an undeclared limit must never render as a
+			// limit of zero, nor as a truncated capture. "no frame ... arrived
+			// shorter" is the correct negation and is expected here; what is
+			// banned is a stated limit and the truncation wording itself.
+			banned: []string{"0 bytes", "size limit of", "Partly assessed"},
+		},
+		{
+			name:       "limit declared, nothing clipped",
+			pop:        Population{PacketsRead: 1000, Snaplen: 262144, SnaplenKnown: true},
+			wantKind:   "info",
+			wantSubstr: "262,144 bytes per frame, and no frame reached it",
+			banned:     []string{"Partly assessed"},
+		},
+		{
+			name:       "frames actually clipped",
+			pop:        Population{PacketsRead: 1000, PacketsClipped: 400, Snaplen: 96, SnaplenKnown: true},
+			wantKind:   "unavailable",
+			wantSubstr: "400 of 1,000 frames (40%) arrived shorter than they were on the wire",
+			banned:     []string{"recorded in full"},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			note := snaplenNote(&tc.pop)
+			if note.Kind != tc.wantKind {
+				t.Errorf("kind = %q, want %q", note.Kind, tc.wantKind)
+			}
+			if !strings.Contains(note.Text, tc.wantSubstr) {
+				t.Errorf("note omits %q:\n  %s", tc.wantSubstr, note.Text)
+			}
+			for _, b := range tc.banned {
+				if strings.Contains(note.Text, b) {
+					t.Errorf("note contains %q, which misdescribes this case:\n  %s", b, note.Text)
+				}
+			}
+		})
 	}
 }

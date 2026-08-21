@@ -165,6 +165,13 @@ type Population struct {
 	// length no sender could have written. R15 reports their ratio.
 	PacketsTCP       uint64
 	PacketsMalformed uint64
+	// PacketsClipped is how many frames arrived with fewer bytes than they
+	// carried on the wire. Snaplen and SnaplenKnown are what the file declares
+	// about that; SnaplenKnown is false when it declares no limit, which the
+	// format spells as zero and which must never be read as a zero-byte cap.
+	PacketsClipped uint64
+	Snaplen        uint32
+	SnaplenKnown   bool
 	// DropAvailability, InterfaceDrops, PacketsDropped and DropRatio are the
 	// capture-host drop facts R15 reports on. Quality.KernelDropsSignificant
 	// (below) is the gating decision already derived from DropRatio; R15

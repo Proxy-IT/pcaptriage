@@ -160,7 +160,7 @@
       "name": "capture-quality",
       "base_weight": 0,
       "status": "ran",
-      "summary": "Reports what the capture itself may limit: flows already open when the capture began, connections seen in one direction only, packets the capture host dropped before writing them, and headers too damaged to be believed."
+      "summary": "Reports what the capture itself may limit: flows already open when the capture began, connections seen in one direction only, packets the capture host dropped before writing them, frames clipped by a snaplen, and headers too damaged to be believed."
     }
   ],
   "findings": [],
@@ -169,6 +169,11 @@
       "kind": "unavailable",
       "rule_id": "R12",
       "text": "Not assessed: certificate validity on 16 negotiations to 2 servers. Modern TLS encrypts the handshake after the server's first message, so no certificate was visible in those exchanges; a certificate message split across frames is not read either, since this build does not reassemble them. Expiry was not checked for these, and the absence of a certificate finding is not a statement that they are valid."
+    },
+    {
+      "kind": "info",
+      "rule_id": "R15",
+      "text": "This file declares a capture size limit of 262,144 bytes per frame, and no frame reached it — nothing was clipped. Every packet was recorded in full."
     },
     {
       "kind": "unavailable",

@@ -90,6 +90,15 @@ type CaptureInfo struct {
 	// capture.IsImpossibleHeader for why only that subset says anything about
 	// whether the capture's headers can be believed.
 	PacketsMalformed uint64
+	// PacketsClipped is how many frames reached the file with fewer bytes than
+	// they had on the wire — the observable fact of truncation, as opposed to
+	// the snap length the header declares.
+	//
+	// Taken from the framing lengths rather than from Packet.Truncated, which
+	// the decoder also sets when TCP options run past the captured bytes. The
+	// two nearly always coincide, but only this one is a statement about the
+	// file rather than about how far a decode got.
+	PacketsClipped uint64
 
 	FirstPacketTime time.Time
 	LastPacketTime  time.Time
@@ -268,6 +277,13 @@ func Run(path string, opts Options) (*Result, error) {
 			info.LastPacketTime = pkt.Time
 		}
 
+		// Counted before the decode outcome is consulted: a frame clipped so
+		// hard that it no longer decodes is still a clipped frame, and is the
+		// case most worth reporting.
+		if pkt.OriginalLength > pkt.CaptureLength {
+			info.PacketsClipped++
+		}
+
 		if !decoded {
 			// Non-TCP traffic is decoded as far as L3 and then reported as
 			// "not TCP", which is not a failure — the v1 rules are TCP only.
@@ -361,6 +377,9 @@ func Run(path string, opts Options) (*Result, error) {
 		PacketsRead:      info.PacketsRead,
 		PacketsTCP:       info.PacketsTCP,
 		PacketsMalformed: info.PacketsMalformed,
+		PacketsClipped:   info.PacketsClipped,
+		Snaplen:          info.Snaplen,
+		SnaplenKnown:     info.SnaplenKnown,
 		DropAvailability: info.DropAvailability,
 		InterfaceDrops:   info.InterfaceDrops,
 		PacketsDropped:   info.PacketsDropped,

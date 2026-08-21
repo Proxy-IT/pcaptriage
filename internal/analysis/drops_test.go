@@ -10,6 +10,7 @@ import (
 
 	"github.com/Proxy-IT/pcaptriage/internal/analysis"
 	"github.com/Proxy-IT/pcaptriage/internal/capture"
+	"github.com/Proxy-IT/pcaptriage/internal/findings"
 	"github.com/Proxy-IT/pcaptriage/internal/synth"
 )
 
@@ -23,17 +24,35 @@ func runPcapng(t *testing.T, name string) *analysis.Result {
 	return res
 }
 
-// noteFor returns the R15 note, which every capture carries exactly one of.
+// noteFor returns the R15 drop note.
+//
+// Selected by subject rather than by being the only R15 note: R15 carries two
+// unconditional notes (drops and capture size limit) plus whichever conditional
+// ones apply. Matching on count would make these tests fail whenever an
+// unrelated R15 condition was added, which is what happened when the snaplen
+// note landed — a false failure that says nothing about drops.
 func noteFor(t *testing.T, res *analysis.Result) string {
 	t.Helper()
-	var found []string
+	return dropNoteFor(t, res).Text
+}
+
+// dropNoteFor is noteFor with the kind attached, for the tests that care which
+// of the two it is.
+func dropNoteFor(t *testing.T, res *analysis.Result) findings.Note {
+	t.Helper()
+	var found []findings.Note
 	for _, n := range res.Notes {
-		if n.RuleID == "R15" {
-			found = append(found, n.Text)
+		if n.RuleID != "R15" {
+			continue
+		}
+		// Every branch of dropNote names packets the capture host did or did
+		// not drop; no other R15 note mentions the capture host at all.
+		if strings.Contains(n.Text, "capture host") || strings.Contains(n.Text, "dropped packets before writing them") {
+			found = append(found, n)
 		}
 	}
 	if len(found) != 1 {
-		t.Fatalf("want exactly one R15 note, got %d: %v", len(found), found)
+		t.Fatalf("want exactly one R15 drop note, got %d: %v", len(found), found)
 	}
 	return found[0]
 }
@@ -212,11 +231,11 @@ func TestClassicPcapCannotReportDrops(t *testing.T) {
 		}
 	}
 	// And it must be an unavailable note, not an informational one — the
-	// difference is what stops it being read as reassurance.
-	for _, n := range res.Notes {
-		if n.RuleID == "R15" && n.Kind != "unavailable" {
-			t.Errorf("the note kind is %q, want unavailable", n.Kind)
-		}
+	// difference is what stops it being read as reassurance. Scoped to the
+	// drop note: R15's other notes have their own kinds, and a clean snaplen
+	// is correctly informational.
+	if kind := dropNoteFor(t, res).Kind; kind != "unavailable" {
+		t.Errorf("the drop note kind is %q, want unavailable", kind)
 	}
 	assertAdvisoryText(t, note)
 }

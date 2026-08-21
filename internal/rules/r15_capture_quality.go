@@ -11,8 +11,8 @@ import (
 // CaptureQualityRule implements the built subset of R15 · capture-quality.
 //
 // RULES.md's R15 condition list is broader than what this build detects:
-// snaplen truncation, TSO/LRO segment-size artifacts, and timestamp
-// resolution / multi-interface merges are specified but not implemented —
+// TSO/LRO segment-size artifacts and timestamp resolution / multi-interface
+// merges are specified but not implemented —
 // there is no tracking for any of them yet, so there is nothing to report.
 // Meta.Summary below states only what this build actually covers, for the
 // same reason the home screen's check list is registry-driven rather than
@@ -22,8 +22,8 @@ import (
 //
 // What is covered: flows already open when the capture began (midstream),
 // connections captured in one direction only, packets the capture host itself
-// dropped before writing them, and frames whose header length fields cannot be
-// correct. This is ownership and structure, moved
+// dropped before writing them, frames clipped by a capture size limit, and
+// frames whose header length fields cannot be correct. This is ownership and structure, moved
 // out of the engine and the report package where it lived ad hoc — every
 // note below existed before this rule did; nothing here changes what a
 // report says, only who is responsible for saying it.
@@ -45,7 +45,7 @@ func (r *CaptureQualityRule) Meta() Meta {
 		BaseWeight: 0,
 		Summary: "Reports what the capture itself may limit: flows already open when the capture began, " +
 			"connections seen in one direction only, packets the capture host dropped before writing them, " +
-			"and headers too damaged to be believed.",
+			"frames clipped by a snaplen, and headers too damaged to be believed.",
 	}
 }
 
@@ -63,6 +63,7 @@ func (r *CaptureQualityRule) OnFlowEnd(any, *flow.State)                        
 // wherever that condition affects any flow.
 func (r *CaptureQualityRule) Emit(pop *Population, out *findings.Store) {
 	out.AddNote(dropNote(pop))
+	out.AddNote(snaplenNote(pop))
 
 	// Flows already established when the capture began. Their window scale
 	// factor was never negotiated in view, so anything sized in bytes is
@@ -141,6 +142,62 @@ func (r *CaptureQualityRule) Emit(pop *Population, out *findings.Store) {
 					"that point.",
 				formatCount(pop.FlowsEvicted), formatCount(uint64(pop.TCPFlows))),
 		})
+	}
+}
+
+// snaplenNote is what the completeness reporting says about frames arriving
+// shorter than they were on the wire.
+//
+// Always present, for the same reason the drop note is: "nothing was clipped"
+// and "the file declares no limit" are different statements about different
+// files, and neither is silence. Which one applies is decided by what was
+// observed in the frames, not by the declared figure — a file can declare a
+// snap length and clip nothing, and RULES.md's own banner example reports
+// exactly that case ("Snaplen 262144 (untruncated)").
+//
+// The zero case is the one to be careful with. A classic pcap has to spell "no
+// truncation limit" as zero, so a file declaring zero is the *least* truncated
+// kind there is. Reading it as a zero-byte cap would invert the meaning
+// completely, which is why the declared figure never decides this on its own.
+func snaplenNote(pop *Population) findings.Note {
+	if pop.PacketsClipped == 0 {
+		if !pop.SnaplenKnown {
+			return findings.Note{
+				Kind:   "info",
+				RuleID: "R15",
+				Text: "This file declares no capture size limit, and no frame in it arrived shorter than " +
+					"it was on the wire. Every packet was recorded in full.",
+			}
+		}
+		return findings.Note{
+			Kind:   "info",
+			RuleID: "R15",
+			Text: fmt.Sprintf(
+				"This file declares a capture size limit of %s bytes per frame, and no frame reached it — "+
+					"nothing was clipped. Every packet was recorded in full.",
+				formatCount(uint64(pop.Snaplen))),
+		}
+	}
+
+	limit := "The file declares no capture size limit, so the clipping was applied by whatever wrote it."
+	if pop.SnaplenKnown {
+		limit = fmt.Sprintf("The file declares a capture size limit of %s bytes per frame.",
+			formatCount(uint64(pop.Snaplen)))
+	}
+
+	return findings.Note{
+		Kind:   "unavailable",
+		RuleID: "R15",
+		Text: fmt.Sprintf(
+			"Partly assessed: anything that reads inside a packet rather than its headers. "+
+				"%s of %s frames (%s) arrived shorter than they were on the wire. %s "+
+				"What survived the clipping was analysed normally; name lookups and encrypted "+
+				"handshakes are the checks most likely to have been cut short, and say so "+
+				"themselves where they were.",
+			formatCount(pop.PacketsClipped),
+			formatCount(pop.PacketsRead),
+			formatShare(int(pop.PacketsClipped), int(pop.PacketsRead)),
+			limit),
 	}
 }
 

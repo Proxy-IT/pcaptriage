@@ -1027,9 +1027,25 @@ depth limits are ordinary traffic or tool limits, and are excluded.
   `HeaderBasis` in the same flag-and-basis shape as the kernel-drop and
   offload gates, but no rule consults them yet. Rewritten header bytes put
   every derived fact in question at once rather than qualifying one dimension
-  of a finding, so per-rule degradation is the wrong shape for it; whether
-  findings should instead be withheld entirely above some ratio is an open
-  question, deliberately not answered here.
+  of a finding, so per-rule degradation is the wrong shape for it.
+
+**Ruling: qualify, never withhold.** The open question above — whether
+findings should be suppressed entirely above some corruption ratio — is
+settled: they are reported, qualified by the note, at every ratio. There is
+no threshold above which the tool goes quiet.
+
+The reasoning is the same one behind `inferred`: a qualified answer beats no
+answer. Withholding would give the tool a silent mode in which it knows
+something and says nothing, and a reader staring at an empty list on a
+corrupted capture learns strictly less than one reading qualified findings
+under a loud caveat. The note already carries what a reader needs to decide
+for themselves — the frame numbers are real and can be opened in Wireshark,
+and the conditions reported may be artifacts — which is a judgement the
+reader is better placed to make than the tool is.
+
+`Quality.HeadersUnreliable` stays supplied and unread. The seam exists for a
+rule that needs it later; nothing consults it today, and the absence of a
+consumer is deliberate rather than unfinished.
 
 **Evidence the condition is real.** The `r15-malformed-headers` fixture is the
 clean-capture fixture with one TCP frame in three corrupted — there is no loss
@@ -1038,3 +1054,51 @@ in it whatsoever. tshark, reading sequence numbers out of those frames, reports
 discards the frames rather than believing them. That divergence is pinned in
 the cross-validation oracle's expectation table as the demonstration that an
 analyser trusting corrupted headers invents loss.
+
+---
+
+### R15: snaplen truncation (built in the v0.2.1-alpha session)
+
+R15's specification has always listed snaplen truncation; the build did not
+detect it, and `TestR15MetaDoesNotOverclaimCoverage` forbade the summary from
+claiming it. The guide page, meanwhile, described a *"Packets were clipped"*
+notice a reader would never see. That gap is now closed by building the
+detection rather than by deleting the promise — the guide wording needed no
+change, which is the outcome that suggests the promise was the right one.
+
+**Detection is from the frames, never from the declared figure.** A file can
+declare a snap length and clip nothing; RULES.md's own banner example reports
+exactly that case ("Snaplen 262144 (untruncated)"). The observable fact is a
+frame arriving with fewer bytes than it carried on the wire, counted as
+`PacketsClipped` from the framing lengths.
+
+**The zero interaction, stated explicitly.** A classic pcap has to spell "no
+truncation limit" as zero, so a file declaring zero is the *least* truncated
+kind of file there is. Reading the declared figure as a cap would invert the
+meaning on exactly the appliance exports that prompted this work. Because the
+condition is decided by observed frame lengths and the declared value is only
+ever quoted alongside it, the two cannot disagree.
+`TestR15SnaplenNoteDistinguishesUnlimitedFromZero` pins all three states.
+
+- **Three states, mirroring the drop note's structure:**
+  - Frames clipped → `unavailable`, naming the count, the share, and either
+    the declared limit or the fact that none is declared.
+  - Nothing clipped, limit declared → `info`, naming the limit and that no
+    frame reached it.
+  - Nothing clipped, no limit declared → `info`. This is the snaplen-zero
+    case, and it says every packet was recorded in full.
+- **Unconditional, like the drop note**, and for the same reason: "nothing
+  was clipped" and "the file declares no limit" are different statements about
+  different files, and neither is silence. R15 therefore now carries two
+  unconditional notes; tests selecting the drop note match on its subject
+  rather than on being the only one.
+- **No threshold.** One clipped frame is reported as one clipped frame. There
+  is no ratio to tune because there is no judgement being made — the count is
+  the finding.
+
+**What it found immediately.** Of the two field captures that prompted this
+work, the 223,646-packet one turns out to be clipped on 223,600 frames while
+declaring no snap length at all — a truncated vendor export that the tool had
+been reading in full silence. tshark independently counts 223,600. That is the
+combination the zero-handling above exists for, and it arrived in the first
+capture tested rather than in a hypothetical.

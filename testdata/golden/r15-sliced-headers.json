@@ -48,6 +48,10 @@
       {
         "rule_id": "R15",
         "text": "Not assessed: whether the capture host dropped packets before writing them. The classic pcap format has no field to record it, so this file cannot say either way. Packets dropped by the capturing machine look the same as packets lost on the network. If that distinction matters here, re-capturing in pcapng format would record the count."
+      },
+      {
+        "rule_id": "R15",
+        "text": "Partly assessed: anything that reads inside a packet rather than its headers. 144 of 144 frames (100%) arrived shorter than they were on the wire. The file declares a capture size limit of 262,144 bytes per frame. What survived the clipping was analysed normally; name lookups and encrypted handshakes are the checks most likely to have been cut short, and say so themselves where they were."
       }
     ],
     "unbuilt_checks": 0,
@@ -159,7 +163,7 @@
       "name": "capture-quality",
       "base_weight": 0,
       "status": "ran",
-      "summary": "Reports what the capture itself may limit: flows already open when the capture began, connections seen in one direction only, packets the capture host dropped before writing them, and headers too damaged to be believed."
+      "summary": "Reports what the capture itself may limit: flows already open when the capture began, connections seen in one direction only, packets the capture host dropped before writing them, frames clipped by a snaplen, and headers too damaged to be believed."
     }
   ],
   "findings": [],
@@ -168,6 +172,11 @@
       "kind": "unavailable",
       "rule_id": "R15",
       "text": "Not assessed: whether the capture host dropped packets before writing them. The classic pcap format has no field to record it, so this file cannot say either way. Packets dropped by the capturing machine look the same as packets lost on the network. If that distinction matters here, re-capturing in pcapng format would record the count."
+    },
+    {
+      "kind": "unavailable",
+      "rule_id": "R15",
+      "text": "Partly assessed: anything that reads inside a packet rather than its headers. 144 of 144 frames (100%) arrived shorter than they were on the wire. The file declares a capture size limit of 262,144 bytes per frame. What survived the clipping was analysed normally; name lookups and encrypted handshakes are the checks most likely to have been cut short, and say so themselves where they were."
     }
   ]
 }
