@@ -205,6 +205,15 @@ never which ones. `internal/capture/allowlist_test.go` enforces this, requiring
 every application-layer field to be declared and to be a scalar incapable of
 holding a name or a span of payload.
 
+## Engineering notes
+
+Three failure patterns this codebase produced more than once — tests that pass
+without asserting anything, fixtures that trigger a rule while misrepresenting
+the condition, and scoring factors that are correct alone and wrong in
+combination — are written up in
+[docs/ENGINEERING-NOTES.md](docs/ENGINEERING-NOTES.md), along with the guards
+that now catch them and the questions to ask where no guard is possible.
+
 ## Determinism
 
 Identical input produces byte-identical output, for the HTML as much as the

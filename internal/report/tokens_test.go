@@ -43,7 +43,7 @@ func TestFrontendTokensAreByteIdentical(t *testing.T) {
 // the contract their headers state: they declare no custom properties of their
 // own, and no colour the tokens define appears in them as a literal.
 //
-// The severity palette landing in two places is the drift the BACKLOG names;
+// The severity palette landing in two places is the drift this guards against;
 // this is the tripwire for it.
 func TestTokensAreTheSingleSourceOfThePalette(t *testing.T) {
 	appCSS, err := os.ReadFile(distPath(t, "app.css"))

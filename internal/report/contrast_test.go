@@ -8,8 +8,8 @@ import (
 	"testing"
 )
 
-// Accessibility has sat in BACKLOG as a standing criterion since the UX
-// deep-dive without ever being exercised. These tests are what make it real:
+// Accessibility had been a standing review criterion since the UX deep-dive
+// without ever being exercised. These tests are what make it real:
 // the ratios are computed from the token declarations themselves, so a hex
 // edited to look better and left failing breaks the build rather than shipping.
 //
@@ -434,7 +434,7 @@ func TestSeverityIsPerceptuallyDistinctFromNeutral(t *testing.T) {
 // to the eye, in a rendered findings view — depends on how much text area
 // each colour actually covers on screen, which depends on the DOM, the
 // fixture, and the browser rendering it; no Go test here can compute that
-// (BACKLOG's "screenshot/visual verification gap" already names this class of
+// (the screenshot/visual-verification gap already names this class of
 // limitation, and it applied exactly this session: dark mode's
 // --accent-strong shipped once at C*ab 27, was measured in a real browser
 // against a real findings view, found to out-pull the significant badge

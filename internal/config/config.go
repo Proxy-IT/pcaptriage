@@ -69,8 +69,8 @@ type Preferences struct {
 	//
 	// Not yet wired to a settings control — this session establishes the
 	// mechanism and applies the resolved value at startup, the same state the
-	// timezone preference has been in since it was added (see BACKLOG.md's
-	// App preferences item for the still-open UI work).
+	// timezone preference has been in since it was added. Wiring both to a
+	// settings control is still open work.
 	Theme string `json:"theme"`
 }
 

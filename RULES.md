@@ -586,7 +586,7 @@ R15's condition list now includes capture-host packet drops:
   absence of data must never render as an absence of problems.
 - There is no display floor: rules suppress their own trivia at detection time
   (e.g. R01's 100 ms cumulative), and every emitted finding is shown. If a
-  floor is ever introduced, it is a severity-calibration decision (BACKLOG P4),
+  floor is ever introduced, it is a severity-calibration decision,
   not a rendering convenience.
 
 ### Severity mapping and coverage strength (added in the P4/P3.5 session)
@@ -654,7 +654,8 @@ condition looks to a reader changes either way.
 invariant to attempt count. Forty-seven refusals score exactly the same as
 two, because the model's impact factor measures seconds lost and a refusal
 loses none. That is a scoring-model question rather than a weight question —
-recorded in BACKLOG rather than resolved by picking a different number.
+recorded in docs/ENGINEERING-NOTES.md rather than resolved by picking a
+different number.
 
 ---
 
@@ -806,7 +807,7 @@ R13 as first built could not reach `significant` at any stall duration. With
 tops out at **28.0** against a floor of 40 — so a ten-minute hang and a
 two-minute one scored alike, and neither could reach the band the condition
 deserves. The impact denominator was present and correct; the other two
-factors pinned the ceiling below the floor. See the BACKLOG entry on
+factors pinned the ceiling below the floor. See docs/ENGINEERING-NOTES.md on
 invariant significance, where this is the third occurrence and the one that
 corrected the checklist.
 

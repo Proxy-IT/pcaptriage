@@ -84,7 +84,7 @@ func TestSeverityIsMonotoneAndTotal(t *testing.T) {
 	}
 }
 
-// TestSeverityIsNotAFloor is the constraint the BACKLOG P4 note and the RULES.md
+// TestSeverityIsNotAFloor is the constraint the RULES.md
 // addendum both state: severity labels map onto existing scores and change
 // nothing about what is shown.
 //

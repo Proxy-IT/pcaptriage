@@ -159,7 +159,7 @@ var Thresholds = struct {
 	//
 	// These are presentation calibration only. They do not change ranking, they
 	// do not suppress anything, and nothing is hidden below the lower one —
-	// there is no display floor (see the BACKLOG P4 note and the RULES.md
+	// there is no display floor (see the RULES.md
 	// addendum). Every emitted finding is shown; these decide which word it
 	// carries.
 	//

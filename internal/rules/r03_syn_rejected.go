@@ -321,8 +321,8 @@ func (r *SynRejected) Emit(pop *Population, out *findings.Store) {
 			// A consequence worth knowing: significance is therefore invariant
 			// to attempt count, so forty-seven refusals rank exactly where two
 			// do. That is a property of the scoring model rather than of this
-			// weight, and is recorded in BACKLOG rather than worked around
-			// here.
+			// weight, and is recorded in docs/ENGINEERING-NOTES.md rather than
+			// worked around here.
 			Significance: scoring.Significance(scoring.Inputs{
 				BaseWeight: 4,
 				Scope:      scope,

@@ -131,7 +131,7 @@ func TestThemePreferenceAppliesBeforeFirstRender(t *testing.T) {
 // added this session: a preference with no way to set it from the UI is only
 // usable by someone who edits the config file, which is not acceptable for a
 // preference this directly user-facing (the reasoning that closed the
-// mechanism-only gap timezone is still sitting in, per BACKLOG).
+// mechanism-only gap timezone is still sitting in).
 func TestThemeControlExistsAndIsWiredCorrectly(t *testing.T) {
 	html := readFrontend(t, "index.html")
 	js := readFrontend(t, "app.js")

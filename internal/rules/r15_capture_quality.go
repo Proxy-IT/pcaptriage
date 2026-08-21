@@ -17,8 +17,8 @@ import (
 // Meta.Summary below states only what this build actually covers, for the
 // same reason the home screen's check list is registry-driven rather than
 // hand-described: a summary claiming more than the code does is a stale
-// promise the moment someone reads it. BACKLOG carries the remainder as
-// follow-up detection work.
+// promise the moment someone reads it. The remaining R15 conditions are
+// tracked as follow-up detection work.
 //
 // What is covered: flows already open when the capture began (midstream),
 // connections captured in one direction only, and packets the capture host

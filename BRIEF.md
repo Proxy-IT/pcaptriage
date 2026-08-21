@@ -176,7 +176,7 @@ checks that were skipped, and why.
 one-line summary, reachable from Help and from every finding card. A dev-CLI
 `--list-checks` was considered alongside it and deliberately not built — the
 CLI is a development harness with no end users, and the guide answers the
-question for the people who actually ask it. See BACKLOG P10. This is the same mechanism as the `unavailable` tagging in
+question for the people who actually ask it. This is the same mechanism as the `unavailable` tagging in
 section 10, applied at the level of the tool rather than the individual finding,
 and it is what keeps the boundary honest as the rules grow.
 
