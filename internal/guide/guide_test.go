@@ -66,10 +66,15 @@ func TestPagesFollowAnswerFirst(t *testing.T) {
 		t.Fatalf("the authored content did not parse: %v", err)
 	}
 	// R01 and R04 (GUIDE-CONTENT.md), the loss cluster and R15 (BATCH1), the
-	// connecting and ending pairs (BATCH2): six Page values, eleven rules
-	// served between them.
-	if len(pages) != 6 {
-		t.Fatalf("got %d pages, want 6 (R01, R04, loss cluster, R15, R02/R03, R09/R14)", len(pages))
+	// connecting and ending pairs (BATCH2), the path and services pairs
+	// (BATCH3): eight Page values, fifteen rules served between them.
+	//
+	// Counted rather than derived from the registry on purpose. This is the
+	// one place that asserts the guide has as many pages as its authors
+	// intended, and deriving it would make the test agree with whatever the
+	// content happens to contain — which is what it exists to check.
+	if len(pages) != 8 {
+		t.Fatalf("got %d pages, want 8 (R01, R04, loss cluster, R15, R02/R03, R09/R14, R10/R13, R11/R12)", len(pages))
 	}
 
 	var servedTotal int
@@ -102,8 +107,14 @@ func TestPagesFollowAnswerFirst(t *testing.T) {
 			t.Errorf("%s has an empty one-line summary", label)
 		}
 	}
-	if servedTotal != 11 {
-		t.Errorf("pages serve %d rules between them, want 11 — every built rule", servedTotal)
+	// Fifteen: the complete v1 rule set, every one of them documented.
+	//
+	// A literal rather than rules.TotalV1Rules, because this package parses
+	// authored content and knows nothing about the registry — that comparison
+	// is the gui bijection test's job, and importing rules here to duplicate
+	// it would couple the content parser to the detector set for no gain.
+	if servedTotal != 15 {
+		t.Errorf("pages serve %d rules between them, want 15 — every rule in the v1 set", servedTotal)
 	}
 }
 
@@ -173,6 +184,8 @@ func TestMultiRulePageHasOneAnchorPerServedRule(t *testing.T) {
 		"Packet loss, retransmission, and reordering": {"R05", "R06", "R07", "R08"},
 		"Connecting — and failing to connect":         {"R02", "R03"},
 		"Connections that end early, or too often":    {"R09", "R14"},
+		"The path between two hosts":                  {"R10", "R13"},
+		"Services a connection depends on":            {"R11", "R12"},
 	}
 
 	seen := map[string]bool{}

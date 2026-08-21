@@ -845,3 +845,66 @@ scores.
 If a third rule ever needs this shape, that is the signal to give the scoring
 model an explicit direction rather than encoding the inversion per rule. Two
 is not yet that signal.
+
+### Batch 3 — R11 and R12 wording divergences
+
+**Added 2026-08-20, Part 2. Four departures from the specified wording, each
+because the specification claims something this build cannot.**
+
+**1. "at the median" rather than "averaged" (R11).** The spec says successful
+queries "averaged 640ms". The build reports the median. A mean is pulled by
+one outlier, and these samples are small — a resolver with six successful
+lookups and one pathological one would be described by its worst case. The
+spec's phrasing was written before the sample sizes were known.
+
+**2. "at the median" rather than "at p95" (R12).** Same reasoning. With six
+successful handshakes, p95 by nearest rank *is* the maximum, so the figure
+would be labelled a percentile while being a single observation.
+
+**3. R11 omits "Application connections to the affected names were delayed
+correspondingly."** The rule does not correlate lookups to the connections
+that follow them — it reads DNS and nothing else. The sentence is almost
+certainly true and the tool has no evidence for it, which is exactly the
+category the advisory posture exists to keep out. Stating a consequence it did
+not observe would be the tool taking credit for an inference it never made.
+
+**4. R12 says "expires 4 days after the capture ended" rather than "expires in
+4 days".** "In 4 days" is relative to now; a capture is read weeks after it was
+taken, and a certificate that had four days left when the traffic was recorded
+may have expired long before anyone reads the report. Naming the reference
+point is the difference between a fact and a stale one.
+
+### Batch 3 — DoH, and reporting a detection that cannot be complete
+
+R11's unavailable note says DNS over HTTPS "cannot be distinguished from
+ordinary web traffic here at all, so this count is a floor rather than a
+total."
+
+DNS over TLS is recognisable by port and is counted. DoH is HTTPS to a web
+port and is not distinguishable from any other HTTPS. Reporting only the DoT
+count without that sentence would imply the tool had accounted for encrypted
+resolution, when it has accounted for the half it can see.
+
+The same discipline as R13's ICMP substitution: where a detection is
+structurally incomplete, the report says so at the point of reporting rather
+than leaving the reader to discover the gap.
+
+### Batch 3 — data minimisation in the new decode surface
+
+The decoder's payload guarantee weakened in Part 2, from *never reads payload*
+to *extracts only named scalars* (see the package doc and
+`internal/capture/allowlist_test.go`). One consequence runs the other way and
+is worth recording.
+
+**R11 does not parse the DNS question section at all.** The rule reports how
+many lookups failed, went unanswered, or ran slow — never which names. So the
+name is never read, never stored, and never emitted, and that is a property of
+the parser rather than a filtering step applied afterwards.
+
+The same holds for R12: no certificate subject, no issuer, no server name, no
+key material. Only an expiry date, as a Unix second.
+
+So the surface that weakened the guarantee's *basis* narrowed what the tool
+looks at. A capture's most identifying content — the names someone looked up
+and the sites they connected to — is precisely what these rules decline to
+read, and the allowlist is what keeps that true as the rules change.

@@ -48,6 +48,9 @@ var batch1Source string
 //go:embed content_batch2.md
 var batch2Source string
 
+//go:embed content_batch3.md
+var batch3Source string
+
 // Source returns the original embedded guide content, for the test that checks
 // it against GUIDE-CONTENT.md.
 func Source() string { return contentSource }
@@ -60,11 +63,15 @@ func Batch1Source() string { return batch1Source }
 // checks it against GUIDE-CONTENT-BATCH2.md.
 func Batch2Source() string { return batch2Source }
 
+// Batch3Source returns the Batch 3 embedded guide content, for the test that
+// checks it against GUIDE-CONTENT-BATCH3.md.
+func Batch3Source() string { return batch3Source }
+
 // allSources returns every embedded document in parse order, so a test that
 // has to cover all of them cannot miss one by being written against a list of
 // filenames that a later batch forgets to extend.
 func allSources() []string {
-	return []string{contentSource, batch1Source, batch2Source}
+	return []string{contentSource, batch1Source, batch2Source, batch3Source}
 }
 
 // Skeleton is the section order a single-rule guide page follows — R01, R04
@@ -179,6 +186,7 @@ func init() {
 		{"GUIDE-CONTENT.md", contentSource},
 		{"GUIDE-CONTENT-BATCH1.md", batch1Source},
 		{"GUIDE-CONTENT-BATCH2.md", batch2Source},
+		{"GUIDE-CONTENT-BATCH3.md", batch3Source},
 	} {
 		pages, err := parse(doc.src)
 		if err != nil {

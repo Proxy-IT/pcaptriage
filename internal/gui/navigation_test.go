@@ -393,23 +393,7 @@ func TestEveryBuiltRuleLinkActuallyNavigates(t *testing.T) {
 		t.Fatal("no rules registered")
 	}
 
-	// Batch 3's interim tolerance, mirroring the one in guide_test.go and
-	// expiring the same way: a rule listed here that has gained a page fails
-	// the test rather than passing quietly. See that file for why the gap is
-	// safe while it lasts — HasPage gates the link, so these rules render no
-	// link at all rather than one that goes nowhere.
-	awaitingPage := map[string]bool{"R10": true, "R13": true, "R11": true, "R12": true}
-	for id := range awaitingPage {
-		if _, err := app.GuidePage(id); err == nil {
-			t.Errorf("%s now resolves to a guide page, so its awaitingPage entry is stale — "+
-				"remove it and let this walk go strict again", id)
-		}
-	}
-
 	for _, m := range metas {
-		if awaitingPage[m.ID] {
-			continue
-		}
 		// Step two: the card only renders a link when the map says so.
 		if !available[m.ID] {
 			t.Errorf("%s renders no card link: the index never marked it available, so a finding "+
