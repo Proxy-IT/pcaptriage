@@ -8,20 +8,12 @@ README's release section for what to bump when cutting a tag.
 
 ## Unreleased
 
-### Fixed
+Nothing yet.
 
-- **The exported report no longer states two things that were false.** Its
-  masthead carried a hardcoded "Partial build." above a sentence announcing a
-  complete rule set, and its capture-completeness note said the capture-quality
-  assessment "is R15, which is not implemented in this build" while listing
-  conditions that check already detects. Both had been wrong since the fifteenth
-  rule landed. The report now states only what is derived from the rule
-  registry, so neither claim can contradict the build again. A third paragraph
-  that rendered "0 of the fifteen v1 rules are not implemented in this build" on
-  a complete build is now shown only when there is a gap to explain.
+## v0.2.2-alpha — 2026-08-21
 
-  No rule, threshold, detection logic or output schema changed. The JSON
-  goldens are byte-identical; only the HTML ones moved.
+The product has a name and a face. Everything below is new since
+`v0.2.1-alpha`, whose binary predates all of it.
 
 ### Changed
 
@@ -34,21 +26,34 @@ README's release section for what to bump when cutting a tag.
 - **The placeholder icon is gone.** The app shipped with the stock Wails logo,
   which is what Windows showed in Task Manager and on the SmartScreen prompt —
   the moment someone decides whether to trust an unsigned download. It is now
-  the product mark, drawn separately at each size rather than resampled.
+  the product mark, drawn separately at each size rather than resampled: line
+  art above 48px, a solid silhouette between 25 and 47, hand-placed pixels at
+  16 and 20.
 - **The app bar and the exported report carry the mark.** The report is the
   artifact that leaves the building, so it opens with the full lockup and a
   hairline capture-strip rule beneath it.
 
-No rule, threshold, detection logic or output schema changed in any of this.
-The JSON goldens are byte-identical; only the HTML ones moved.
-
 ### Fixed
 
+- **The exported report no longer states two things that were false.** Its
+  masthead carried a hardcoded "Partial build." above a sentence announcing a
+  complete rule set, and its capture-completeness note said the capture-quality
+  assessment "is R15, which is not implemented in this build" while listing
+  conditions that check already detects. Both had been wrong since the fifteenth
+  rule landed. The report now states only what is derived from the rule
+  registry, so neither claim can contradict the build again. A third paragraph
+  that rendered "0 of the fifteen v1 rules are not implemented in this build" on
+  a complete build is now shown only when there is a gap to explain.
 - **Golden files are stored with Unix line endings again.** They had been
   committed with Windows ones since v0.2.0-alpha, which made every HTML golden
   test fail on a fresh clone of the repository — the rendered output and the
   stored file differed only by invisible characters. This affects contributors
-  running the test suite, not the application or anything it produces.
+  running the test suite, not the application or anything it produces. The
+  repository now runs its suite in CI on every push, which is what would have
+  caught it.
+
+No rule, threshold, detection logic or output schema changed in any of this.
+The JSON goldens are byte-identical; only the HTML ones moved.
 
 ## v0.2.1-alpha — 2026-08-21
 
