@@ -76,6 +76,26 @@ func captureQuality(info *CaptureInfo) rules.CaptureQuality {
 			info.OffloadMSS)
 	}
 
+	// Headers that cannot be believed. Unlike the two gates above, this one is
+	// about the fidelity of the bytes themselves rather than about what is
+	// missing from them, so it is stated against the material the TCP rules
+	// actually drew on rather than against the whole file.
+	if bearing := info.PacketsTCP + info.PacketsMalformed; bearing > 0 &&
+		info.PacketsMalformed >= uint64(rules.Thresholds.R15MinMalformedFrames) {
+
+		if ratio := float64(info.PacketsMalformed) / float64(bearing); ratio >= rules.Thresholds.R15MalformedRatio {
+			q.HeadersUnreliable = true
+			q.HeaderBasis = fmt.Sprintf(
+				"%s of %s frames carrying TCP (%s) declare a header length no sender could have written, "+
+					"so the header bytes in this file are not what left the sending host. Truncation does not "+
+					"produce this — a sliced frame is short, not wrong. The remaining frames decoded, but nothing "+
+					"in the capture establishes that they were left intact.",
+				formatCount(info.PacketsMalformed),
+				formatCount(bearing),
+				formatPercent(ratio))
+		}
+	}
+
 	return q
 }
 

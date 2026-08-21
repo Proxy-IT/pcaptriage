@@ -292,6 +292,32 @@ var Thresholds = struct {
 	// account for a rate a rule would flag, and above it, it can. Wants
 	// calibration against real captures like every other threshold here.
 	R15KernelDropRatio float64
+
+	// R15MalformedRatio is the share of TCP-bearing frames whose headers hold
+	// an impossible length field before the capture's headers are reported as
+	// unreliable.
+	//
+	// Measured against the frames the TCP rules draw on — decoded TCP frames
+	// plus the malformed ones — because that is the material every finding
+	// rests on. A frame the decoder never reached tells us nothing about
+	// whether the ones it did reach are faithful.
+	//
+	// [chosen] RULES.md does not list this condition at all; it was added
+	// after a real capture arrived in which a third of the frames carried a
+	// TCP data offset below the legal minimum, and the tool reported ranked
+	// findings built on the remainder without saying so. 2% is set well above
+	// the handful of corrupt frames a long capture picks up at the edges — a
+	// bad SPAN session, a truncated final record — and far below the level at
+	// which a systematic rewrite shows up. Wants calibration against real
+	// captures like every other threshold here.
+	R15MalformedRatio float64
+	// R15MinMalformedFrames is the floor below which the ratio is not
+	// consulted, so that two bad frames in a twenty-frame capture do not
+	// read as a 10% corruption rate.
+	//
+	// [chosen] Same reasoning as the other minimum-population floors in this
+	// table: a proportion needs a denominator large enough to mean something.
+	R15MinMalformedFrames int
 }{
 	R01ZeroWindowMinCumulative: 100 * time.Millisecond,
 
@@ -343,5 +369,7 @@ var Thresholds = struct {
 	R14MinConnections:           50,
 	R14MaxMedianLifetime:        1 * time.Second,
 
-	R15KernelDropRatio: 0.001, // 0.1% of packets read
+	R15KernelDropRatio:    0.001, // 0.1% of packets read
+	R15MalformedRatio:     0.02,  // 2% of TCP-bearing frames
+	R15MinMalformedFrames: 10,
 }

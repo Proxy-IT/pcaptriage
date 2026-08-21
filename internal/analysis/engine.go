@@ -84,6 +84,12 @@ type CaptureInfo struct {
 	// UndecodedReasons counts decode failures by reason, so a capture the tool
 	// largely failed to read cannot look like a capture with nothing in it.
 	UndecodedReasons map[string]uint64
+	// PacketsMalformed is the subset of PacketsUndecoded whose headers held a
+	// length field that cannot be correct, as opposed to frames that were
+	// merely incomplete or carried a protocol this build does not decode. See
+	// capture.IsImpossibleHeader for why only that subset says anything about
+	// whether the capture's headers can be believed.
+	PacketsMalformed uint64
 
 	FirstPacketTime time.Time
 	LastPacketTime  time.Time
@@ -272,6 +278,9 @@ func Run(path string, opts Options) (*Result, error) {
 			info.PacketsUndecoded++
 			if pkt.DecodeErr != nil {
 				info.UndecodedReasons[pkt.DecodeErr.Error()]++
+				if capture.IsImpossibleHeader(pkt.DecodeErr) {
+					info.PacketsMalformed++
+				}
 			}
 			continue
 		}
@@ -350,6 +359,8 @@ func Run(path string, opts Options) (*Result, error) {
 		CaptureStart:     info.FirstPacketTime,
 		CaptureEnd:       info.LastPacketTime,
 		PacketsRead:      info.PacketsRead,
+		PacketsTCP:       info.PacketsTCP,
+		PacketsMalformed: info.PacketsMalformed,
 		DropAvailability: info.DropAvailability,
 		InterfaceDrops:   info.InterfaceDrops,
 		PacketsDropped:   info.PacketsDropped,

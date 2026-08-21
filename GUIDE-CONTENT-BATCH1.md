@@ -162,6 +162,14 @@ the banner at the top of every report rather than as findings, because they
 qualify everything below them.
 
 ### What the individual notices mean
+- **"Headers declare a length no sender could have written."** Something
+  between the sending machine and this file altered the packet headers. This
+  is the one notice that isn't about a blind spot: the recording isn't
+  incomplete, it's wrong. Findings in the same report were read out of those
+  headers, so they describe the file rather than the network, and shouldn't
+  be acted on without a second capture to compare against. Clipping doesn't
+  cause this — a clipped packet is short, and its headers still say what the
+  sender wrote.
 - **"Flows began before the capture started."** The recording missed those
   conversations' opening handshakes, where the two sides state how they'll
   measure available space. Without that, questions about window sizing can't

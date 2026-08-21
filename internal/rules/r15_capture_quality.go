@@ -21,8 +21,9 @@ import (
 // tracked as follow-up detection work.
 //
 // What is covered: flows already open when the capture began (midstream),
-// connections captured in one direction only, and packets the capture host
-// itself dropped before writing them. This is ownership and structure, moved
+// connections captured in one direction only, packets the capture host itself
+// dropped before writing them, and frames whose header length fields cannot be
+// correct. This is ownership and structure, moved
 // out of the engine and the report package where it lived ad hoc — every
 // note below existed before this rule did; nothing here changes what a
 // report says, only who is responsible for saying it.
@@ -43,7 +44,8 @@ func (r *CaptureQualityRule) Meta() Meta {
 		// n/a per RULES.md: R15 always runs and never competes for rank.
 		BaseWeight: 0,
 		Summary: "Reports what the capture itself may limit: flows already open when the capture began, " +
-			"connections seen in one direction only, and packets the capture host dropped before writing them.",
+			"connections seen in one direction only, packets the capture host dropped before writing them, " +
+			"and headers too damaged to be believed.",
 	}
 }
 
@@ -104,6 +106,23 @@ func (r *CaptureQualityRule) Emit(pop *Population, out *findings.Store) {
 			Text: "Partly assessed: anything that depends on segment size. " +
 				pop.Quality.OffloadBasis +
 				" Loss and retransmission analysis still ran; size-based conclusions on these flows are the ones to treat carefully.",
+		})
+	}
+
+	// Header bytes that are not what the sender wrote. Placed after the gaps
+	// above and before the eviction note because it is the one condition here
+	// that bears on whether the findings themselves mean anything, rather than
+	// on which checks could run.
+	if pop.Quality.HeadersUnreliable {
+		out.AddNote(findings.Note{
+			Kind:   "unavailable",
+			RuleID: "R15",
+			Text: "Not assessed: anything read from a TCP header in this capture. " +
+				pop.Quality.HeaderBasis +
+				" Findings below were derived from those headers and should be treated as unverified — " +
+				"the frame numbers are real and can be opened in Wireshark, but the conditions reported " +
+				"may be artifacts of the corruption rather than events on the network. A capture taken " +
+				"at a different point, or exported by different means, would settle it.",
 		})
 	}
 

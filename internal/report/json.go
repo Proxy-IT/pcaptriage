@@ -102,10 +102,14 @@ type Capture struct {
 
 	Snaplen *uint32 `json:"snaplen"`
 
-	PacketsRead      uint64            `json:"packets_read"`
-	PacketsTCP       uint64            `json:"packets_tcp"`
-	PacketsNonTCP    uint64            `json:"packets_non_tcp"`
-	PacketsUndecoded uint64            `json:"packets_undecoded"`
+	PacketsRead      uint64 `json:"packets_read"`
+	PacketsTCP       uint64 `json:"packets_tcp"`
+	PacketsNonTCP    uint64 `json:"packets_non_tcp"`
+	PacketsUndecoded uint64 `json:"packets_undecoded"`
+	// PacketsMalformed is omitted when zero: on a faithful capture there is no
+	// such thing to report, and a permanent "0" would invite reading its
+	// absence elsewhere as a fault.
+	PacketsMalformed uint64            `json:"packets_malformed,omitempty"`
 	UndecodedReasons map[string]uint64 `json:"undecoded_reasons,omitempty"`
 
 	FirstPacketTime string  `json:"first_packet_time"`
@@ -220,6 +224,7 @@ func Build(res *analysis.Result, inv Invocation, version string) *Document {
 			PacketsTCP:       c.PacketsTCP,
 			PacketsNonTCP:    c.PacketsNonTCP,
 			PacketsUndecoded: c.PacketsUndecoded,
+			PacketsMalformed: c.PacketsMalformed,
 			UndecodedReasons: c.UndecodedReasons,
 			FirstPacketTime:  formatTime(c.FirstPacketTime),
 			LastPacketTime:   formatTime(c.LastPacketTime),

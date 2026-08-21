@@ -160,7 +160,7 @@
       "name": "capture-quality",
       "base_weight": 0,
       "status": "ran",
-      "summary": "Reports what the capture itself may limit: flows already open when the capture began, connections seen in one direction only, and packets the capture host dropped before writing them."
+      "summary": "Reports what the capture itself may limit: flows already open when the capture began, connections seen in one direction only, packets the capture host dropped before writing them, and headers too damaged to be believed."
     }
   ],
   "findings": [],

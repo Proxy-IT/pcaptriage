@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>pcap triage — r08-one-way</title>
+<title>pcap triage — r15-sliced-headers</title>
 <style>/* Design tokens — the single source of the palette, type base and radii for
    both rendering surfaces: the desktop app's stylesheet and the exported HTML
    report's. A finding must look like itself whether it is read in the app or
@@ -582,10 +582,10 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
 
 <header class="masthead">
   <h1>pcap triage report</h1>
-  <div class="file">testdata/fixtures/r08-one-way</div>
+  <div class="file">testdata/fixtures/r15-sliced-headers</div>
   <div class="stamp">
     pcaptriage test · ruleset 1.0.0-partial · schema 4
-    · capture 2024-03-14T09:00:00.02Z to 2024-03-14T09:00:01.02Z (UTC)
+    · capture 2024-03-14T09:00:00.02Z to 2024-03-14T09:00:00.715Z (UTC)
   </div>
   <p class="posture">
     <strong>Advisory, not diagnostic.</strong> Each finding states what was observed, why it
@@ -597,13 +597,6 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
     these checks found nothing, not that the capture is healthy.
   </p>
   
-  <p class="posture">
-    <strong>Two labels on every finding.</strong> The coloured one — significant, worth
-    noting, informational — is how much it matters. The plain one is how sure the tool is:
-    <em>confirmed</em> means the capture directly showed it, <em>inferred</em> means
-    something the check needed was missing and an approximation was used instead. An
-    inferred finding states what was substituted, directly under the label.
-  </p>
   </header>
 
 
@@ -619,18 +612,18 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
   <div class="tiles">
     <div class="tile">
       <div class="tile-label">Packets read</div>
-      <div class="tile-value">66</div>
-      <div class="tile-context">66 TCP · 0 other · 0 undecodable</div>
+      <div class="tile-value">144</div>
+      <div class="tile-context">0 TCP · 0 other · 144 undecodable</div>
     </div>
     <div class="tile">
       <div class="tile-label">TCP flows</div>
-      <div class="tile-value">4</div>
-      <div class="tile-context">across 6 hosts</div>
+      <div class="tile-value">0</div>
+      <div class="tile-context">across 0 hosts</div>
     </div>
     <div class="tile">
       <div class="tile-label">Began before capture</div>
-      <div class="tile-value">25%</div>
-      <div class="tile-context">1 of 4 flows midstream</div>
+      <div class="tile-value">—</div>
+      <div class="tile-context">no TCP flows observed</div>
     </div>
     <div class="tile">
       <div class="tile-label">Snaplen</div>
@@ -640,106 +633,36 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
   </div>
 
   
-  <div class="figure">
-    <h3>Flows by capture completeness</h3>
-    <svg class="chart chart-stack" viewBox="0 0 680 22" width="680" height="22" role="img" aria-label="Flows by capture completeness"><title>Flows by capture completeness</title><path d="M0,0 h508.5 v22 h-508.5 Z" class="fill-strong"/><path d="M510.5,0 H676 A4,4 0 0 1 680,4 V18 A4,4 0 0 1 676,22 H510.5 Z" class="fill-soft"/></svg>
-    <div class="legend">
-      
-      <span class="key"><span class="swatch fill-strong"></span>Complete
-        <span class="num">3 (75%)</span></span>
-      
-      <span class="key"><span class="swatch fill-mid"></span>Partial
-        <span class="num">0 (0%)</span></span>
-      
-      <span class="key"><span class="swatch fill-soft"></span>Midstream
-        <span class="num">1 (25%)</span></span>
-      
+</section>
+
+
+<section>
+  <h2>Top findings <span class="count">none</span></h2>
+  
+    
+    
+    <div class="clean-banner">
+      <h3>No traffic this build examines</h3>
+      <p>This capture holds 144 packets, but none of them form a TCP conversation and none are name lookups. Every check in this build reads one or the other, so none of them had anything to examine — this is not a result about the traffic, it is the absence of anything to assess.</p>
     </div>
-    <p class="caption">
-      A midstream flow was already established when the capture began, so its window scale
-      factor is unknown and receive window sizing cannot be assessed for it. Zero-window
-      detection is unaffected and ran on every flow.
-    </p>
-  </div>
-  
-</section>
-
-
-<section>
-  <h2>Top findings <span class="count">all 1, most significant first</span></h2>
-  
     
-<article class="finding top sev-worth-noting">
-  <div class="finding-head">
-    <span class="rank">#1</span>
-    <h3>Timeout-driven retransmissions — 10.14.14.2 → 10.13.13.5</h3>
-    <span class="tag tag-rule">R05</span>
-    <span class="tag tag-sev tag-sev-worth-noting">Worth noting</span>
-    <span class="tag tag-confirmed">confirmed</span>
-  </div>
-  
-  <p class="observation">3 segments retransmitted after timeout, costing 780ms of transfer time. Retransmission rate on this path is 14.3% against a capture-wide median of 0%.</p>
-  <p class="frames">Frames 57, 64, 66</p>
-  <p class="next"><b>Check next:</b> sustained loss on the path between these hosts. This is more disruptive than the fast-retransmit pattern in R06 — the sender stalled waiting for a timer rather than recovering from duplicate ACKs.</p>
-</article>
-
+    
   
 </section>
 
 
 
-<section>
-  <h2>All findings by rule</h2>
-  
-    <h3 class="rule-head">R05 · rto-retransmission</h3>
-    <p class="section-note">Segments were retransmitted after a timer-shaped quiet gap with no duplicate ACKs asking for them — the sender stalled waiting for a timeout.</p>
-
-    
-
-    
-<article class="finding sev-worth-noting">
-  <div class="finding-head">
-    <span class="rank">#1</span>
-    <h3>Timeout-driven retransmissions — 10.14.14.2 → 10.13.13.5</h3>
-    <span class="tag tag-rule">R05</span>
-    <span class="tag tag-sev tag-sev-worth-noting">Worth noting</span>
-    <span class="tag tag-confirmed">confirmed</span>
-  </div>
-  
-  <p class="observation">3 segments retransmitted after timeout, costing 780ms of transfer time. Retransmission rate on this path is 14.3% against a capture-wide median of 0%.</p>
-  <p class="frames">Frames 57, 64, 66</p>
-  <p class="next"><b>Check next:</b> sustained loss on the path between these hosts. This is more disruptive than the fast-retransmit pattern in R06 — the sender stalled waiting for a timer rather than recovering from duplicate ACKs.</p>
-</article>
-
-  
-</section>
-
 
 
 <section>
-  <h2>Subjects that produced findings <span class="count">1</span></h2>
+  <h2>Subjects that produced findings <span class="count">0</span></h2>
   <p class="section-note">
     Bounded to the subjects that raised something. A table of every flow in the capture,
     ranked by significance, needs per-flow state retained to the end of the run; flow state
     is evictable by design, so that table is not available in this build.
   </p>
   
-  <div class="table-wrap">
-    <table>
-      <thead><tr><th>Subject</th><th>Kind</th><th>Rules</th><th>Occurrences</th><th>Frames</th></tr></thead>
-      <tbody>
-      
-        <tr>
-          <td class="mono">10.13.13.5:55200 &lt;-&gt; 10.14.14.2:1521</td>
-          <td>flow</td>
-          <td class="mono">R05</td>
-          <td class="num">3</td>
-          <td class="mono">57, 64, 66</td>
-        </tr>
-      
-      </tbody>
-    </table>
-  </div>
+  <p class="empty">No subjects produced findings.</p>
   
 </section>
 
@@ -754,31 +677,6 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
   </p>
 
   
-    
-    <div class="note unavailable">
-      <span class="who">R04 · not assessed</span>
-      Not assessed: server response time for 3 server endpoints with fewer than 5 completed request/response exchanges. Percentiles over that few samples would not describe a distribution.
-    </div>
-    
-    <div class="note unavailable">
-      <span class="who">R08 · not assessed</span>
-      Not assessed: directional loss comparison on 1 flow captured in one direction only. This is a common consequence of a one-way SPAN or mirror configuration; asymmetric-loss detection requires both directions of a connection.
-    </div>
-    
-    <div class="note unavailable">
-      <span class="who">R10 · not assessed</span>
-      Not assessed: comparative network latency. 0 hosts had at least 3 flows with a usable round-trip measurement, and this check compares hosts against the others in the same capture, so fewer than 2 gives it nothing to compare.
-    </div>
-    
-    <div class="note unavailable">
-      <span class="who">R15 · not assessed</span>
-      Not assessed: anything comparing the two directions of a conversation. 1 of 4 flows were captured in one direction only, which usually means the capture point saw traffic going one way. Loss direction analysis is unavailable for those.
-    </div>
-    
-    <div class="note unavailable">
-      <span class="who">R15 · not assessed</span>
-      Not assessed: receive window sizing. 1 of 4 flows (25%) began before the capture started, so the window scale factor for them is unknown. Zero-window detection does not depend on it and was performed on every flow.
-    </div>
     
     <div class="note unavailable">
       <span class="who">R15 · not assessed</span>

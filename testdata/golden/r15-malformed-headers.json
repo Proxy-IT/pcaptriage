@@ -9,42 +9,58 @@
   },
   "invocation": {
     "args": [
-      "testdata/fixtures/r13-pmtu-blackhole"
+      "testdata/fixtures/r15-malformed-headers"
     ],
-    "input": "testdata/fixtures/r13-pmtu-blackhole",
+    "input": "testdata/fixtures/r15-malformed-headers",
     "max_flows": 0
   },
   "capture": {
-    "path": "testdata/fixtures/r13-pmtu-blackhole",
+    "path": "testdata/fixtures/r15-malformed-headers",
     "format": "normalised",
     "link_type": "Ethernet",
     "snaplen": 262144,
-    "packets_read": 112,
-    "packets_tcp": 112,
+    "packets_read": 144,
+    "packets_tcp": 96,
     "packets_non_tcp": 0,
-    "packets_undecoded": 0,
-    "first_packet_time": "2024-03-14T09:00:00Z",
-    "last_packet_time": "2024-03-14T09:00:15.056Z",
-    "duration_seconds": 15.056,
+    "packets_undecoded": 48,
+    "packets_malformed": 48,
+    "undecoded_reasons": {
+      "TCP data offset is below the minimum header size": 48
+    },
+    "first_packet_time": "2024-03-14T09:00:00.02Z",
+    "last_packet_time": "2024-03-14T09:00:00.715Z",
+    "duration_seconds": 0.695,
     "timezone": "UTC",
-    "tcp_flows": 7,
-    "tcp_hosts": 8,
-    "flows_complete": 7,
-    "flows_partial": 0,
+    "tcp_flows": 6,
+    "tcp_hosts": 7,
+    "flows_complete": 4,
+    "flows_partial": 2,
     "flows_midstream": 0,
     "flows_one_way": 0,
     "flow_cap": 16384,
     "flows_evicted": 0,
-    "peak_live_flows": 7
+    "peak_live_flows": 6
   },
   "coverage": {
-    "clean": false,
+    "clean": true,
     "statement": "No significant problems found in what was checked",
     "qualifier": "That is not the same as the capture being problem-free. 15 of 15 planned checks are built, and what they do not cover has not been examined. What each check looked at, and what could not be assessed on this capture, is below.",
     "not_checked": [
       {
+        "rule_id": "R04",
+        "text": "Not assessed: server response time for 5 server endpoints with fewer than 5 completed request/response exchanges. Percentiles over that few samples would not describe a distribution."
+      },
+      {
+        "rule_id": "R04",
+        "text": "Not assessed: server response time on 1 of 6 TCP flows. Request and response did not alternate cleanly on those flows — the server sent data with no preceding client request — so request/response pairing was not possible. Server-sent events, protocol banners and flows joined partway through a response all take this shape."
+      },
+      {
         "rule_id": "R10",
         "text": "Not assessed: comparative network latency. 0 hosts had at least 3 flows with a usable round-trip measurement, and this check compares hosts against the others in the same capture, so fewer than 2 gives it nothing to compare."
+      },
+      {
+        "rule_id": "R15",
+        "text": "Not assessed: anything read from a TCP header in this capture. 48 of 144 frames carrying TCP (33%) declare a header length no sender could have written, so the header bytes in this file are not what left the sending host. Truncation does not produce this — a sliced frame is short, not wrong. The remaining frames decoded, but nothing in the capture establishes that they were left intact. Findings below were derived from those headers and should be treated as unverified — the frame numbers are real and can be opened in Wireshark, but the conditions reported may be artifacts of the corruption rather than events on the network. A capture taken at a different point, or exported by different means, would settle it."
       },
       {
         "rule_id": "R15",
@@ -163,84 +179,27 @@
       "summary": "Reports what the capture itself may limit: flows already open when the capture began, connections seen in one direction only, packets the capture host dropped before writing them, and headers too damaged to be believed."
     }
   ],
-  "findings": [
-    {
-      "rank": 1,
-      "rule_id": "R13",
-      "rule": "pmtu-blackhole",
-      "subject": "10.1.1.5:52000 <-> 10.9.9.4:443",
-      "scope_kind": "flow",
-      "subject_label": "10.1.1.5 → 10.9.9.4",
-      "title": "Large packets failing while small packets succeed — 10.1.1.5 ↔ 10.9.9.4",
-      "observation": "Segments of 1400 bytes were retransmitted repeatedly and never acknowledged, while segments up to 300 bytes were delivered normally on the same connection. 2 segments failed this way across 6 transmissions. Other connections in this capture that delivered data carried segments of 1400 bytes, so the limit appears to be on this path rather than on the sender. This build does not examine ICMP, so whether the network reported the size limit back to the sender is unknown.",
-      "check_next": "MTU along the path between 10.1.1.5 and 10.9.9.4, particularly any tunnel or VPN segment. This pattern often presents as \"the connection works but transfers hang\".",
-      "frames": [
-        39,
-        106
-      ],
-      "first_frame": 39,
-      "worst_frame": 39,
-      "total_count": 6,
-      "quality": "confirmed",
-      "severity": "significant",
-      "severity_label": "Significant",
-      "metrics": {
-        "deficit_ratio": 4.667,
-        "delivered_segments": 5,
-        "failed_segments": 2,
-        "largest_delivered_bytes": 300,
-        "largest_failed_bytes": 1400,
-        "peer_delivered_bytes": 1400,
-        "peer_flows": 8,
-        "smallest_failed_bytes": 1400,
-        "stall_seconds": 10,
-        "transmissions": 6
-      }
-    },
-    {
-      "rank": 2,
-      "rule_id": "R05",
-      "rule": "rto-retransmission",
-      "subject": "10.1.1.5:52000 <-> 10.9.9.4:443",
-      "scope_kind": "flow",
-      "subject_label": "10.1.1.5 → 10.9.9.4",
-      "title": "Timeout-driven retransmissions — 10.1.1.5 → 10.9.9.4",
-      "observation": "4 segments retransmitted after timeout, costing 6.0s of transfer time. Retry intervals doubled each attempt, indicating the sender received no acknowledgement at all rather than recovering quickly. Retransmission rate on this path is 36.4% against a capture-wide median of 0%.",
-      "check_next": "sustained loss on the path between these hosts. This is more disruptive than the fast-retransmit pattern in R06 — the sender stalled waiting for a timer rather than recovering from duplicate ACKs.",
-      "frames": [
-        85,
-        105,
-        107,
-        108
-      ],
-      "first_frame": 85,
-      "worst_frame": 105,
-      "total_count": 4,
-      "quality": "confirmed",
-      "severity": "significant",
-      "severity_label": "Significant",
-      "metrics": {
-        "backoff_observed": true,
-        "capture_median_rate_percent": 0,
-        "data_segments_direction": 11,
-        "direction": "10.1.1.5 -> 10.9.9.4",
-        "flow": "10.1.1.5:52000 <-> 10.9.9.4:443",
-        "retrans_rate_percent": 36.364,
-        "segments_retransmitted_after_timeout": 4,
-        "time_lost_ms": 6000
-      }
-    }
-  ],
+  "findings": [],
   "notes": [
     {
-      "kind": "info",
+      "kind": "unavailable",
       "rule_id": "R04",
-      "text": "Comparative ranking was unavailable for server response time: 1 server endpoint had enough exchanges to assess, which is not a peer group. The 1.0s absolute threshold was used instead of a comparison against the capture."
+      "text": "Not assessed: server response time for 5 server endpoints with fewer than 5 completed request/response exchanges. Percentiles over that few samples would not describe a distribution."
+    },
+    {
+      "kind": "unavailable",
+      "rule_id": "R04",
+      "text": "Not assessed: server response time on 1 of 6 TCP flows. Request and response did not alternate cleanly on those flows — the server sent data with no preceding client request — so request/response pairing was not possible. Server-sent events, protocol banners and flows joined partway through a response all take this shape."
     },
     {
       "kind": "unavailable",
       "rule_id": "R10",
       "text": "Not assessed: comparative network latency. 0 hosts had at least 3 flows with a usable round-trip measurement, and this check compares hosts against the others in the same capture, so fewer than 2 gives it nothing to compare."
+    },
+    {
+      "kind": "unavailable",
+      "rule_id": "R15",
+      "text": "Not assessed: anything read from a TCP header in this capture. 48 of 144 frames carrying TCP (33%) declare a header length no sender could have written, so the header bytes in this file are not what left the sending host. Truncation does not produce this — a sliced frame is short, not wrong. The remaining frames decoded, but nothing in the capture establishes that they were left intact. Findings below were derived from those headers and should be treated as unverified — the frame numbers are real and can be opened in Wireshark, but the conditions reported may be artifacts of the corruption rather than events on the network. A capture taken at a different point, or exported by different means, would settle it."
     },
     {
       "kind": "unavailable",

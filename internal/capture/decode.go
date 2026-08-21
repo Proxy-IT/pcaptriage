@@ -28,6 +28,33 @@ var (
 	ErrNotTCP           = errors.New("not a TCP segment")
 )
 
+// IsImpossibleHeader reports a decode failure where a header's own length field
+// holds a value that cannot be correct — an IPv4 header length outside the
+// legal range, a total length shorter than the header it introduces, or a TCP
+// data offset below the 20-byte minimum.
+//
+// The distinction this draws is between a frame that is *incomplete* and a
+// frame that is *wrong*, and only the second says anything about whether the
+// capture's headers can be believed:
+//
+//   - Truncation produces short frames whose length fields are still correct.
+//     A capture sliced at 96 bytes is a perfectly faithful record of the first
+//     96 bytes, and the Err*Short* family is the expected result of reading it.
+//     Counting those as corruption would flag every header-only capture.
+//   - A length field with an impossible value cannot be produced by slicing.
+//     The sender did not write it, so something between the sender and this
+//     file altered the bytes.
+//
+// ErrFragment and ErrUnknownEtherType are likewise ordinary traffic this build
+// does not decode — fragments and ARP are not defects — and ErrVLANDepth is a
+// limit of this decoder rather than a fault in the frame. None of them belong
+// here.
+func IsImpossibleHeader(err error) bool {
+	return errors.Is(err, ErrBadIPv4IHL) ||
+		errors.Is(err, ErrBadIPv4Length) ||
+		errors.Is(err, ErrBadTCPOffset)
+}
+
 // UnsupportedLinkTypeError reports a capture whose link layer this build does
 // not decode. v1 decodes Ethernet only; the error names what was seen so the
 // user is told why rather than getting an empty report.

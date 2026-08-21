@@ -76,6 +76,29 @@ type lossExpectation struct {
 	Reason           string
 }
 
+// tcpCountDivergence documents fixtures where the engine and the oracle
+// legitimately disagree about how many frames are TCP.
+//
+// There is exactly one shape that produces this: a frame whose TCP header has
+// been corrupted. Wireshark reads the IP protocol byte, calls the frame TCP,
+// and then marks the dissection malformed; the engine declines to call it a
+// TCP packet at all, because it will not hand a rule a header it knows is
+// wrong. Both are defensible. The engine's choice is the one that keeps
+// PacketsTCP meaning "frames the rules could use".
+var tcpCountDivergence = map[string]struct {
+	Tshark uint64
+	Engine uint64
+	Reason string
+}{
+	"r15-malformed-headers": {
+		Tshark: 144, Engine: 96,
+		Reason: "one frame in three carries a TCP data offset below the legal minimum. tshark counts " +
+			"all 144 as TCP on the strength of the IP protocol byte and flags the dissection malformed; " +
+			"the engine excludes the 48 it cannot trust, which is the count R15's malformed-header " +
+			"guard then reports against",
+	},
+}
+
 // lossFlagExpectation documents every fixture expected to contain
 // loss-analysis artifacts. A fixture not listed here must be loss-clean on
 // both sides: an accidental retransmission in a fixture that does not model
@@ -96,6 +119,15 @@ var lossFlagExpectation = map[string]lossExpectation{
 		Reason: "three large segments lost once each and successfully retransmitted; engine and Wireshark " +
 			"agree exactly. R13 reports nothing here, which is the point of the fixture — the retries " +
 			"worked, so there is no blackhole to find",
+	},
+	"r15-malformed-headers": {
+		Tshark: tsharkLossCounts{Retransmissions: 18, OutOfOrder: 2},
+		Reason: "nothing was lost in this fixture — it is the clean capture with a third of its TCP " +
+			"headers corrupted. tshark, reading sequence numbers out of frames whose data offset is " +
+			"impossible, sees 18 retransmissions and 2 reorderings that never happened. The engine " +
+			"reports no loss at all because it discards those frames rather than believing them, and " +
+			"says so through R15. This entry is the evidence for the guard: an analyser that trusts " +
+			"corrupted headers invents loss, which is the outcome the note warns the reader about",
 	},
 	"r05-rto-burst": {
 		Tshark:    tsharkLossCounts{Retransmissions: 3},
@@ -471,7 +503,12 @@ func TestTsharkCrossValidation(t *testing.T) {
 				if scan.Frames != res.Capture.PacketsRead {
 					t.Errorf("packets read: engine %d, tshark %d", res.Capture.PacketsRead, scan.Frames)
 				}
-				if scan.TCPFrames != res.Capture.PacketsTCP {
+				if d, ok := tcpCountDivergence[f.Name]; ok {
+					if scan.TCPFrames != d.Tshark || res.Capture.PacketsTCP != d.Engine {
+						t.Errorf("documented TCP-count divergence drifted: tshark %d (documented %d), engine %d (documented %d) — reason on file: %s",
+							scan.TCPFrames, d.Tshark, res.Capture.PacketsTCP, d.Engine, d.Reason)
+					}
+				} else if scan.TCPFrames != res.Capture.PacketsTCP {
 					t.Errorf("TCP packets: engine %d, tshark %d", res.Capture.PacketsTCP, scan.TCPFrames)
 				}
 

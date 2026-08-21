@@ -61,6 +61,10 @@ func (b *Builder) WithInterfaceStats(s InterfaceStats) *Builder {
 type frame struct {
 	at   time.Duration
 	data []byte
+	// wire is the length the frame had on the wire, which differs from
+	// len(data) only for a sliced capture. Zero means "not sliced", so every
+	// fixture that does not ask for slicing keeps len(data) for both.
+	wire int
 }
 
 // New returns an empty builder.
@@ -372,9 +376,80 @@ func (b *Builder) Pcapng() ([]byte, error) {
 }
 
 func (b *Builder) captureInfo(f frame) gopacket.CaptureInfo {
+	wire := f.wire
+	if wire == 0 {
+		wire = len(f.data)
+	}
 	return gopacket.CaptureInfo{
 		Timestamp:     BaseTime.Add(f.at),
 		CaptureLength: len(f.data),
-		Length:        len(f.data),
+		Length:        wire,
+	}
+}
+
+// MangleTCPDataOffset rewrites the TCP data offset field of every nth TCP
+// frame to a value below the 20-byte minimum, modelling a capture whose header
+// bytes did not survive whatever wrote the file.
+//
+// This corrupts deliberately, which no other builder method does, so it is
+// worth being explicit about what it models. A capture from a NETSCOUT
+// InfiniStream appliance arrived with a third of its frames in exactly this
+// state: IPv4 headers checksumming clean, TCP data offsets holding values no
+// stack emits, and flag bytes distributed like noise. The point of the fixture
+// is that the tool must say so rather than build flows out of the remainder
+// and report findings from them.
+//
+// Frames are selected in timestamp order so the choice does not depend on
+// authoring order, and the nibble is set rather than randomised, so the file is
+// byte-identical on every run.
+func (b *Builder) MangleTCPDataOffset(everyNth int) {
+	if everyNth < 1 {
+		panic("synth: MangleTCPDataOffset needs a positive interval")
+	}
+
+	// sortedFrames copies the slice but not the backing arrays, so writing
+	// through it reaches the frames the builder will emit.
+	seen := 0
+	for _, f := range b.sortedFrames() {
+		d := f.data
+		if len(d) < 14+20 || binary.BigEndian.Uint16(d[12:14]) != 0x0800 {
+			continue // not IPv4 over Ethernet
+		}
+		ihl := int(d[14]&0x0f) * 4
+		if ihl < 20 || d[14+9] != 6 {
+			continue // not TCP
+		}
+		off := 14 + ihl
+		if len(d) < off+20 {
+			continue
+		}
+
+		seen++
+		if seen%everyNth != 0 {
+			continue
+		}
+		// Data offset 1 == a 4-byte TCP header, which cannot exist. The low
+		// nibble is reserved and left as it was.
+		d[off+12] = (d[off+12] & 0x0f) | 0x10
+	}
+}
+
+// SliceFrames truncates every frame to at most n captured bytes while
+// recording the length it had on the wire, modelling a capture taken with a
+// snap length — `tcpdump -s 54`, or an appliance configured for headers only.
+//
+// The distinction this exists to preserve is the one the malformed-header
+// guard turns on: a sliced frame is missing bytes, but every length field it
+// does carry is still the one the sender wrote. Nothing about it is
+// self-contradictory, and it must not read as corruption.
+func (b *Builder) SliceFrames(n int) {
+	for i := range b.frames {
+		f := &b.frames[i]
+		if f.wire == 0 {
+			f.wire = len(f.data)
+		}
+		if len(f.data) > n {
+			f.data = f.data[:n]
+		}
 	}
 }

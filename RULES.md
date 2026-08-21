@@ -979,3 +979,62 @@ suppresses harm that has already happened (R13, before its peer comparison),
 and correct when the condition genuinely has no measured cost yet (R03's
 instant refusal, R12's certificate that has not expired). Both are "the rule
 cannot reach significant"; only one of them is wrong.
+
+---
+
+### R15: unreliable headers (added after the v0.2.0-alpha field report)
+
+R15's condition list now includes frames whose header length fields cannot be
+correct. **This condition is not in the R15 specification above** — it was
+added after two real captures arrived from a colleague, and is recorded here
+rather than folded silently into the spec.
+
+**Why it exists.** The first capture would not open at all (a snap length of
+zero, fixed separately). The second opened and produced ranked findings —
+seven near-identical R02s and an R09 reset — from a file in which a third of
+the frames carried a TCP data offset below the legal minimum and the surviving
+frames carried flag bytes distributed like noise. Nothing in the report said
+so. The tool was reporting the export's corruption as though it were the
+network's behaviour, which is the false all-clear inverted: not silence read as
+health, but noise read as evidence.
+
+**What counts.** Only a length field holding a value no sender could have
+written: `ErrBadIPv4IHL`, `ErrBadIPv4Length`, `ErrBadTCPOffset`. The
+distinction is between a frame that is *incomplete* and one that is *wrong*:
+
+- Truncation produces short frames whose length fields are still correct. A
+  capture sliced at 96 bytes is a faithful record of the first 96 bytes, and
+  the `Err*Short*` family is the expected result of reading one. Counting
+  those would report every header-only capture as damaged — the false positive
+  this condition is designed around, and the `r15-sliced-headers` fixture.
+- An impossible length field cannot be produced by slicing, so something
+  altered the bytes after the sender wrote them.
+
+Fragments, unknown ethertypes, and this decoder's own VLAN/extension-header
+depth limits are ordinary traffic or tool limits, and are excluded.
+
+- **Thresholds:** `R15MalformedRatio = 0.02` and `R15MinMalformedFrames = 10`,
+  both [chosen]. Measured against decoded TCP frames plus malformed ones —
+  the material the findings actually rest on — rather than against the whole
+  file, since frames the decoder never reached say nothing about the fidelity
+  of the ones it did.
+- **Reporting:** an `unavailable` note, which makes it a coverage gap and so
+  bars the strong-coverage all-clear through the existing mechanism. Unlike
+  every other R15 note, its subject is the findings rather than the checks:
+  it states that findings below were derived from those headers and are
+  unverified, while confirming the frame numbers themselves are real.
+- **No gating of other rules.** R15 supplies `Quality.HeadersUnreliable` and
+  `HeaderBasis` in the same flag-and-basis shape as the kernel-drop and
+  offload gates, but no rule consults them yet. Rewritten header bytes put
+  every derived fact in question at once rather than qualifying one dimension
+  of a finding, so per-rule degradation is the wrong shape for it; whether
+  findings should instead be withheld entirely above some ratio is an open
+  question, deliberately not answered here.
+
+**Evidence the condition is real.** The `r15-malformed-headers` fixture is the
+clean-capture fixture with one TCP frame in three corrupted — there is no loss
+in it whatsoever. tshark, reading sequence numbers out of those frames, reports
+18 retransmissions and 2 reorderings. The engine reports none, because it
+discards the frames rather than believing them. That divergence is pinned in
+the cross-validation oracle's expectation table as the demonstration that an
+analyser trusting corrupted headers invents loss.

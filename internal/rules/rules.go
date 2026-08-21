@@ -113,6 +113,21 @@ type CaptureQuality struct {
 	// OffloadBasis is the sentence a degraded finding states as its reason.
 	// Empty when OffloadArtifacts is false.
 	OffloadBasis string
+
+	// HeadersUnreliable reports that enough frames carried an impossible
+	// header length that the ones which did decode cannot be assumed faithful
+	// either.
+	//
+	// This is a different kind of doubt from the two above. Kernel drops and
+	// offload leave the surviving frames accurate — the gap is in what is
+	// missing, or in what a size means. Rewritten header bytes put every
+	// derived fact in question at once: flags, sequence numbers and the flow
+	// structure built from them. Nothing downstream can repair that, so the
+	// only honest response is to say so where the findings are read.
+	HeadersUnreliable bool
+	// HeaderBasis is the sentence stating the reason. Empty when
+	// HeadersUnreliable is false.
+	HeaderBasis string
 }
 
 // Population is the capture-wide context a rule compares its subjects against.
@@ -145,6 +160,11 @@ type Population struct {
 	// wording states drop counts against what the capture host saw, which
 	// includes non-TCP traffic.
 	PacketsRead uint64
+	// PacketsTCP and PacketsMalformed are the two halves of the material the
+	// TCP rules draw on: frames that decoded, and frames that claimed a header
+	// length no sender could have written. R15 reports their ratio.
+	PacketsTCP       uint64
+	PacketsMalformed uint64
 	// DropAvailability, InterfaceDrops, PacketsDropped and DropRatio are the
 	// capture-host drop facts R15 reports on. Quality.KernelDropsSignificant
 	// (below) is the gating decision already derived from DropRatio; R15

@@ -134,6 +134,16 @@ func Fixtures() []Fixture {
 			FormatsDiffer: true,
 		},
 		{
+			Name:    "r15-malformed-headers",
+			Purpose: "R15 positive: one TCP frame in three declares a data offset below the legal minimum, so no header in the file can be believed.",
+			Build:   buildR15MalformedHeaders,
+		},
+		{
+			Name:    "r15-sliced-headers",
+			Purpose: "R15 negative: a capture sliced mid-TCP-header, short but not wrong — slicing must not read as corruption.",
+			Build:   buildR15SlicedHeaders,
+		},
+		{
 			Name:    "r05-rto-burst",
 			Purpose: "R05 positive: three timeout retransmissions across two episodes costing 4.5s, with exponential backoff, against eight clean peers.",
 			Build:   buildR05Positive,
@@ -701,5 +711,37 @@ func buildMixed() *Builder {
 		c.FinClose(e, 5*ms)
 	}
 
+	return b
+}
+
+// buildR15MalformedHeaders models a capture whose TCP header bytes did not
+// survive whatever exported the file.
+//
+// Built from the clean fixture's ordinary traffic, so nothing here is a
+// genuine network problem — every condition the rules go on to report is an
+// artifact of the corruption, which is exactly the state R15 has to name. One
+// TCP frame in three carries an impossible data offset, well above the ratio
+// the guard triggers at and close to the third seen in the real capture that
+// prompted the check.
+func buildR15MalformedHeaders() *Builder {
+	b := buildClean()
+	b.MangleTCPDataOffset(3)
+	return b
+}
+
+// buildR15SlicedHeaders is the false-positive trap for the check above: a
+// header-only capture, sliced so that frames carry no payload at all.
+//
+// A sliced capture is short, not wrong — its length fields still say what the
+// sender wrote. Reporting it as corrupt would condemn every header-only
+// capture ever taken, which is a normal and often deliberate way to capture.
+//
+// Sliced at 40 bytes, which cuts into the TCP header rather than stopping
+// neatly at the end of it. That is the point: these frames fail to decode, so
+// the fixture exercises the case the classifier has to get right, rather than
+// a slice that happens to leave everything readable and proves nothing.
+func buildR15SlicedHeaders() *Builder {
+	b := buildClean()
+	b.SliceFrames(40)
 	return b
 }

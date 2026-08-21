@@ -23,7 +23,7 @@ func TestR15MetaDoesNotOverclaimCoverage(t *testing.T) {
 		}
 	}
 	// It must still say what it does cover, or the summary is content-free.
-	for _, built := range []string{"capture began", "one direction", "dropped"} {
+	for _, built := range []string{"capture began", "one direction", "dropped", "headers"} {
 		if !strings.Contains(m.Summary, built) {
 			t.Errorf("Summary omits the covered condition %q: %q", built, m.Summary)
 		}
@@ -133,5 +133,67 @@ func TestR15DropNoteMatchesGatingFlag(t *testing.T) {
 	}
 	if strings.Contains(note2.Text, "may be capture loss") {
 		t.Errorf("a trivial drop count was still described as potentially explaining loss: %q", note2.Text)
+	}
+}
+
+// TestR15MalformedHeaderNoteSaysFindingsAreUnverified is the point of the
+// whole check: when the header bytes cannot be believed, the reader has to be
+// told before they act on findings derived from them.
+//
+// The wording is asserted rather than merely the note's presence. A note that
+// mentions corruption but leaves the findings looking authoritative would pass
+// a presence check while failing at the only thing it exists to do.
+func TestR15MalformedHeaderNoteSaysFindingsAreUnverified(t *testing.T) {
+	pop := &Population{
+		TCPFlows: 10, PacketsRead: 1871, PacketsTCP: 1231, PacketsMalformed: 640,
+		DropAvailability: capture.DropsUnsupported,
+		Quality: CaptureQuality{
+			HeadersUnreliable: true,
+			HeaderBasis:       "640 of 1,871 frames carrying TCP (34%) declare a header length no sender could have written.",
+		},
+	}
+	store := findings.NewStore()
+	NewCaptureQualityRule().Emit(pop, store)
+	store.Seal()
+
+	var note string
+	for _, n := range store.Notes() {
+		if strings.Contains(n.Text, "header length no sender") {
+			if n.Kind != "unavailable" {
+				t.Errorf("note kind = %q, want %q: an info note does not count as a coverage gap, "+
+					"so a corrupt capture would still qualify for a strong-coverage all-clear", n.Kind, n.Kind)
+			}
+			note = n.Text
+		}
+	}
+	if note == "" {
+		t.Fatal("no malformed-header note was written")
+	}
+	for _, required := range []string{"unverified", "Wireshark"} {
+		if !strings.Contains(note, required) {
+			t.Errorf("note omits %q, so it does not tell the reader what to do about it: %q", required, note)
+		}
+	}
+}
+
+// TestR15MalformedHeaderNoteAbsentWhenHeadersAreSound guards the other
+// direction. A note that is always present says nothing.
+func TestR15MalformedHeaderNoteAbsentWhenHeadersAreSound(t *testing.T) {
+	pop := &Population{
+		TCPFlows: 10, PacketsRead: 1000, PacketsTCP: 1000,
+		DropAvailability: capture.DropsUnsupported,
+	}
+	store := findings.NewStore()
+	NewCaptureQualityRule().Emit(pop, store)
+	store.Seal()
+
+	notes := store.Notes()
+	if len(notes) == 0 {
+		t.Fatal("R15 wrote no notes at all, so finding no malformed-header note proves nothing")
+	}
+	for _, n := range notes {
+		if strings.Contains(n.Text, "header length no sender") {
+			t.Errorf("malformed-header note written for a capture with no malformed frames: %q", n.Text)
+		}
 	}
 }

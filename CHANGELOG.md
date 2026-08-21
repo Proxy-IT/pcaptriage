@@ -8,6 +8,18 @@ README's release section for what to bump when cutting a tag.
 
 ## Unreleased
 
+### Added
+
+- **Captures with damaged headers are now called out instead of analysed
+  silently.** When enough frames declare a header length no sender could have
+  written, the capture-quality check reports that the header bytes are not what
+  left the sending host, and that findings read out of them are unverified.
+  Previously such a capture produced ranked findings with nothing to indicate
+  they described the file rather than the network — a colleague's export had a
+  third of its frames in that state. Clipped and header-only captures are
+  unaffected: a sliced packet is short, not wrong, and is not reported as
+  damaged.
+
 ### Fixed
 
 - **Captures that declare no snap length now open.** A classic pcap stores the
