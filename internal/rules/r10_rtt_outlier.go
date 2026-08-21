@@ -42,6 +42,12 @@ type rttHost struct {
 	samples  stats.Sampler
 	flows    int
 	inferred int
+	// clients is every host that talked to this one. Scope counts the machines
+	// a condition reached, not the single subject the finding is named after —
+	// the convention eight of the other rules already follow, and the one this
+	// rule was the outlier to. A distant host carrying one conversation and a
+	// distant host carrying the capture are different situations.
+	clients  map[netip.Addr]struct{}
 	evidence findings.Evidence
 }
 
@@ -87,7 +93,7 @@ func (r *RTTOutlier) OnFlowEnd(_ any, fl *flow.State) {
 
 	h := r.hosts[server.Addr]
 	if h == nil {
-		h = &rttHost{addr: server.Addr}
+		h = &rttHost{addr: server.Addr, clients: make(map[netip.Addr]struct{})}
 		h.evidence.Mode = findings.ModeWorst
 		r.hosts[server.Addr] = h
 	}
@@ -95,6 +101,9 @@ func (r *RTTOutlier) OnFlowEnd(_ any, fl *flow.State) {
 	h.samples.Add(rtt.Seconds())
 	if basis == flow.BasisInferred {
 		h.inferred++
+	}
+	if client, ok := fl.ClientEndpoint(); ok {
+		h.clients[client.Addr] = struct{}{}
 	}
 	h.evidence.Record(fl.FirstFrame, fl.FirstSeen, rtt.Seconds())
 }
@@ -205,6 +214,7 @@ func (r *RTTOutlier) Emit(pop *Population, out *findings.Store) {
 			"rtt_ratio":                round3(hostMedian / median),
 			"flows":                    h.flows,
 			"assessed_hosts":           len(assessed),
+			"clients_affected":         len(h.clients),
 			"steady":                   steady,
 			"dispersion":               round3(dispersion),
 			"excess_seconds_total":     round3(timeLost),
@@ -231,7 +241,7 @@ func (r *RTTOutlier) Emit(pop *Population, out *findings.Store) {
 			Significance: scoring.Significance(scoring.Inputs{
 				BaseWeight:       r.Meta().BaseWeight,
 				ImpactSeconds:    timeLost,
-				Scope:            scoring.ScopeFor(1, h.flows, pop.TotalHosts()),
+				Scope:            scoring.ScopeFor(len(h.clients), h.flows, pop.TotalHosts()),
 				Value:            hostMedian,
 				PopulationMedian: median,
 				PeerGroup:        true,

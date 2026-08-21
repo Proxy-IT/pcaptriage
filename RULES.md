@@ -908,3 +908,68 @@ So the surface that weakened the guarantee's *basis* narrowed what the tool
 looks at. A capture's most identifying content — the names someone looked up
 and the sites they connected to — is precisely what these rules decline to
 read, and the allowlist is what keeps that true as the rules change.
+
+### Batch 3 Part 4 — the scoring review at fifteen rules
+
+**Added 2026-08-20.** The invariant-significance checklist, corrected in Batch 3
+to examine all four factors rather than the denominator alone, applied to the
+three rules carrying open questions.
+
+Ceilings are the product of the best case on every axis — impact saturated,
+deviation at its 3.0 maximum where a peer group exists — against the floors of
+40 for significant and 15 for worth noting.
+
+**R03 · syn-rejected — informational to worth noting, never significant.
+Correct, and now confirmed rather than assumed.**
+
+| scope | no peers | peers |
+|---|---|---|
+| flow | 3.2 | 9.6 |
+| host | 4.8 | 14.4 |
+| multi | 6.4 | 19.2 |
+| capture | 8.0 | 24.0 |
+
+R03 has no seconds denominator by design — a refusal arrives instantly, which
+is precisely what distinguishes it from R02's silence — and its base weight was
+deliberately revised to 4 on the grounds that it corroborates what the
+application already told the user in plain language. The ceiling follows from
+those two decisions rather than from an oversight, and it lands where the
+reasoning says it should. **No change.**
+
+**R09 · reset-mid-transfer — healthy. The earlier concern does not apply.**
+
+| scope | no peers | peers |
+|---|---|---|
+| flow | 24.0 | 72.0 |
+| host | 36.0 | 108.0 |
+| multi | 48.0 | 144.0 |
+
+The worry recorded in Batch 3 was that R03's "confirms what the user already
+knows" argument does not extend to R09. It does not — and it does not need to.
+R09 gained a real seconds denominator in Batch 2, when it began charging the
+transfer time thrown away by an abort, so it reaches significant on its own
+merits from flow scope upward. **No change.**
+
+**R10 · rtt-outlier — scope was hardcoded, and is now measured.**
+
+R10 passed `ScopeFor(1, flows, hosts)`, counting its subject rather than the
+hosts the condition reached. That was the outlier: eight of the other rules
+count affected hosts, and the Part 2 ruling extended the same treatment to R11
+and R12.
+
+The ceiling was never the problem — at host scope with a peer group R10 reaches
+108 and is comfortably significant. What the hardcoded 1 did was **understate
+reach**: a distant host carrying one conversation and a distant host carrying
+the whole capture scored identically, capped at `ScopeHost`.
+
+Now `ScopeFor(len(clients), flows, hosts)`. On the committed fixture nothing
+moves — it has one client host, so the scope band is the same and no golden
+changed — which is the honest outcome rather than a disappointing one: the fix
+is for captures the fixtures do not contain, and it makes R10 consistent with
+every other rule that counts reach.
+
+**The distinction this review establishes:** a low ceiling is a defect when it
+suppresses harm that has already happened (R13, before its peer comparison),
+and correct when the condition genuinely has no measured cost yet (R03's
+instant refusal, R12's certificate that has not expired). Both are "the rule
+cannot reach significant"; only one of them is wrong.

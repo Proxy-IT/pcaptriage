@@ -190,6 +190,7 @@
       "severity_label": "Worth noting",
       "metrics": {
         "assessed_hosts": 13,
+        "clients_affected": 1,
         "dispersion": 1.889,
         "excess_seconds_total": 1.032,
         "flows": 6,

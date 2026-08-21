@@ -10,6 +10,49 @@ README's release section for what to bump when cutting a tag.
 
 Changes on `main` since `v0.1.0-alpha`, for whenever the next tag is cut.
 
+### The v1 rule set is complete
+
+**All fifteen checks are now built.** The four that landed in this batch:
+
+- **R10 · rtt-outlier** — one host reached over a much longer path than every
+  other host in the capture. Reports whether the latency was steady or
+  variable, since that separates distance from congestion.
+- **R11 · dns-failure** — name lookups that went unanswered, came back as
+  errors, or ran slow. A lookup happens before the connection it enables, so a
+  slow one delays everything behind it and is very often blamed on the
+  application instead.
+- **R12 · tls-handshake-failure** — encrypted connections that failed to
+  negotiate, took an unusually long time, or presented a certificate close to
+  expiry.
+- **R13 · pmtu-blackhole** — large packets repeatedly failing while small ones
+  on the same connection succeed. The signature of a size limit on the path
+  that nothing is reporting back to the sender.
+
+The report no longer says "Partial build". It now names the fifteen and states
+plainly that anything outside them was not examined — a complete rule set is
+not complete coverage, and the sentence says so.
+
+R11 and R12 are the first checks that read above TCP. Two consequences worth
+knowing:
+
+- **Encrypted traffic is reported as unreadable rather than as clean.** DNS
+  over TLS and TLS 1.3 both hide what these checks would otherwise read, and
+  both now produce an explicit "not assessed" note. An absence of certificate
+  findings is not a statement that the certificates are valid.
+- **Neither check reads names.** R11 reports how many lookups failed, never
+  which ones; R12 reads a certificate expiry date and no subject, issuer or
+  server name.
+
+### Also in this release
+
+- **Captures with nothing in them are no longer presented as well covered.**
+  Completing the rule set made the positive green treatment reachable for the
+  first time, and a capture containing no conversations would have qualified
+  for it.
+- **A capture of only name lookups is described correctly.** It used to be told
+  that every check looks at TCP and none had anything to examine, which stopped
+  being true when R11 arrived.
+
 ### Fixed
 
 - **Bold text in guide pages now renders bold.** The guide's markdown parser

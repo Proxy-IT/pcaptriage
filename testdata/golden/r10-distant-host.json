@@ -192,6 +192,7 @@
       "severity_label": "Significant",
       "metrics": {
         "assessed_hosts": 13,
+        "clients_affected": 1,
         "dispersion": 0.022,
         "excess_seconds_total": 3.784,
         "flows": 22,

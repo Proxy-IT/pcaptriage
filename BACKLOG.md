@@ -192,7 +192,7 @@ reset, the "averaging 1KB transferred" style wording — are computed from those
 sizes, so its three goldens and any test asserting those numbers move with
 them. Worth doing when R09 is next touched rather than as isolated churn.
 
-## Filter affordances on titles — two known inconsistencies
+## Filter affordances on titles — re-examined at fifteen rules
 
 **Noted 2026-08-20 during the filterability session. Ruled leave-as-is;
 recorded so they are not rediscovered, and to be revisited once all fifteen
@@ -227,6 +227,42 @@ make any endpoint filterable regardless of what a title happens to name.
 **Revisit when all fifteen rules exist and the full set of title shapes is
 visible** — Batch 3 will add more, and the right fix (if any) depends on the
 whole set rather than on today's ten.
+
+**Revisited 2026-08-20, Batch 3 Part 4. All fifteen title shapes measured.**
+
+Six distinct forms across the fifteen rules:
+
+| shape | rules |
+|---|---|
+| `HOST:PORT` | R01, R03, R04, R12 |
+| `HOST` | R09, R10 |
+| `resolver HOST` | R11 |
+| `HOST → HOST` | R05, R08 |
+| `HOST → HOST:PORT` | R02, R14 |
+| `HOST ↔ HOST` | R06, R07, R13 |
+
+**Case 1 shrank to a single rule.** Every other flow-scoped rule names both of
+its endpoints; R01 alone names one. That is a property of R01's wording rather
+than a pattern.
+
+**Case 2 grew to three, and gained a variant.** R09 and R11 both have a port in
+their subject and drop it from the title, so clicking gives a host-wide filter
+from a finding about one service. R10 looks the same and is not the same: its
+subject genuinely has no port, so its bare host is faithful. R11 also adds the
+only title with a word before the address.
+
+**Still not worth restructuring, and the measurement is why.** A fix means
+either composing titles mechanically — which loses authored wording that
+RULES.md specifies — or adding clickable tokens outside the title, which is
+chrome the filtering brief resisted. Against that, the affordance is now a
+second entrance rather than the only one: typed input reaches any host or port
+regardless of what a title names, including `10.2.2.9:5432` when the card shows
+only `10.2.2.9`.
+
+**What would change the answer:** a reader mistaking a host filter for a
+host:port one and drawing a wrong conclusion from the count. That is
+observable in use and has not been observed. Revisit on evidence rather than on
+another audit — the audit has now been done twice and returned the same answer.
 
 ## Typed filter input — time windows, and why they are not built
 
@@ -371,6 +407,24 @@ Natural home is the About/Help area stubbed in the first GUI session.
 **Note:** `--list-checks` is referenced in BRIEF.md's scope boundaries and
 RULES.md's handoff notes but has never been built. The GUI half of P10 is
 closed by the guide; the dev-CLI `--list-checks` references remain open.
+
+**Closed 2026-08-20, Batch 3 Part 4 — recommend not building it.**
+
+The rule set is complete, so the question "what does this tool check" now has a
+final answer, and the guide index gives it: fifteen checks in eight pages, each
+with its authored one-liner, reachable from Help and from every finding card.
+That is the surface an end user has.
+
+The CLI is a development harness and explicitly not a shipped product — no
+compatibility contract, not documented for users. Building a flag there to
+restate what the GUI already answers would serve nobody: the people who would
+run it can read `rules.AllMeta()`.
+
+**What does need doing is smaller and is left open:** BRIEF.md's scope
+boundaries and RULES.md's handoff notes both reference `--list-checks` as
+though it exists. Those references should be corrected to say the guide index
+is the checks surface, so the documents stop promising a flag that is not
+coming.
 
 ## P10.5. R15's remaining conditions — snaplen truncation, TSO, timestamp/multi-interface
 
@@ -639,3 +693,29 @@ Recorded so they don't get re-proposed.
   freshly built exe; current coverage is `-preview` HTML render plus end-to-end
   tests, which misses the Wails IPC layer and native menu. Owner verification
   (running the app directly) remains the check for those.
+
+## The informational fold is exercisable — one fixture, from R12
+
+**Answered 2026-08-20, Batch 3 Part 4.**
+
+`Display.MinFoldBand` was set to 3 in the filterability session and had never
+been exercised: no fixture produced more than one informational finding, so the
+fold never appeared and the threshold was a decision with nothing behind it.
+
+Measured across all twenty-two fixtures that produce findings, exactly one now
+crosses it:
+
+    r12-tls-failing    6 findings, 4 informational    <-- folds
+
+R12 is why. Its positive fixture puts four other TLS servers alongside the
+failing one so there is a population to compare against, and those four produce
+informational findings of their own — the peer group doing double duty as the
+band the fold needs.
+
+Verified in the app: two cards render, then the row reads **"4 informational
+findings — show"**, and expanding reveals them in place.
+
+So the threshold is live rather than theoretical, and the remaining question —
+whether 3 is the right number — is now answerable from use rather than from
+argument. One fixture is enough to prove the mechanism and not enough to
+calibrate the value; leave it at 3 until a real capture argues otherwise.
