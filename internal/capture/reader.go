@@ -2,6 +2,7 @@ package capture
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -166,15 +167,29 @@ func Open(path string) (*Reader, error) {
 
 	case isPcapMagic(magic):
 		r.format = FormatPcap
-		pr, err := pcapgo.NewReader(r.br)
+		src, declaredNoSnaplen, err := unlimitedSnaplenShim(r.br)
+		if err != nil {
+			f.Close()
+			return nil, err
+		}
+		pr, err := pcapgo.NewReader(src)
 		if err != nil {
 			f.Close()
 			return nil, err
 		}
 		r.pcap = pr
 		r.linkType = pr.LinkType()
-		r.snaplen = pr.Snaplen()
-		r.snaplenKnown = true
+		if declaredNoSnaplen {
+			// The file declares no limit, so there is no figure to report and
+			// nothing was truncated by one. pcapng files that omit the field
+			// already land here; this puts the classic-pcap equivalent in the
+			// same state rather than inventing a number.
+			r.snaplen = 0
+			r.snaplenKnown = false
+		} else {
+			r.snaplen = pr.Snaplen()
+			r.snaplenKnown = true
+		}
 
 	default:
 		f.Close()
@@ -200,6 +215,58 @@ func isPcapMagic(b []byte) bool {
 		return true
 	}
 	return false
+}
+
+// pcapNoSnaplenSubstitute is the snap length presented to pcapgo in place of a
+// declared zero. It is comfortably above any frame an Ethernet capture can
+// carry, including jumbo frames and offload-coalesced segments.
+const pcapNoSnaplenSubstitute = 262144
+
+// unlimitedSnaplenShim gives pcapgo a workable snap length when the file
+// declares none.
+//
+// A classic pcap global header stores the snap length as a plain uint32, so
+// "no truncation limit" has to be written as zero — which is what several
+// capture appliances emit. pcapgo reads that zero as a literal ceiling and
+// rejects the first packet for exceeding it, so a file Wireshark opens without
+// complaint fails to load here. libpcap treats zero as unlimited.
+//
+// The substitution is made in a copy of the 24 header bytes held in memory and
+// spliced back ahead of the rest of the stream. The file on disk is never
+// written to. The second return value reports that the file declared no limit,
+// so the caller can say exactly that rather than repeat the number invented
+// here.
+func unlimitedSnaplenShim(br *bufio.Reader) (src io.Reader, declaredNoSnaplen bool, err error) {
+	const headerLen = 24
+
+	hdr, err := br.Peek(headerLen)
+	if err != nil {
+		// Too short to hold a global header. Hand it to pcapgo unchanged so
+		// that one place decides what a malformed header looks like.
+		return br, false, nil
+	}
+
+	// The magic tells us which way round the header's integers are written.
+	// isPcapMagic has already accepted one of the four, so this only has to
+	// separate the two orders.
+	var order binary.ByteOrder = binary.LittleEndian
+	switch binary.BigEndian.Uint32(hdr[:4]) {
+	case 0xa1b2c3d4, 0xa1b23c4d:
+		order = binary.BigEndian
+	}
+
+	if order.Uint32(hdr[16:20]) != 0 {
+		return br, false, nil
+	}
+
+	patched := make([]byte, headerLen)
+	copy(patched, hdr)
+	order.PutUint32(patched[16:20], pcapNoSnaplenSubstitute)
+
+	if _, err := br.Discard(headerLen); err != nil {
+		return nil, false, err
+	}
+	return io.MultiReader(bytes.NewReader(patched), br), true, nil
 }
 
 // readNgSnaplen takes the smallest snap length across the interfaces declared

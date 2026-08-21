@@ -8,7 +8,16 @@ README's release section for what to bump when cutting a tag.
 
 ## Unreleased
 
-Nothing yet.
+### Fixed
+
+- **Captures that declare no snap length now open.** A classic pcap stores the
+  snap length as a plain uint32, so "no truncation limit" has to be written as
+  zero — which is what several capture appliances emit. It was being read as a
+  literal zero-byte ceiling, so every packet in the file looked oversized and
+  the whole capture was refused with *"capture length exceeds snap length"*.
+  These files open and analyse normally now. The report says the snap length is
+  not declared rather than repeating a substituted figure, matching how a
+  pcapng that omits the field has always been handled.
 
 ## v0.2.0-alpha — 2026-08-20
 
