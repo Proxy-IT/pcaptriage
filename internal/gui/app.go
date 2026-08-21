@@ -181,8 +181,13 @@ func (a *App) Info() AppInfo {
 		Accepts:        []string{".pcap", ".pcapng", ".cap"},
 		// The finished rule set is fifteen. Saying so on the home screen is
 		// what stops a quiet result being read as a clean bill of health.
+		//
+		// Read from the rules package rather than restated here. A literal was
+		// safe only because app_test.go compared the two; the same
+		// restated-constant shape, in the report template, produced two
+		// sentences that stayed false for two releases.
 		ImplementedChecks: out,
-		TotalV1Rules:      15,
+		TotalV1Rules:      rules.TotalV1Rules,
 		PreferencesNotice: a.prefsNotice,
 		Theme:             a.prefs.Theme,
 	}
