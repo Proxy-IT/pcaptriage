@@ -106,31 +106,27 @@ body {
   letter-spacing: -0.035em;
   color: var(--bar-ink-strong);
 }
-/* The wordmark is what gives way when the back control and the links compete
-   for a narrow window — the reader can see which app they are in from
-   everything else on screen, but not where the way back went. The mark is a
-   sibling rather than a child, so it survives: at 24px it costs almost
-   nothing and it is the half of the lockup worth keeping.
-   
-   This block has to sit after the .topbar-name rule above, not before it. A
-   media query adds no specificity, so when .topbar-name gained its own
-   display value the later declaration won and this one stopped doing
-   anything. It previously worked only because .topbar-name declared no
-   display at all. */
-@media (max-width: 30rem) {
-  .topbar-name { display: none; }
-}
+/* Two breakpoints used to live here — 30rem hiding .topbar-name, 34rem hiding
+   .topbar-tagline — and neither could ever fire. main.go sets MinWidth: 760,
+   so the app window has a hard floor and nothing below roughly 48rem is
+   reachable by resizing it. They read as working responsive design for two
+   releases while doing nothing.
+
+   The reason that is easy to miss, and the reason to be careful before adding
+   anything like them back: `wails dev` serves this same frontend to an
+   ordinary browser, which has no such floor. Drag that window narrow and the
+   rules appear to work perfectly. The shipped app is the one with the floor.
+
+   If a narrow-window rule is ever genuinely wanted, it has to trigger above
+   760px to be reachable at all — and it has to sit after the rule it
+   overrides, because a media query adds no specificity, so an equally
+   specific declaration later in the file wins regardless of the query. */
 .topbar-tagline {
   font-size: .78rem;
   color: var(--bar-ink-muted);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-/* The tagline is the first thing to go when the window narrows: the links
-   are the bar's job, the tagline is decoration. */
-@media (max-width: 34rem) {
-  .topbar-tagline { display: none; }
 }
 
 .topbar-links { display: flex; gap: .25rem; flex: none; }
