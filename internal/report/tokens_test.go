@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 	"testing"
 
@@ -304,4 +305,68 @@ func TestReportInlinesTheTokens(t *testing.T) {
 	if !strings.HasPrefix(StyleSheet(), tokensSource) {
 		t.Error("tokens must precede the report styles that reference them")
 	}
+}
+
+// barTokenRef matches a reference to any --bar-* custom property.
+var barTokenRef = regexp.MustCompile(`--bar-[a-z0-9-]+`)
+
+// cssComment and htmlComment are stripped before scanning, so that a comment
+// explaining this very rule does not trip it.
+var (
+	cssComment  = regexp.MustCompile(`(?s)/\*.*?\*/`)
+	htmlComment = regexp.MustCompile(`(?s)<!--.*?-->|(?s)\{\{/\*.*?\*/\}\}`)
+)
+
+// TestReportNeverReferencesBarTokens keeps the app bar's palette out of the
+// exported report.
+//
+// The report has no bar. Its surfaces are light and it is stamped
+// data-theme="light" so it renders the same in any browser, while the --bar-*
+// tokens are the ink band's: --bar-accent is cyan #4FD1D9, which measures
+// 1.70:1 on --page and is a live AA failure there. A --bar-* reference in a
+// document with no bar is therefore either invisible or unreadable.
+//
+// This replaces grepping a rendered report for the cyan literal, which cannot
+// work: tokens.css is inlined into every report, so the hex is present as a
+// declaration in every one of them and always has been. The declaration is
+// harmless — nothing selects it. What matters is whether anything references
+// it, which is what this checks.
+//
+// baseStyleSource is style.css without the token block, so the declarations
+// are out of scope by construction rather than by filtering.
+func TestReportNeverReferencesBarTokens(t *testing.T) {
+	for _, tc := range []struct {
+		file  string
+		body  string
+		strip *regexp.Regexp
+	}{
+		{"style.css", baseStyleSource, cssComment},
+		// template.html carries the inlined mark, whose fills are token
+		// references. The kit ships an ink build of that mark alongside the
+		// light one, and pasting the wrong one is exactly how a --bar-* would
+		// arrive here rather than in the stylesheet.
+		{"template.html", templateSource, htmlComment},
+	} {
+		t.Run(tc.file, func(t *testing.T) {
+			found := barTokenRef.FindAllString(tc.strip.ReplaceAllString(tc.body, ""), -1)
+			if len(found) > 0 {
+				t.Errorf("%s references %v; those tokens are the app bar's, and the report has no bar. "+
+					"On a light surface the accent is --accent (teal-deep), not --bar-accent (cyan).",
+					tc.file, uniqueStrings(found))
+			}
+		})
+	}
+}
+
+func uniqueStrings(in []string) []string {
+	seen := map[string]bool{}
+	out := make([]string, 0, len(in))
+	for _, s := range in {
+		if !seen[s] {
+			seen[s] = true
+			out = append(out, s)
+		}
+	}
+	sort.Strings(out)
+	return out
 }
