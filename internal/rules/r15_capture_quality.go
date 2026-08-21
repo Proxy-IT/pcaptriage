@@ -2,6 +2,7 @@ package rules
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/Proxy-IT/pcaptriage/internal/capture"
 	"github.com/Proxy-IT/pcaptriage/internal/findings"
@@ -32,6 +33,67 @@ import (
 // and says its results belong in the completeness banner, not the findings
 // list. Its Emit writes only Notes.
 type CaptureQualityRule struct{}
+
+// captureQualityAssessed and captureQualityUnassessed are what the report says
+// this build's capture-quality assessment does and does not cover.
+//
+// They live here, beside the implementation, because the sentence they compose
+// previously lived as a literal in the report template and was false for two
+// releases: it named R15 as unimplemented while R15 shipped, and listed as
+// unassessed several conditions the rule had begun detecting. A claim about
+// what a rule covers has to sit next to the rule, so that adding a condition
+// puts the claim in the same diff.
+//
+// RULES.md section R15 is the source of truth for the full condition list;
+// these two slices are this build's split of it.
+var (
+	captureQualityAssessed = []string{
+		"snaplen truncation",
+		"the proportion of flows that began before the capture started",
+		"segments larger than the MTU (an on-host capture with offload enabled)",
+		"flows seen in one direction only",
+	}
+	captureQualityUnassessed = []string{
+		"Timestamp resolution",
+		"multi-interface merges",
+	}
+)
+
+// CaptureQualityDisclosure is the completeness banner's opening sentence.
+//
+// It states coverage in both directions — what was assessed and what was not —
+// because naming only the first would let silence read as an all-clear, which
+// is the failure this rule exists to prevent.
+func CaptureQualityDisclosure() string {
+	return fmt.Sprintf(
+		"The capture-quality assessment covers %s. %s are not yet assessed. "+
+			"These figures describe what was read, not a verdict on whether the capture was adequate.",
+		joinOxford(captureQualityAssessed), joinAnd(captureQualityUnassessed))
+}
+
+// joinOxford renders a list with a serial comma: "a, b, and c".
+func joinOxford(items []string) string {
+	switch len(items) {
+	case 0:
+		return ""
+	case 1:
+		return items[0]
+	case 2:
+		return items[0] + " and " + items[1]
+	}
+	return strings.Join(items[:len(items)-1], ", ") + ", and " + items[len(items)-1]
+}
+
+// joinAnd renders a short list without a serial comma: "a and b".
+func joinAnd(items []string) string {
+	switch len(items) {
+	case 0:
+		return ""
+	case 1:
+		return items[0]
+	}
+	return strings.Join(items[:len(items)-1], ", ") + " and " + items[len(items)-1]
+}
 
 // NewCaptureQualityRule returns the R15 detector.
 func NewCaptureQualityRule() *CaptureQualityRule { return &CaptureQualityRule{} }

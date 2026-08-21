@@ -8,6 +8,21 @@ README's release section for what to bump when cutting a tag.
 
 ## Unreleased
 
+### Fixed
+
+- **The exported report no longer states two things that were false.** Its
+  masthead carried a hardcoded "Partial build." above a sentence announcing a
+  complete rule set, and its capture-completeness note said the capture-quality
+  assessment "is R15, which is not implemented in this build" while listing
+  conditions that check already detects. Both had been wrong since the fifteenth
+  rule landed. The report now states only what is derived from the rule
+  registry, so neither claim can contradict the build again. A third paragraph
+  that rendered "0 of the fifteen v1 rules are not implemented in this build" on
+  a complete build is now shown only when there is a gap to explain.
+
+  No rule, threshold, detection logic or output schema changed. The JSON
+  goldens are byte-identical; only the HTML ones moved.
+
 ### Changed
 
 - **The product is now called PCAP Triage.** The binary, the repository, the

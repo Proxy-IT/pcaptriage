@@ -281,7 +281,14 @@ func BuildDisclosure() string {
 				"means these checks found nothing rather than that the capture is healthy.",
 			TotalV1Rules, strings.Join(names, ", "))
 	}
+	// The caution belongs in both branches, in each one's own terms. It used to
+	// live in the report template as a hardcoded trailer, which meant the
+	// complete branch said it twice and the template said "Partial build."
+	// above a sentence announcing a complete rule set. Stating it here keeps
+	// it derived from the registry and impossible to contradict.
 	return fmt.Sprintf(
-		"Partial build: %d of the %d v1 rules are implemented (%s). Every other condition in the v1 rule set was not looked for at all.",
+		"Partial build: %d of the %d v1 rules are implemented (%s). Every other condition "+
+			"in the v1 rule set was not looked for at all, so an empty findings list means "+
+			"these checks found nothing rather than that the capture is healthy.",
 		len(metas), TotalV1Rules, strings.Join(names, ", "))
 }

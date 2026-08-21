@@ -8,6 +8,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+
+	"github.com/Proxy-IT/pcaptriage/internal/rules"
 )
 
 // The template and stylesheet are embedded, so the binary stays a single file
@@ -102,6 +104,11 @@ type groupView struct {
 }
 
 type bannerView struct {
+	// QualityDisclosure is what the capture-quality assessment covers and what
+	// it does not. Composed in the rules package beside R15 rather than written
+	// here, so that adding a condition to the rule updates the sentence.
+	QualityDisclosure string
+
 	Packets          string
 	PacketsContext   string
 	Flows            string
@@ -233,8 +240,9 @@ func buildBanner(doc *Document) bannerView {
 	c := doc.Capture
 
 	b := bannerView{
-		Packets: formatCount(c.PacketsRead),
-		Flows:   formatCount(uint64(c.TCPFlows)),
+		QualityDisclosure: rules.CaptureQualityDisclosure(),
+		Packets:           formatCount(c.PacketsRead),
+		Flows:             formatCount(uint64(c.TCPFlows)),
 	}
 
 	b.PacketsContext = fmt.Sprintf("%s TCP · %s other · %s undecodable",

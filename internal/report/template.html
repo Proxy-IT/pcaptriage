@@ -41,10 +41,13 @@
     stood out, which frames evidence it, and what to check next. None of them names a cause —
     that conclusion is yours to draw from the frames.
   </p>
-  <p class="posture">
-    <strong>Partial build.</strong> {{.Doc.Tool.Build}} An empty findings list below means
-    these checks found nothing, not that the capture is healthy.
-  </p>
+  {{/* The disclosure sentence, and nothing else. It is derived from the rule
+       registry by rules.BuildDisclosure, which branches on completeness and
+       carries the caution in either branch. A hardcoded lead-in here read
+       "Partial build." above a sentence announcing a complete rule set for
+       two releases; the template states nothing so it cannot contradict the
+       registry again. */}}
+  <p class="posture">{{.Doc.Tool.Build}}</p>
   {{/* The badge legend. In the app both badges link to a page explaining
        them; this document has no links and no guide, so the explanation has
        to travel with it or the reader meets two vocabularies with no way to
@@ -63,15 +66,14 @@
   {{end -}}
 </header>
 
-{{/* ---- 1. Capture completeness banner (reduced; full reporting arrives with R15) ---- */}}
+{{/* ---- 1. Capture completeness banner ---- */}}
 <section>
   <h2>Capture completeness</h2>
-  <p class="section-note">
-    Reduced summary. The full capture-quality assessment — snaplen truncation, offload
-    artifacts, one-way flows, timestamp resolution and multi-interface merges — is R15,
-    which is not implemented in this build. Treat the figures below as what was read,
-    not as a verdict on whether the capture is adequate.
-  </p>
+  {{/* Composed in the rules package beside R15, not written here. The literal
+       this replaced said the assessment "is R15, which is not implemented in
+       this build" and listed conditions the rule already detected; it stayed
+       false through two releases because nothing tied it to the rule. */}}
+  <p class="section-note">{{.Banner.QualityDisclosure}}</p>
 
   <div class="tiles">
     <div class="tile">
@@ -245,11 +247,16 @@
       </tbody>
     </table>
   </div>
+  {{/* Only when there is a gap to explain. On a complete build this rendered
+       "0 of the fifteen v1 rules are not implemented in this build", a
+       paragraph whose whole subject is a set that is empty. */}}
+  {{if .Doc.Coverage.UnbuiltChecks -}}
   <p class="caption">
     {{.Doc.Coverage.UnbuiltChecks}} of the fifteen v1 rules are not implemented in this build
     and were therefore not looked for at all. They are not listed above because listing them
     as "skipped" would imply a decision was made per capture; none was.
   </p>
+  {{- end}}
 </section>
 
 <footer>

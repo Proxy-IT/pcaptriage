@@ -607,22 +607,16 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
     stood out, which frames evidence it, and what to check next. None of them names a cause —
     that conclusion is yours to draw from the frames.
   </p>
-  <p class="posture">
-    <strong>Partial build.</strong> Complete v1 rule set: all 15 rules are implemented (R01 zero-window-stall, R02 syn-unanswered, R03 syn-rejected, R04 server-response-outlier, R05 rto-retransmission, R06 fast-retransmission, R07 out-of-order-not-loss, R08 asymmetric-loss, R09 reset-mid-transfer, R10 rtt-outlier, R11 dns-failure, R12 tls-handshake-failure, R13 pmtu-blackhole, R14 connection-churn, R15 capture-quality). These fifteen conditions are what this tool looks for; anything outside them was not examined, so a quiet result means these checks found nothing rather than that the capture is healthy. An empty findings list below means
-    these checks found nothing, not that the capture is healthy.
-  </p>
+  
+  <p class="posture">Complete v1 rule set: all 15 rules are implemented (R01 zero-window-stall, R02 syn-unanswered, R03 syn-rejected, R04 server-response-outlier, R05 rto-retransmission, R06 fast-retransmission, R07 out-of-order-not-loss, R08 asymmetric-loss, R09 reset-mid-transfer, R10 rtt-outlier, R11 dns-failure, R12 tls-handshake-failure, R13 pmtu-blackhole, R14 connection-churn, R15 capture-quality). These fifteen conditions are what this tool looks for; anything outside them was not examined, so a quiet result means these checks found nothing rather than that the capture is healthy.</p>
   
   </header>
 
 
 <section>
   <h2>Capture completeness</h2>
-  <p class="section-note">
-    Reduced summary. The full capture-quality assessment — snaplen truncation, offload
-    artifacts, one-way flows, timestamp resolution and multi-interface merges — is R15,
-    which is not implemented in this build. Treat the figures below as what was read,
-    not as a verdict on whether the capture is adequate.
-  </p>
+  
+  <p class="section-note">The capture-quality assessment covers snaplen truncation, the proportion of flows that began before the capture started, segments larger than the MTU (an on-host capture with offload enabled), and flows seen in one direction only. Timestamp resolution and multi-interface merges are not yet assessed. These figures describe what was read, not a verdict on whether the capture was adequate.</p>
 
   <div class="tiles">
     <div class="tile">
@@ -783,11 +777,8 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
       </tbody>
     </table>
   </div>
-  <p class="caption">
-    0 of the fifteen v1 rules are not implemented in this build
-    and were therefore not looked for at all. They are not listed above because listing them
-    as "skipped" would imply a decision was made per capture; none was.
-  </p>
+  
+  
 </section>
 
 <footer>
