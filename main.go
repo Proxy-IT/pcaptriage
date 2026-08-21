@@ -51,7 +51,7 @@ func main() {
 	app := gui.New(version)
 
 	if err := wails.Run(&options.App{
-		Title:  "pcaptriage",
+		Title:  "PCAP Triage",
 		Width:  1080,
 		Height: 800,
 		// Small enough to still be usable on a laptop, large enough that a
@@ -102,7 +102,7 @@ func appMenu(app *gui.App) *menu.Menu {
 		wruntime.EventsEmit(appCtx(app), gui.EventShowGuide)
 	})
 	helpMenu.AddSeparator()
-	helpMenu.AddText("About pcaptriage", nil, func(*menu.CallbackData) {
+	helpMenu.AddText("About PCAP Triage", nil, func(*menu.CallbackData) {
 		wruntime.EventsEmit(appCtx(app), gui.EventShowAbout)
 	})
 

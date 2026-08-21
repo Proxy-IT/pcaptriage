@@ -10,10 +10,10 @@
     "name": "Proxy-IT"
   },
   "info": {
-    "productName": "pcaptriage",
+    "productName": "PCAP Triage",
     "productVersion": "0.2.1.0",
     "companyName": "Proxy-IT",
     "copyright": "Copyright (c) 2026 Proxy-IT — MIT licensed",
-    "comments": "Offline pcap triage — highlights unusual activity in a network capture."
+    "comments": "PCAP Triage — highlights unusual activity in a network capture. Advisory, not diagnostic."
   }
 }

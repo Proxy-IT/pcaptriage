@@ -16,7 +16,7 @@
           "name": "pcaptriage",
           "version": "0.2.1.0"
         },
-        "description": "Offline pcap triage",
+        "description": "PCAP Triage — offline packet capture triage",
         "minimum-os": "win7",
         "execution-level": "as invoker",
         "ui-access": false,
@@ -44,12 +44,12 @@
         "info": {
           "0409": {
             "CompanyName": "Proxy-IT",
-            "FileDescription": "pcaptriage — offline pcap triage",
+            "FileDescription": "PCAP Triage — offline packet capture triage",
             "FileVersion": "0.2.1.0",
             "InternalName": "pcaptriage-gui",
             "LegalCopyright": "Copyright (c) 2026 Proxy-IT — MIT licensed",
             "OriginalFilename": "pcaptriage-gui.exe",
-            "ProductName": "pcaptriage",
+            "ProductName": "PCAP Triage",
             "ProductVersion": "0.2.1.0",
             "Comments": "Highlights unusual activity in a network capture. Advisory, not diagnostic."
           }

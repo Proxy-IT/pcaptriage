@@ -171,7 +171,7 @@ func (a *App) Info() AppInfo {
 		out = append(out, CheckInfo{ID: m.ID, Name: m.Name, Summary: m.Summary})
 	}
 	return AppInfo{
-		Name:           "pcaptriage",
+		Name:           "PCAP Triage",
 		Version:        a.Version,
 		RulesetVersion: report.RulesetVersion,
 		SchemaVersion:  report.SchemaVersion,

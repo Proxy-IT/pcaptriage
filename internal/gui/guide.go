@@ -255,10 +255,10 @@ func (a *App) About() AboutInfo {
 	built := len(rules.AllMeta())
 
 	return AboutInfo{
-		Name:    "pcaptriage",
+		Name:    "PCAP Triage",
 		Tagline: "A second set of eyes for packet captures.",
 		What: []string{
-			"pcaptriage reads a capture file and points out what looks unusual in it, " +
+			"PCAP Triage reads a capture file and points out what looks unusual in it, " +
 				"ranked so the thing most worth your attention is first.",
 			"It is built for the situation where you can open a capture but do not know what " +
 				"to look for, and would not be sure what the answer meant if you found it. " +

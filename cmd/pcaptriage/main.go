@@ -48,7 +48,7 @@ func main() {
 func run(args []string) int {
 	fs := flag.NewFlagSet("pcaptriage", flag.ContinueOnError)
 	fs.Usage = func() {
-		fmt.Fprintf(fs.Output(), `pcaptriage %s — offline pcap triage
+		fmt.Fprintf(fs.Output(), `pcaptriage %s — PCAP Triage, offline packet capture triage
 
 Usage:
   pcaptriage <capture.pcap|capture.pcapng> [flags]
