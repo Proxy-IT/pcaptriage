@@ -8,6 +8,14 @@ README's release section for what to bump when cutting a tag.
 
 ## Unreleased
 
+Nothing yet.
+
+## v0.2.1-alpha — 2026-08-21
+
+Both fixes in this release came from two real captures sent in by outside
+testers. Neither condition was reachable with the synthetic fixtures the tool
+was built against.
+
 ### Added
 
 - **Clipped captures are now reported.** When frames arrive shorter than they
