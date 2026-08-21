@@ -1,0 +1,47 @@
+# Runs the suite on a fresh clone.
+#
+# That is the whole point of this file. Every check here passes on a working
+# tree that already has the files; the failures worth catching are the ones
+# that only appear when the repository is checked out from scratch. The golden
+# files were committed with the wrong line endings for two releases and every
+# HTML golden test would have failed on a clean checkout — nothing ever tried
+# one, because there was no CI.
+#
+# Linux, deliberately, though the product ships on Windows: a different
+# platform is what surfaces assumptions about line endings, path separators and
+# filename case that a Windows-only workflow would share with the machine the
+# code was written on.
+
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      # The engine, the dev CLI and every test are pure Go — nothing in the
+      # module imports "C". Disabling cgo keeps this job from needing the GTK
+      # and WebKit development headers that the Wails desktop backend links
+      # against on Linux. The shipped binary is produced by `wails build` on
+      # Windows, which this workflow does not attempt.
+      CGO_ENABLED: "0"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          # Read from go.mod rather than pinned here, so the two cannot drift.
+          go-version-file: go.mod
+          check-latest: true
+
+      - name: go vet
+        run: go vet ./...
+
+      - name: go test
+        run: go test ./...
