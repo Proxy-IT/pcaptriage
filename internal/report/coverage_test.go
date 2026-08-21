@@ -172,10 +172,33 @@ func TestExportCarriesTheCleanCoverage(t *testing.T) {
 		t.Error("a gappy clean export carries the green banner class")
 	}
 
-	// The unbuilt count is stated from data, not prose that can go stale.
+	// The export must state how much of the rule set does not exist. Which
+	// sentence carries that depends on the answer, so the assertion branches
+	// on it rather than on prose: with a gap, the caption naming the count;
+	// with none, the masthead disclosure saying the set is complete.
+	//
+	// This previously asserted the caption unconditionally, which on a
+	// complete build meant asserting the presence of "0 of the fifteen v1
+	// rules are not implemented in this build" — a sentence about an empty
+	// set, which the report no longer renders.
 	unbuilt := rules.TotalV1Rules - len(rules.AllMeta())
-	if !strings.Contains(body, fmt.Sprintf("%d of the fifteen v1 rules are not implemented", unbuilt)) {
-		t.Error("the export does not state how much of the rule set does not exist")
+	caption := fmt.Sprintf("%d of the fifteen v1 rules are not implemented", unbuilt)
+	if unbuilt > 0 {
+		if !strings.Contains(body, caption) {
+			t.Error("the export does not state how many rules do not exist")
+		}
+	} else {
+		if strings.Contains(body, caption) {
+			t.Error("a complete build renders the unbuilt-checks caption about an empty set")
+		}
+		if !strings.Contains(body, "Complete v1 rule set") {
+			t.Error("the export does not state that the rule set is complete")
+		}
+		// Completeness of the rule set is not completeness of coverage, and
+		// the disclosure has to keep saying so.
+		if !strings.Contains(body, "rather than that the capture is healthy") {
+			t.Error("the complete-set disclosure dropped its caution")
+		}
 	}
 }
 
@@ -200,9 +223,19 @@ func TestExportBannerGreenRequiresStrongCoverage(t *testing.T) {
 //
 // The scan is scoped to the regions the coverage wording renders into — the
 // clean banner and the checks-not-performed section — because that is what the
-// P3 ban governs. The masthead's posture paragraph legitimately contains the
-// word "healthy" in negation ("…not that the capture is healthy"), which a
-// whole-page substring scan cannot tell from a claim.
+// P3 ban governs.
+//
+// It has to stay scoped, because "healthy" appears elsewhere in the report in
+// negation, which a substring scan cannot tell from a claim. That phrase is no
+// longer written in template.html: it now comes from rules.BuildDisclosure,
+// which states it in both branches ("…rather than that the capture is
+// healthy") and renders into the masthead through {{.Doc.Tool.Build}}. The
+// template used to trail its own copy of the sentence after that string, which
+// is how the masthead ended up saying "Partial build." above a disclosure
+// announcing a complete rule set.
+//
+// So the exemption is structural rather than a special case: this test names
+// the two regions it governs and never scans the masthead, whoever writes it.
 func TestExportWordingCarriesNoVerdict(t *testing.T) {
 	// Both clean shapes: a genuinely quiet capture, and one with nothing to
 	// examine at all.
@@ -252,5 +285,53 @@ func assertNoVerdict(t *testing.T, text string) {
 		if strings.Contains(lower, banned) {
 			t.Errorf("wording contains a verdict %q:\n%s", banned, text)
 		}
+	}
+}
+
+// TestCompleteBuildMakesNoPartialClaim is the check that would have caught the
+// two false sentences the day the fifteenth rule landed.
+//
+// Both were hardcoded in template.html and both described a build that no
+// longer existed: a "Partial build." lead-in sitting above a disclosure
+// announcing a complete rule set, and a completeness note calling R15
+// unimplemented while R15 shipped. Nothing tied either to the registry, so
+// they stayed wrong through two releases.
+//
+// The assertion is deliberately about absence rather than about the current
+// wording. Pinning the replacement text would only move the problem: the next
+// sentence to go stale will be a different one, and what has to hold is that
+// a complete build never claims to be partial.
+func TestCompleteBuildMakesNoPartialClaim(t *testing.T) {
+	built := len(rules.AllMeta())
+	if built < rules.TotalV1Rules {
+		t.Skipf("build is partial (%d of %d rules); the partial claims are true here",
+			built, rules.TotalV1Rules)
+	}
+
+	// A real fixture, so this exercises the rendering path a reader sees
+	// rather than a hand-built document that could disagree with it.
+	body := bodyOf(t, render(t, buildFixtureDoc(t, "clean-capture")))
+
+	for _, claim := range []string{
+		"Partial build",
+		"not implemented in this build",
+		// The completeness note's predecessor. Named explicitly because it is
+		// the one that survived longest: it was false about R15 specifically,
+		// which no count-based check would have noticed.
+		"is R15",
+		"Reduced summary",
+	} {
+		if strings.Contains(body, claim) {
+			t.Errorf("a complete build renders %q, which describes a build that does not exist", claim)
+		}
+	}
+
+	// The other direction: having removed the false disclosure, the true one
+	// has to be there. An absence-only test passes on an empty page.
+	if !strings.Contains(body, "Complete v1 rule set") {
+		t.Error("the report does not state that the rule set is complete")
+	}
+	if !strings.Contains(body, "not yet assessed") {
+		t.Error("the report does not name what capture quality does not cover")
 	}
 }

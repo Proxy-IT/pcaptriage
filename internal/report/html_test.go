@@ -302,8 +302,15 @@ func TestEmptyReportStillStatesWhatWasNotChecked(t *testing.T) {
 	if !strings.Contains(html, "Not assessed: something.") {
 		t.Error("coverage gaps must be rendered, not dropped")
 	}
-	if !strings.Contains(html, "not implemented in this build") {
-		t.Error("the report must state that most of the rule set was never run")
+	// The completeness note must name what the capture-quality assessment does
+	// not cover. This assertion used to check for "not implemented in this
+	// build", which pinned in place a sentence claiming R15 was unbuilt long
+	// after it shipped: the test kept the disclosure present while nobody kept
+	// it true. The intent is the same and is the most load-bearing thing this
+	// package asserts — a report that does not disclose its gaps is the false
+	// all-clear the whole tool exists to avoid.
+	if !strings.Contains(html, "not yet assessed") {
+		t.Error("the report must name what the capture-quality assessment does not cover")
 	}
 }
 
